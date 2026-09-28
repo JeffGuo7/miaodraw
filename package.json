@@ -1,0 +1,43 @@
+{
+  "name": "miaodraw",
+  "version": "0.1.0",
+  "description": "妙绘工作台 - AI 图像创作客户端（阿里云百炼驱动）",
+  "main": "./out/main/index.js",
+  "author": "miaodraw",
+  "license": "MIT",
+  "scripts": {
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "app": "npm run build && electron .",
+    "shot": "npm run build && cross-env TEST_MODE=screenshot electron .",
+    "build:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.0.0",
+    "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@huggingface/transformers": "^4.3.0",
+    "antd": "^5.29.0",
+    "dayjs": "^1.11.23",
+    "konva": "^10.7.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-konva": "^19.3.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@types/node": "^22.19.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
+  }
+}

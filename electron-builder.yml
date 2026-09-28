@@ -1,0 +1,18 @@
+appId: com.miaodraw.app
+productName: 妙绘工作台
+directories:
+  buildResources: build
+files:
+  - out/**
+extraResources:
+  - from: library
+    to: library
+    filter: ['**/*']
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 妙绘工作台

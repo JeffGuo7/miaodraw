@@ -1,0 +1,9 @@
+﻿node_modules/
+out/
+dist/
+outputs/
+app.log
+install.log
+*.local
+.DS_Store
+screenshot-*.png
