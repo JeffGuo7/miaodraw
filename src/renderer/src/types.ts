@@ -141,6 +141,7 @@ export interface Api {
   health(): Promise<HealthInfo>
   library(): Promise<LibraryData>
   history(): Promise<HistoryItem[]>
+  historyDelete(name: string): Promise<{ ok: boolean }>
   generate(opts: GenOpts): Promise<GenResult>
   distill(payload: { data: ArrayBuffer; name: string }): Promise<DistillResult>
   getSettings(): Promise<SettingsShape>

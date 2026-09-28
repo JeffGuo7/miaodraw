@@ -6,6 +6,7 @@ import {
   Card,
   Empty,
   Image,
+  Popconfirm,
   Space,
   Tooltip,
   Typography
@@ -13,6 +14,7 @@ import {
 import dayjs from 'dayjs'
 import {
   ControlOutlined,
+  DeleteOutlined,
   DownloadOutlined,
   FolderOpenOutlined,
   ReloadOutlined,
@@ -64,6 +66,16 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
       onDistill(await mediaUrlData(item.url), item.name)
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function removeItem(item: HistoryItem): Promise<void> {
+    try {
+      await window.api.historyDelete(item.name)
+      setItems((old) => old.filter((x) => x.name !== item.name))
+      message.success('已删除该作品')
+    } catch (e) {
+      message.error(`删除失败：${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
@@ -142,6 +154,18 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
                 <Tooltip title="反推提示词">
                   <Button type="text" size="small" icon={<ScanOutlined />} onClick={() => distillItem(it)} />
                 </Tooltip>
+                <Popconfirm
+                  title="删除该作品？"
+                  description="将从作品目录移除图片与其参数文件"
+                  okText="删除"
+                  okButtonProps={{ danger: true }}
+                  cancelText="取消"
+                  onConfirm={() => void removeItem(it)}
+                >
+                  <Tooltip title="删除作品">
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                  </Tooltip>
+                </Popconfirm>
               </Space>
             </Card>
           ))}

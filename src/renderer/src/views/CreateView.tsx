@@ -457,7 +457,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             onClick={doGenerate}
             className="gen-btn"
           >
-            {busy ? `生成中… ${elapsed}s` : '生 成'}
+            {busy ? `生成中… ${elapsed}s` : '生成'}
           </Button>
           <Typography.Text type="secondary" className="tip-text">
             Ctrl + Enter 快速生成 · 出图约 30~60 秒

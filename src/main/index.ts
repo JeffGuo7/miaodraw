@@ -171,7 +171,7 @@ function createWindow(): void {
     icon: fs.existsSync(APP_ICON) ? APP_ICON : undefined,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#f5f5f7',
+      color: '#ffffff',
       symbolColor: '#1d1d1f',
       height: 56
     },
@@ -403,6 +403,19 @@ function registerIpc(): void {
     } catch {
       return []
     }
+  })
+
+  // 删除一条历史：仅限作品目录内的图片文件（含同名参数 sidecar），带目录逃逸校验
+  ipcMain.handle('history:delete', async (_e, name: string) => {
+    if (!name || typeof name !== 'string') throw new Error('参数无效')
+    if (name.includes('/') || name.includes('\\') || name.includes('..')) throw new Error('文件名不合法')
+    if (!/\.(png|jpe?g|webp)$/i.test(name)) throw new Error('只能删除图片作品')
+    const abs = path.resolve(OUT_DIR, name)
+    if (!abs.startsWith(path.resolve(OUT_DIR) + path.sep)) throw new Error('越界路径')
+    if (!fs.existsSync(abs)) return { ok: true } // 已不存在视为成功
+    await fsp.unlink(abs)
+    await fsp.rm(`${abs}.json`, { force: true })
+    return { ok: true }
   })
 
   ipcMain.handle('generate', async (_e, raw: GenOpts & { provider?: string; runId?: string }) => {

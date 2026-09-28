@@ -972,15 +972,11 @@ body {
 
 /* 生成主按钮：品牌渐变 + hover 光晕 */
 .gen-btn.ant-btn-primary {
-  background: var(--brand-grad);
-  border: none;
-  box-shadow: 0 4px 14px rgba(91, 140, 255, 0.4);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  transition: transform 0.15s ease, filter 0.2s ease;
 }
 
 .gen-btn.ant-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
-  box-shadow: 0 6px 20px rgba(120, 110, 250, 0.5);
   transform: translateY(-1px);
 }
 

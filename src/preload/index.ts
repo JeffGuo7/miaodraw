@@ -13,6 +13,7 @@ const api = {
   health: (): Promise<HealthInfo> => ipcRenderer.invoke('health'),
   library: (): Promise<unknown> => ipcRenderer.invoke('library'),
   history: (): Promise<unknown> => ipcRenderer.invoke('history'),
+  historyDelete: (name: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('history:delete', name),
   generate: (opts: unknown): Promise<unknown> => ipcRenderer.invoke('generate', opts),
   distill: (payload: { data: ArrayBuffer; name: string }): Promise<unknown> =>
     ipcRenderer.invoke('distill', payload),
