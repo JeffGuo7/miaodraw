@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { App as AntdApp, Badge, Layout, Menu, Tooltip, Typography } from 'antd'
+import { App as AntdApp, Badge, Button, Layout, Menu, Tooltip, Typography } from 'antd'
 import {
   AppstoreOutlined,
   BlockOutlined,
@@ -193,9 +193,14 @@ export default function App(): JSX.Element {
               <Badge
                 status={health ? (health.ok ? 'success' : 'error') : 'default'}
                 text={
-                  <span className="status-text" onClick={refreshHealth}>
+                  <Button
+                    type="text"
+                    size="small"
+                    className="status-text"
+                    onClick={refreshHealth}
+                  >
                     {health ? (health.ok ? `引擎在线 · ${health.version}` : '引擎离线') : '检测引擎…'}
-                  </span>
+                  </Button>
                 }
               />
             </Tooltip>

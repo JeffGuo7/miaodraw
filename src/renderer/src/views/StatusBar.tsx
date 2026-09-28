@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useEffect, useState } from 'react'
-import { Badge, Tooltip } from 'antd'
+import { Badge, Button, Tooltip } from 'antd'
 import { FolderOpenOutlined, SearchOutlined } from '@ant-design/icons'
 import { providerLabel } from '../models'
 
@@ -50,14 +50,14 @@ export default function StatusBar({
       </span>
       <div className="toolbar-spacer" />
       <Tooltip title="全局搜索（Ctrl + K）">
-        <button className="sb-btn" onClick={onOpenPalette}>
-          <SearchOutlined /> 搜索
-        </button>
+        <Button type="text" size="small" className="sb-btn" icon={<SearchOutlined />} onClick={onOpenPalette}>
+          搜索
+        </Button>
       </Tooltip>
       <Tooltip title="打开作品目录">
-        <button className="sb-btn" onClick={() => void window.api.openPath('outputs')}>
-          <FolderOpenOutlined /> 作品
-        </button>
+        <Button type="text" size="small" className="sb-btn" icon={<FolderOpenOutlined />} onClick={() => void window.api.openPath('outputs')}>
+          作品
+        </Button>
       </Tooltip>
       <span className="sb-sep" />
       <span className="sb-text">v{version || '0.1.0'}</span>

@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import { useRef, useState } from 'react'
+import { DoubleLeftOutlined, DoubleRightOutlined } from '@ant-design/icons'
 
 export default function CompareSlider({ before, after }: { before: string; after: string }): JSX.Element {
   const [pos, setPos] = useState(50)
@@ -28,7 +29,10 @@ export default function CompareSlider({ before, after }: { before: string; after
         <img src={before} alt="before" draggable={false} />
       </div>
       <div className="cmp-handle" style={{ left: `${pos}%` }}>
-        <span className="cmp-knob">‹ ›</span>
+        <span className="cmp-knob">
+          <DoubleLeftOutlined style={{ fontSize: 10 }} />
+          <DoubleRightOutlined style={{ fontSize: 10, marginLeft: 3 }} />
+        </span>
       </div>
       <span className="cmp-tag l">前</span>
       <span className="cmp-tag r">后</span>

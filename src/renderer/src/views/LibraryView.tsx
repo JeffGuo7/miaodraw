@@ -117,15 +117,17 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
     (favKey: string | null, favBase?: Omit<FavItem, 'savedAt'>): JSX.Element =>
       favKey ? (
         <Tooltip title={favKeys.has(favKey) ? '取消收藏' : '收藏'}>
-          <button
+          <Button
+            type="text"
+            shape="circle"
+            size="small"
             className={`lib-card-fav${favKeys.has(favKey) ? ' on' : ''}`}
+            icon={favKeys.has(favKey) ? <HeartFilled /> : <HeartOutlined />}
             onClick={(e) => {
               e.stopPropagation()
               if (favBase) void toggleFav(favBase)
             }}
-          >
-            {favKeys.has(favKey) ? <HeartFilled /> : <HeartOutlined />}
-          </button>
+          />
         </Tooltip>
       ) : (
         <></>

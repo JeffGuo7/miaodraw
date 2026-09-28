@@ -1,11 +1,12 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Text as KText, Rect, Transformer } from 'react-konva'
-import { App as AntdApp, Button, Card, Col, Input, Popconfirm, Row, Select, Slider, Space, Tag, Tooltip, Typography } from 'antd'
+import { App as AntdApp, Button, Card, Col, ColorPicker, Input, Menu, Popconfirm, Row, Select, Slider, Space, Tag, Tooltip, Typography, Upload } from 'antd'
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   BlockOutlined,
+  CompressOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EyeInvisibleOutlined,
@@ -13,7 +14,9 @@ import {
   FileImageOutlined,
   RedoOutlined,
   ScanOutlined,
-  UndoOutlined
+  UndoOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined
 } from '@ant-design/icons'
 import type { HistoryItem } from '../types'
 
@@ -31,6 +34,7 @@ interface CompLayer {
   opacity: number
   visible: boolean
   fontSize?: number
+  fill?: string
 }
 
 interface Snapshot {
@@ -74,7 +78,6 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   const trRef = useRef<any>(null)
   const undoStack = useRef<Snapshot[]>([])
   const redoStack = useRef<Snapshot[]>([])
-  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (visible) void window.api.history().then(setHistoryItems).catch(() => undefined)
@@ -172,7 +175,8 @@ export default function ComposeView({ visible }: Props): JSX.Element {
       rotation: 0,
       opacity: 1,
       visible: true,
-      fontSize: 64
+      fontSize: 64,
+      fill: '#1d1d1f'
     }
     commit([...layers, layer])
     setSelected(layer.id)
@@ -198,6 +202,20 @@ export default function ComposeView({ visible }: Props): JSX.Element {
     const next = layers.map((l) => (l.id === id ? { ...l, ...patch } : l))
     if (history) commit(next)
     else setLayers(next)
+  }
+
+  // 滑条/取色器：一次连续拖动只记一条撤销历史（首次变更入栈，结束时复位）
+  const dragging = useRef(false)
+  function liveUpdate(id: string, patch: Partial<CompLayer>): void {
+    if (!dragging.current) {
+      dragging.current = true
+      updateLayer(id, patch, true)
+    } else {
+      updateLayer(id, patch)
+    }
+  }
+  function endLiveUpdate(): void {
+    dragging.current = false
   }
 
   const selectedLayer = layers.find((l) => l.id === selected) ?? null
@@ -348,33 +366,24 @@ export default function ComposeView({ visible }: Props): JSX.Element {
               notFoundContent="作品目录为空"
             />
             <Space wrap>
-              <Button icon={<FileImageOutlined />} onClick={() => fileRef.current?.click()}>
-                本地图片
-              </Button>
+              <Upload
+                accept="image/*"
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={(f) => {
+                  const reader = new FileReader()
+                  reader.onload = () => void addImage(String(reader.result), f.name)
+                  reader.onerror = () => message.error('读取失败')
+                  reader.readAsDataURL(f)
+                  return false
+                }}
+              >
+                <Button icon={<FileImageOutlined />}>本地图片</Button>
+              </Upload>
               <Button icon={<BlockOutlined />} onClick={addText}>
                 文字
               </Button>
             </Space>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) void mediaUrlToFileLocal(f)
-                e.target.value = ''
-                async function mediaUrlToFileLocal(file: File): Promise<void> {
-                  const dataUrl = await new Promise<string>((resolve, reject) => {
-                    const fr = new FileReader()
-                    fr.onload = () => resolve(String(fr.result))
-                    fr.onerror = () => reject(new Error('读取失败'))
-                    fr.readAsDataURL(file)
-                  })
-                  await addImage(dataUrl, file.name)
-                }
-              }}
-            />
           </Space>
         </Card>
 
@@ -404,42 +413,74 @@ export default function ComposeView({ visible }: Props): JSX.Element {
               图层从上往下排列，先加的在底层
             </Typography.Text>
           ) : (
-            <div className="layer-list">
-              {[...layers].reverse().map((l) => (
-                <div
-                  key={l.id}
-                  className={`layer-item${selected === l.id ? ' on' : ''}`}
-                  onClick={() => setSelected(l.id)}
-                >
-                  <span className="layer-name">{l.type === 'text' ? `T ${l.name}` : l.name}</span>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={l.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      updateLayer(l.id, { visible: !l.visible }, true)
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            <Menu
+              mode="inline"
+              className="layer-menu"
+              selectedKeys={selected ? [selected] : []}
+              onClick={({ key }) => setSelected(key)}
+              items={[...layers].reverse().map((l) => ({
+                key: l.id,
+                label: (
+                  <span className="layer-row">
+                    <span className="layer-name">{l.type === 'text' ? `T ${l.name}` : l.name}</span>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={l.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        updateLayer(l.id, { visible: !l.visible }, true)
+                      }}
+                    />
+                  </span>
+                )
+              }))}
+            />
           )}
         </Card>
 
-        {selectedLayer?.type === 'text' && (
-          <Card title="文字属性" size="small" styles={{ body: { padding: 12 } }} style={{ marginTop: 14 }}>
-            <Input
-              value={selectedLayer.text ?? ''}
-              onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
-              placeholder="文案"
-            />
-            <Typography.Text className="field-label">字号</Typography.Text>
+        {selectedLayer && (
+          <Card title="图层属性" size="small" styles={{ body: { padding: 12 } }} style={{ marginTop: 14 }}>
+            {selectedLayer.type === 'text' && (
+              <>
+                <Typography.Text className="field-label">文案</Typography.Text>
+                <Input
+                  value={selectedLayer.text ?? ''}
+                  onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
+                  placeholder="输入文字内容"
+                />
+                <Typography.Text className="field-label">字号 · {selectedLayer.fontSize ?? 64}</Typography.Text>
+                <Slider
+                  min={16}
+                  max={240}
+                  value={selectedLayer.fontSize ?? 64}
+                  onChange={(v) => liveUpdate(selectedLayer.id, { fontSize: v })}
+                  onChangeComplete={endLiveUpdate}
+                />
+                <Typography.Text className="field-label">颜色</Typography.Text>
+                <ColorPicker
+                  value={selectedLayer.fill ?? '#1d1d1f'}
+                  onChange={(c) => liveUpdate(selectedLayer.id, { fill: c.toHexString() })}
+                  onChangeComplete={endLiveUpdate}
+                  showText
+                />
+              </>
+            )}
+            <Typography.Text className="field-label">透明度 · {Math.round(selectedLayer.opacity * 100)}%</Typography.Text>
             <Slider
-              min={16}
-              max={240}
-              value={selectedLayer.fontSize ?? 64}
-              onChange={(v) => updateLayer(selectedLayer.id, { fontSize: v })}
+              min={5}
+              max={100}
+              value={Math.round(selectedLayer.opacity * 100)}
+              onChange={(v) => liveUpdate(selectedLayer.id, { opacity: v / 100 })}
+              onChangeComplete={endLiveUpdate}
+            />
+            <Typography.Text className="field-label">旋转 · {Math.round(selectedLayer.rotation)}°</Typography.Text>
+            <Slider
+              min={-180}
+              max={180}
+              value={Math.round(selectedLayer.rotation)}
+              onChange={(v) => liveUpdate(selectedLayer.id, { rotation: v })}
+              onChangeComplete={endLiveUpdate}
             />
           </Card>
         )}
@@ -464,15 +505,17 @@ export default function ComposeView({ visible }: Props): JSX.Element {
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               显示 {Math.round(viewScale * 100)}% · 导出 {canvasSize.w}×{canvasSize.h}
             </Typography.Text>
-            <Button size="small" onClick={() => setViewScale((v) => Math.min(1.5, v + 0.1))}>
-              +
-            </Button>
-            <Button size="small" onClick={() => setViewScale((v) => Math.max(0.15, v - 0.1))}>
-              −
-            </Button>
-            <Button size="small" onClick={() => setViewScale(0.5)}>
-              适配
-            </Button>
+            <Space size={6}>
+              <Tooltip title="放大">
+                <Button size="small" type="text" icon={<ZoomInOutlined />} onClick={() => setViewScale((v) => Math.min(1.5, v + 0.1))} />
+              </Tooltip>
+              <Tooltip title="缩小">
+                <Button size="small" type="text" icon={<ZoomOutOutlined />} onClick={() => setViewScale((v) => Math.max(0.15, v - 0.1))} />
+              </Tooltip>
+              <Tooltip title="适配窗口">
+                <Button size="small" type="text" icon={<CompressOutlined />} onClick={() => setViewScale(0.5)} />
+              </Tooltip>
+            </Space>
             {pickMode ? (
               <>
                 <Tag color="processing" style={{ margin: 0 }}>
@@ -586,7 +629,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                         fontSize={l.fontSize ?? 64}
                         fontFamily="PingFang SC, Microsoft YaHei, sans-serif"
                         fontStyle="bold"
-                        fill="#1d1d1f"
+                        fill={l.fill ?? '#1d1d1f'}
                         opacity={l.opacity}
                         rotation={l.rotation}
                         draggable

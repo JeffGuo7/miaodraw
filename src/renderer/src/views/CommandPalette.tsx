@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Empty, Input, Modal, Spin, Typography } from 'antd'
+import { Empty, Input, Menu, Modal, Spin, Typography } from 'antd'
 import {
   AppstoreOutlined,
   EditOutlined,
@@ -119,7 +119,9 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
   }
 
   useEffect(() => {
-    listRef.current?.querySelector('.pal-item.on')?.scrollIntoView({ block: 'nearest' })
+    listRef.current
+      ?.querySelector('.ant-menu-item-selected')
+      ?.scrollIntoView({ block: 'nearest' })
   }, [active])
 
   return (
@@ -138,26 +140,28 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
           {items.length === 0 ? (
             <Empty description="没有匹配结果" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ margin: '24px 0' }} />
           ) : (
-            items.map((it, i) => (
-              <div
-                key={it.key}
-                className={`pal-item${i === active ? ' on' : ''}`}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => run(it)}
-              >
-                <span className="pal-icon">{it.icon}</span>
-                <span className="pal-label">
-                  <Typography.Text ellipsis style={{ maxWidth: 420 }}>
-                    {it.label}
-                  </Typography.Text>
-                  {it.hint && (
-                    <Typography.Text type="secondary" className="pal-hint" ellipsis>
-                      {it.hint}
+            <Menu
+              mode="inline"
+              className="pal-menu"
+              selectedKeys={[items[active]?.key]}
+              items={items.map((it, i) => ({
+                key: it.key,
+                icon: it.icon,
+                label: (
+                  <span className="pal-label" onMouseEnter={() => setActive(i)}>
+                    <Typography.Text ellipsis style={{ maxWidth: 420 }}>
+                      {it.label}
                     </Typography.Text>
-                  )}
-                </span>
-              </div>
-            ))
+                    {it.hint && (
+                      <Typography.Text type="secondary" className="pal-hint" ellipsis>
+                        {it.hint}
+                      </Typography.Text>
+                    )}
+                  </span>
+                )
+              }))}
+              onClick={({ key }) => run(items.find((x) => x.key === key))}
+            />
           )}
         </div>
         {!lib && (
