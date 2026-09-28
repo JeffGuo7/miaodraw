@@ -8,15 +8,28 @@
 - **灵感库**：内置约 2000 个提示词案例（含示例图），分类 / 搜索 / 分页，一键"用提示词创作 / 以此图作参考 / 蒸馏"
 - **提示词反推**：任意图片 → qwen3-vl-plus 视觉模型反推出通用提示词，可粘贴到 Midjourney / 即梦 / SD 等任意生图产品
 - **历史记录**：本地作品回看、保存、打开位置、再次创作
+- **免安装**：发布安装包内置百炼 CLI，用户无需安装 Node.js / bailian-cli，填密钥即用
 
 ## 前置条件
 
-以下两种方式二选一即可（推荐方式 1，零命令行门槛）：
+**发布安装包（推荐）**：双击安装即可用，打开妙绘 → 设置 → 「百炼密钥」粘贴密钥就能出图，不需要装 Node、不需要命令行。
 
-1. **应用内密钥（免登录）**：打开妙绘 → 设置 → 「百炼密钥」，粘贴百炼 API Key（`sk-` 开头）或 Token Plan 订阅密钥（`sk-sp-` 开头），保存即用。密钥经 Electron safeStorage（Windows DPAPI）加密后保存在本机 settings.json，运行时仅注入子进程环境变量 `DASHSCOPE_API_KEY`，不写入 `~/.bailian`，与命令行登录态互不干扰
-2. **命令行登录态**：`npm i -g bailian-cli && bl auth login`（应用内未配密钥时自动沿用）
+**开发环境运行**需自行安装百炼 CLI（或同样在应用内填密钥）：`npm i -g bailian-cli && bl auth login`。
+
+密钥两种来源二选一（推荐方式 1，零命令行）：
+
+1. **应用内密钥（免登录）**：设置 → 「百炼密钥」，粘贴百炼 API Key（`sk-` 开头）或 Token Plan 订阅密钥（`sk-sp-` 开头），保存即用。密钥经 Electron safeStorage（Windows DPAPI）加密后保存在本机 settings.json，运行时仅注入子进程环境变量 `DASHSCOPE_API_KEY`，不写入 `~/.bailian`，与命令行登录态互不干扰
+2. **命令行登录态**：`bl auth login`（应用内未配密钥时自动沿用）
 
 > Token Plan 订阅密钥会被 CLI 自动识别并路由到订阅端点；订阅未包含的模型会返回明确错误提示。
+
+## 内置 CLI（方案B）
+
+- `npm run vendor`：把全局 bailian-cli 复制为 `vendor/bailian-cli` 并压成 `vendor/bailian-cli.zip`（~5.7MB，gitignore 已排除）
+- `npm run build:win` 自动先执行 vendor，zip 经 extraResources 进入安装包 `resources/vendor/`
+- **为什么用 zip**：electron-builder 的全局排除规则会剪掉 extraResources 内的 `node_modules`，整包压缩为单文件可绕开该限制
+- 应用首启时用系统 `tar.exe`（Win10+ 自带）解包到 `%APPDATA%/miaodraw/cli/`；解包或检测失败自动回退全局安装 → PATH，三级兜底
+- 开发态：`npm run vendor` 后直接 `npm run dev`，主进程优先使用 `vendor/bailian-cli/`
 
 ## 运行
 

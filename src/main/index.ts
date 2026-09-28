@@ -3,7 +3,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import { blHealth, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, type GenOpts } from './bl'
+import { spawnSync } from 'node:child_process'
+import { blHealth, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
@@ -356,6 +357,7 @@ function registerIpc(): void {
       ok: bl.ok,
       version: bl.version,
       entry: bl.entry,
+      bundled: bl.bundled,
       hasKey: hasBailianKey(),
       libraryReady: fs.existsSync(LIB_ROOT),
       outputsDir: OUT_DIR
@@ -636,8 +638,36 @@ function registerIpc(): void {
   })
 }
 
+// ---------- 内置百炼 CLI（方案B） ----------
+// 打包态：resources/vendor/bailian-cli.zip 首启解包到 userData/cli（zip 整包绕开
+// electron-builder 对 node_modules 的全局排除）；开发态：直接用 vendor/bailian-cli 目录。
+const SYSTEM_TAR = process.env.SystemRoot
+  ? path.join(process.env.SystemRoot, 'System32', 'tar.exe')
+  : 'tar'
+
+function ensureBundledCli(): string {
+  if (!isPackaged) {
+    const p = path.join(APP_ROOT, 'vendor', 'bailian-cli', 'dist', 'bailian.mjs')
+    return fs.existsSync(p) ? p : ''
+  }
+  const zip = path.join(process.resourcesPath, 'vendor', 'bailian-cli.zip')
+  if (!fs.existsSync(zip)) return ''
+  const target = path.join(app.getPath('userData'), 'cli')
+  const entry = path.join(target, 'bailian-cli', 'dist', 'bailian.mjs')
+  if (fs.existsSync(entry)) return entry
+  try {
+    fs.mkdirSync(target, { recursive: true })
+    const r = spawnSync(SYSTEM_TAR, ['-xf', zip, '-C', target], { windowsHide: true, timeout: 120000 })
+    return r.status === 0 && fs.existsSync(entry) ? entry : ''
+  } catch {
+    return ''
+  }
+}
+
 // ---------- 生命周期 ----------
 app.whenReady().then(() => {
+  // 方案B：内置百炼 CLI（zip 随包分发、首启解包）；缺失时自动回退全局安装
+  setBlVendorEntry(ensureBundledCli())
   initBailianKey()
   protocol.handle('media', (req) => {
     const abs = parseMediaUrl(req.url)

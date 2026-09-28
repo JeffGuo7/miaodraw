@@ -8,6 +8,8 @@ extraResources:
   - from: library
     to: library
     filter: ['**/*']
+  - from: vendor/bailian-cli.zip
+    to: vendor/bailian-cli.zip
 win:
   target:
     - nsis

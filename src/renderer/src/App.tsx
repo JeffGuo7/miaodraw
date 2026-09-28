@@ -96,7 +96,7 @@ export default function App(): JSX.Element {
     window.api
       .health()
       .then(setHealth)
-      .catch(() => setHealth({ ok: false, version: '', entry: '', hasKey: false, libraryReady: false, outputsDir: '' }))
+      .catch(() => setHealth({ ok: false, version: '', entry: '', bundled: false, hasKey: false, libraryReady: false, outputsDir: '' }))
   }, [])
 
   useEffect(() => {

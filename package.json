@@ -14,7 +14,8 @@
     "build": "npm run typecheck && electron-vite build",
     "app": "npm run build && electron .",
     "shot": "npm run build && cross-env TEST_MODE=screenshot electron .",
-    "build:win": "npm run build && electron-builder --win"
+    "vendor": "node scripts/vendor-cli.cjs",
+    "build:win": "npm run build && npm run vendor && electron-builder --win"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

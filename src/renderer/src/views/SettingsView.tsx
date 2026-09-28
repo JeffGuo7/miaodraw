@@ -217,6 +217,15 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
             )}
           </Descriptions.Item>
           <Descriptions.Item label="版本">{health?.version || '—'}</Descriptions.Item>
+          <Descriptions.Item label="安装形态">
+            {health?.bundled ? (
+              <Tag color="green">随应用内置 · 用户免装环境</Tag>
+            ) : health ? (
+              <Tag>本机全局安装</Tag>
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="CLI 路径">
             <Typography.Text copyable style={{ fontSize: 12 }}>
               {health?.entry || '—'}

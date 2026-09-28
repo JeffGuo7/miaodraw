@@ -10,8 +10,19 @@ const BL_ENTRY_CANDIDATES = [
   'C:\\nvm4w\\nodejs\\node_modules\\@aliyun\\bailian-cli\\dist\\bailian.mjs'
 ]
 
+// ---------- 内置 CLI（方案B：随安装包分发，用户免装 Node/bailian-cli） ----------
+// 主进程启动时注入内置副本入口路径；优先级：BL_ENTRY 环境变量 > 内置 > 全局安装 > PATH 兜底。
+let vendorEntry = ''
+export function setBlVendorEntry(p: string): void {
+  vendorEntry = p
+}
+export function usingBundledCli(): boolean {
+  return !!vendorEntry && blEntry() === vendorEntry && fs.existsSync(vendorEntry)
+}
+
 export function blEntry(): string {
   if (process.env.BL_ENTRY && fs.existsSync(process.env.BL_ENTRY)) return process.env.BL_ENTRY
+  if (vendorEntry && fs.existsSync(vendorEntry)) return vendorEntry
   for (const c of BL_ENTRY_CANDIDATES) if (fs.existsSync(c)) return c
   return 'bl' // 兜底走 PATH（spawn shell:true）
 }
@@ -74,14 +85,15 @@ export async function blUpdate(): Promise<{ ok: boolean; out: string }> {
   return { ok: r.code === 0, out: (r.stdout + '\n' + r.stderr).trim().slice(-800) }
 }
 
-export async function blHealth(): Promise<{ ok: boolean; version: string; entry: string }> {
+export async function blHealth(): Promise<{ ok: boolean; version: string; entry: string; bundled: boolean }> {
   const entry = blEntry()
+  const bundled = usingBundledCli()
   try {
     const r = await runBl(['--version'], 20000)
     const version = r.stdout.trim().split(/\r?\n/).pop()?.trim() ?? ''
-    return { ok: r.code === 0 && version.length > 0, version, entry }
+    return { ok: r.code === 0 && version.length > 0, version, entry, bundled }
   } catch {
-    return { ok: false, version: '', entry }
+    return { ok: false, version: '', entry, bundled }
   }
 }
 

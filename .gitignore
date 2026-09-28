@@ -1,9 +1,11 @@
 ﻿node_modules/
 out/
 dist/
+vendor/
 outputs/
 app.log
 install.log
 *.local
 .DS_Store
 screenshot-*.png
+shot-*.png

@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 interface HealthInfo {
   ok: boolean
   version: string
+  bundled: boolean
   hasKey: boolean
   libraryReady: boolean
   outputsDir: string

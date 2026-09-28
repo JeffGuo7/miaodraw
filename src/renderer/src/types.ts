@@ -2,6 +2,7 @@ export interface HealthInfo {
   ok: boolean
   version: string
   entry: string
+  bundled: boolean
   hasKey: boolean
   libraryReady: boolean
   outputsDir: string
