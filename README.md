@@ -11,8 +11,12 @@
 
 ## 前置条件
 
-1. 已安装 Node.js（开发机为 v24）
-2. 已安装并登录百炼 CLI：`npm i -g bailian-cli && bl auth login`
+以下两种方式二选一即可（推荐方式 1，零命令行门槛）：
+
+1. **应用内密钥（免登录）**：打开妙绘 → 设置 → 「百炼密钥」，粘贴百炼 API Key（`sk-` 开头）或 Token Plan 订阅密钥（`sk-sp-` 开头），保存即用。密钥经 Electron safeStorage（Windows DPAPI）加密后保存在本机 settings.json，运行时仅注入子进程环境变量 `DASHSCOPE_API_KEY`，不写入 `~/.bailian`，与命令行登录态互不干扰
+2. **命令行登录态**：`npm i -g bailian-cli && bl auth login`（应用内未配密钥时自动沿用）
+
+> Token Plan 订阅密钥会被 CLI 自动识别并路由到订阅端点；订阅未包含的模型会返回明确错误提示。
 
 ## 运行
 
@@ -60,7 +64,7 @@ npm run build:win
 
 - **无本地 HTTP 服务**：渲染进程通过 IPC 与主进程通信，图片通过自定义 `media://` 协议展示（带目录逃逸校验）
 - **案例库**：`library/` 目录（libA 精选 md 案例 + libB 全能 json 案例），打包时经 extraResources 随应用分发
-- **验收测试**：`npm run shot`（构建 + 截图退出）；`SHOT_VIEW=library|distill|history`、`SHOT_GEN=1`、`SHOT_DISTILL=1` 可做分页面 / 全链路自动验收
+- **验收测试**：`npm run shot`（构建 + 截图退出）；`SHOT_VIEW=library|distill|history`、`SHOT_GEN=1`、`SHOT_DISTILL=1`、`SHOT_KEY=1` 可做分页面 / 全链路 / 密钥链路自动验收
 
 ## 配置
 

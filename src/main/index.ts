@@ -1,9 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog, safeStorage } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import { blHealth, generate, distill, runBl, type GenOpts } from './bl'
+import { blHealth, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
@@ -83,6 +83,9 @@ interface Settings {
   onboarded?: string
   providers?: Record<string, { apiKey?: string }>
   activeModel?: { provider: string; model: string }
+  /** 百炼密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64 并提示） */
+  bailianKeyEnc?: string
+  bailianKeyPlain?: boolean
 }
 function readSettings(): Settings {
   try {
@@ -99,6 +102,35 @@ function writeSettings(patch: Settings): Settings {
   fs.mkdirSync(path.dirname(SETTINGS_FILE()), { recursive: true })
   fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(next, null, 2))
   return next
+}
+
+// ---------- 百炼密钥（应用内配置，免 bl auth login） ----------
+function encryptKey(plain: string): { enc: string; plainFallback: boolean } {
+  if (safeStorage.isEncryptionAvailable()) {
+    return { enc: safeStorage.encryptString(plain).toString('base64'), plainFallback: false }
+  }
+  return { enc: Buffer.from(plain, 'utf-8').toString('base64'), plainFallback: true }
+}
+function decryptKey(s: Settings): string {
+  if (!s.bailianKeyEnc) return ''
+  try {
+    if (s.bailianKeyPlain || !safeStorage.isEncryptionAvailable()) {
+      return Buffer.from(s.bailianKeyEnc, 'base64').toString('utf-8')
+    }
+    return safeStorage.decryptString(Buffer.from(s.bailianKeyEnc, 'base64'))
+  } catch {
+    return ''
+  }
+}
+function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-plan' | 'ordinary' | 'unknown'; plainFallback: boolean } {
+  const key = decryptKey(readSettings())
+  if (!key) return { configured: false, masked: '', plan: 'unknown', plainFallback: false }
+  const plan = key.startsWith('sk-sp-') ? 'token-plan' : key.startsWith('sk-') ? 'ordinary' : 'unknown'
+  const masked = key.length <= 8 ? '••••' : `${key.slice(0, 6)}••••${key.slice(-4)}`
+  return { configured: true, masked, plan, plainFallback: !!readSettings().bailianKeyPlain }
+}
+function initBailianKey(): void {
+  setBailianKey(decryptKey(readSettings()))
 }
 
 // ---------- 收藏 ----------
@@ -268,6 +300,25 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] compose:', r)
   }
+  if (process.env.SHOT_KEY === '1') {
+    // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const out = {}
+        try {
+          const info = await window.api.bailianKeyGet()
+          out.configured = info.configured
+          out.plan = info.plan
+          out.masked = info.configured ? info.masked.replace(/[^•]/g, '*') : ''
+          const h = await window.api.health()
+          out.hasKeyFlag = h.hasKey
+        } catch (e) { out.err = e.message }
+        return JSON.stringify(out)
+      })()`
+    )
+    console.log('[shot] key:', r)
+    await new Promise((r2) => setTimeout(r2, 500))
+  }
   if (process.env.SHOT_SEG === '1') {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
@@ -304,6 +355,8 @@ function registerIpc(): void {
     return {
       ok: bl.ok,
       version: bl.version,
+      entry: bl.entry,
+      hasKey: hasBailianKey(),
       libraryReady: fs.existsSync(LIB_ROOT),
       outputsDir: OUT_DIR
     }
@@ -429,8 +482,42 @@ function registerIpc(): void {
     return distill(payload.data, payload.name || 'image.png')
   })
 
-  ipcMain.handle('settings:get', () => readSettings())
-  ipcMain.handle('settings:set', (_e, patch: Settings) => writeSettings(patch))
+  ipcMain.handle('settings:get', () => {
+    const s = readSettings()
+    // 密文绝不回显到渲染进程
+    const { bailianKeyEnc: _drop, bailianKeyPlain: __drop, ...pub } = s
+    return pub
+  })
+  ipcMain.handle('settings:set', (_e, patch: Settings) => {
+    if (patch && ('bailianKeyEnc' in patch || 'bailianKeyPlain' in patch)) {
+      throw new Error('密钥字段请使用 bailian-key:set 接口')
+    }
+    return writeSettings(patch)
+  })
+
+  // ---------- 百炼密钥管理 ----------
+  ipcMain.handle('bailian-key:get', () => bailianKeyInfo())
+  ipcMain.handle('bailian-key:set', (_e, key: string) => {
+    const plain = String(key || '').trim()
+    if (!plain) return { ok: false as const, err: '密钥不能为空' }
+    if (/\s/.test(plain)) {
+      return { ok: false as const, err: '密钥中间包含空格或换行，请重新完整复制粘贴' }
+    }
+    // 不强制 sk- 前缀：密钥格式以百炼官方签发为准，有效性交给「测试连通」验证
+    const { enc, plainFallback } = encryptKey(plain)
+    writeSettings({ bailianKeyEnc: enc, bailianKeyPlain: plainFallback })
+    setBailianKey(plain)
+    return { ok: true as const, info: bailianKeyInfo(), plainFallback }
+  })
+  ipcMain.handle('bailian-key:clear', () => {
+    writeSettings({ bailianKeyEnc: undefined, bailianKeyPlain: undefined })
+    setBailianKey('')
+    return bailianKeyInfo()
+  })
+  ipcMain.handle('bailian-key:test', async () => {
+    if (!hasBailianKey()) return { ok: false, out: '尚未配置百炼密钥，请先填写并保存' }
+    return bailianAuthTest()
+  })
 
   ipcMain.handle('favorites:list', () => readFavorites().sort((a, b) => b.savedAt - a.savedAt))
   ipcMain.handle('favorites:toggle', (_e, item: Omit<FavItem, 'savedAt'>) => {
@@ -551,6 +638,7 @@ function registerIpc(): void {
 
 // ---------- 生命周期 ----------
 app.whenReady().then(() => {
+  initBailianKey()
   protocol.handle('media', (req) => {
     const abs = parseMediaUrl(req.url)
     if (!abs) return new Response('not found', { status: 404 })

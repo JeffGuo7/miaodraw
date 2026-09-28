@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 interface HealthInfo {
   ok: boolean
   version: string
+  hasKey: boolean
   libraryReady: boolean
   outputsDir: string
 }
@@ -28,6 +29,21 @@ const api = {
   openPath: (kind: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('open:path', kind),
   testProvider: (provider: string): Promise<{ ok: boolean; out: string }> =>
     ipcRenderer.invoke('test:provider', provider),
+  bailianKeyGet: (): Promise<{
+    configured: boolean
+    masked: string
+    plan: 'token-plan' | 'ordinary' | 'unknown'
+    plainFallback: boolean
+  }> => ipcRenderer.invoke('bailian-key:get'),
+  bailianKeySet: (
+    key: string
+  ): Promise<
+    | { ok: true; info: { configured: boolean; masked: string; plan: string; plainFallback: boolean }; plainFallback: boolean }
+    | { ok: false; err: string }
+  > => ipcRenderer.invoke('bailian-key:set', key),
+  bailianKeyClear: (): Promise<{ configured: boolean; masked: string; plan: string; plainFallback: boolean }> =>
+    ipcRenderer.invoke('bailian-key:clear'),
+  bailianKeyTest: (): Promise<{ ok: boolean; out: string }> => ipcRenderer.invoke('bailian-key:test'),
   composeSave: (payload: { dataUrl: string; width: number; height: number }): Promise<{ name: string; url: string }> =>
     ipcRenderer.invoke('compose:save', payload),
   segmentMask: (

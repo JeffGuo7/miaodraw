@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
+  Alert,
   Badge,
   Button,
   Card,
@@ -9,10 +10,17 @@ import {
   Input,
   Popconfirm,
   Space,
+  Tag,
   Typography
 } from 'antd'
-import { DownloadOutlined, FolderOpenOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { HealthInfo } from '../types'
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  FolderOpenOutlined,
+  KeyOutlined,
+  ReloadOutlined
+} from '@ant-design/icons'
+import type { BailianKeyInfo, HealthInfo } from '../types'
 import { PROVIDERS } from '../models'
 
 export default function SettingsView({ visible }: { visible: boolean }): JSX.Element {
@@ -22,10 +30,14 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   const [updating, setUpdating] = useState(false)
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<string | null>(null)
+  const [bk, setBk] = useState<BailianKeyInfo | null>(null)
+  const [bkInput, setBkInput] = useState('')
+  const [bkTesting, setBkTesting] = useState(false)
 
   function refresh(): void {
     void window.api.health().then(setHealth)
     void window.api.appInfo().then(setInfo)
+    void window.api.bailianKeyGet().then(setBk).catch(() => undefined)
     void window.api
       .getSettings()
       .then((s) => {
@@ -41,6 +53,36 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   useEffect(() => {
     if (visible) refresh()
   }, [visible])
+
+  async function saveBailianKey(): Promise<void> {
+    const r = await window.api.bailianKeySet(bkInput.trim())
+    if (!r.ok) {
+      message.error(r.err)
+      return
+    }
+    setBk(r.info)
+    setBkInput('')
+    if (r.plainFallback) message.warning('已保存，但本机系统安全存储不可用，密钥以编码形式保存（仅本机能读，建议尽快改用登录态）')
+    else message.success('百炼密钥已加密保存，立即可用（无需 bl auth login）')
+    void window.api.health().then(setHealth)
+  }
+
+  async function testBailianKey(): Promise<void> {
+    setBkTesting(true)
+    try {
+      const r = await window.api.bailianKeyTest()
+      if (r.ok) message.success(r.out)
+      else message.error(`测试失败：${r.out}`)
+    } finally {
+      setBkTesting(false)
+    }
+  }
+
+  async function clearBailianKey(): Promise<void> {
+    setBk(await window.api.bailianKeyClear())
+    message.success('已清除应用内百炼密钥')
+    void window.api.health().then(setHealth)
+  }
 
   async function saveKey(provider: string): Promise<void> {
     const s = await window.api.getSettings()
@@ -63,7 +105,75 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
 
   return (
     <div className="settings-wrap">
-      <Card title="模型服务" styles={{ body: { padding: 16 } }}>
+      <Card
+        title={
+          <Space size={8}>
+            <KeyOutlined />
+            <span>百炼密钥（免登录直接使用）</span>
+            {bk?.configured && (
+              <Tag color={bk.plan === 'token-plan' ? 'gold' : 'blue'} style={{ marginInlineStart: 4 }}>
+                {bk.plan === 'token-plan' ? 'Token Plan 订阅密钥' : bk.plan === 'ordinary' ? '普通 API Key' : '自定义密钥'}
+              </Tag>
+            )}
+          </Space>
+        }
+        styles={{ body: { padding: 16 } }}
+      >
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0, fontSize: 13 }}>
+          填入密钥后，妙绘会自动带着它调用百炼生图 / 改图 / 提示词反推，<strong>无需在命令行安装登录后运行 bl auth login</strong>。
+          支持百炼控制台下载的普通 API Key（<Typography.Text code>sk-</Typography.Text> 开头）与
+          Token Plan 订阅密钥（<Typography.Text code>sk-sp-</Typography.Text> 开头，自动识别并路由订阅端点）。
+          密钥在本机加密保存，不会上传任何第三方。
+        </Typography.Paragraph>
+        {bk?.configured ? (
+          <Space direction="vertical" size={10} style={{ width: '100%' }}>
+            <Descriptions column={1} size="small" style={{ marginBottom: 0 }}>
+              <Descriptions.Item label="当前密钥">
+                <Typography.Text code>{bk.masked}</Typography.Text>
+              </Descriptions.Item>
+            </Descriptions>
+            {bk.plainFallback && (
+              <Alert
+                type="warning"
+                showIcon
+                message="本机系统安全存储不可用，密钥为编码保存（仅本机可读），建议留意使用环境"
+              />
+            )}
+            <Space wrap>
+              <Button icon={<ReloadOutlined />} loading={bkTesting} onClick={() => void testBailianKey()}>
+                测试连通
+              </Button>
+              <Popconfirm title="清除后创作将回退到命令行登录态（如有）。确认清除？" okText="清除" onConfirm={() => void clearBailianKey()}>
+                <Button danger icon={<DeleteOutlined />}>
+                  清除密钥
+                </Button>
+              </Popconfirm>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                更换密钥：在下方填入新密钥并保存即可覆盖
+              </Typography.Text>
+            </Space>
+          </Space>
+        ) : (
+          <Space.Compact style={{ width: '100%', maxWidth: 640 }}>
+            <Input.Password
+              value={bkInput}
+              onChange={(e) => setBkInput(e.target.value)}
+              placeholder="粘贴百炼 API Key（sk-…）或 Token Plan 密钥（sk-sp-…）"
+              visibilityToggle
+              onPressEnter={() => bkInput.trim() && void saveBailianKey()}
+            />
+            <Button type="primary" disabled={!bkInput.trim()} onClick={() => void saveBailianKey()}>
+              保存
+            </Button>
+          </Space.Compact>
+        )}
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
+          密钥获取：登录百炼控制台，在「API-KEY 管理」下载普通密钥，或在「Token Plan · 订阅总览」下载订阅密钥（sk-sp- 开头）。
+          保存后所有百炼调用自动使用该密钥；清除后回退到命令行 bl auth login 的登录态。
+        </Typography.Paragraph>
+      </Card>
+
+      <Card title="模型服务" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>
         <Typography.Paragraph type="secondary" style={{ marginTop: 0, fontSize: 13 }}>
           创作页可跨服务商选择模型。阿里云百炼由 bl CLI 管理（文生图 + 改图全支持）；其余服务商填入 API Key 即可启用，当前仅支持文生图。
         </Typography.Paragraph>
@@ -98,6 +208,13 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
               status={health ? (health.ok ? 'success' : 'error') : 'default'}
               text={health ? (health.ok ? '在线' : '离线') : '检测中…'}
             />
+          </Descriptions.Item>
+          <Descriptions.Item label="鉴权来源">
+            {bk?.configured ? (
+              <Tag color="success">{bk.plan === 'token-plan' ? '应用内 Token Plan 密钥' : '应用内百炼密钥'}</Tag>
+            ) : (
+              <Tag>命令行 bl 登录态</Tag>
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="版本">{health?.version || '—'}</Descriptions.Item>
           <Descriptions.Item label="CLI 路径">

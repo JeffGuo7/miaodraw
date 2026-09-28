@@ -2,8 +2,16 @@ export interface HealthInfo {
   ok: boolean
   version: string
   entry: string
+  hasKey: boolean
   libraryReady: boolean
   outputsDir: string
+}
+
+export interface BailianKeyInfo {
+  configured: boolean
+  masked: string
+  plan: 'token-plan' | 'ordinary' | 'unknown'
+  plainFallback: boolean
 }
 
 export interface ActiveModel {
@@ -145,6 +153,15 @@ export interface Api {
   blUpdate(): Promise<{ ok: boolean; out: string }>
   openPath(kind: string): Promise<{ ok: boolean }>
   testProvider(provider: string): Promise<{ ok: boolean; out: string }>
+  bailianKeyGet(): Promise<BailianKeyInfo>
+  bailianKeySet(
+    key: string
+  ): Promise<
+    | { ok: true; info: BailianKeyInfo; plainFallback: boolean }
+    | { ok: false; err: string }
+  >
+  bailianKeyClear(): Promise<BailianKeyInfo>
+  bailianKeyTest(): Promise<{ ok: boolean; out: string }>
   composeSave(payload: {
     dataUrl: string
     width: number

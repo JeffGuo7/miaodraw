@@ -16,12 +16,23 @@ export function blEntry(): string {
   return 'bl' // 兜底走 PATH（spawn shell:true）
 }
 
+// ---------- 应用内置密钥（免 bl auth login） ----------
+// CLI 鉴权链为 --api-key > DASHSCOPE_API_KEY > 登录态；这里注入 env 级密钥，
+// 不落 ~/.bailian 配置，与用户命令行登录态互相隔离、应用内优先生效。
+let bailianKey = ''
+export function setBailianKey(key: string): void {
+  bailianKey = (key || '').trim()
+}
+export function hasBailianKey(): boolean {
+  return bailianKey.length > 0
+}
+
 function spawnBl(args: string[]): ChildProcess {
   const entry = blEntry()
-  if (entry === 'bl') return spawn('bl', args, { shell: true })
-  return spawn(process.execPath, [entry, ...args], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
-  })
+  const env: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+  if (bailianKey) env['DASHSCOPE_API_KEY'] = bailianKey
+  if (entry === 'bl') return spawn('bl', args, { shell: true, env })
+  return spawn(process.execPath, [entry, ...args], { env })
 }
 
 export interface BlResult {
@@ -71,6 +82,23 @@ export async function blHealth(): Promise<{ ok: boolean; version: string; entry:
     return { ok: r.code === 0 && version.length > 0, version, entry }
   } catch {
     return { ok: false, version: '', entry }
+  }
+}
+
+/** 密钥有效性验证：一次最小对话调用。不指定模型，让 CLI 按密钥前缀自动路由
+ *  （sk-sp- → token-plan 端点及其默认模型；sk- → 普通 DashScope 端点） */
+export async function bailianAuthTest(): Promise<{ ok: boolean; out: string }> {
+  if (!bailianKey) return { ok: false, out: '尚未在应用内配置百炼密钥' }
+  try {
+    const r = await runBl(
+      ['text', 'chat', '--message', '只回复两个字：成功', '--quiet', '--timeout', '30'],
+      60000
+    )
+    const out = (r.stdout + '\n' + r.stderr).trim()
+    if (r.code === 0 && out) return { ok: true, out: '密钥可用 · 模型响应：' + out.slice(0, 60) }
+    return { ok: false, out: out.slice(-300) || '调用失败：无任何输出' }
+  } catch (e) {
+    return { ok: false, out: e instanceof Error ? e.message : String(e) }
   }
 }
 
