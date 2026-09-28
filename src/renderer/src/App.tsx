@@ -18,6 +18,7 @@ import CommandPalette, { type ViewKey } from './views/CommandPalette'
 import SettingsView from './views/SettingsView'
 import Onboarding from './views/Onboarding'
 import StatusBar from './views/StatusBar'
+import logoUrl from './assets/logo-64.png'
 import type { GenParams, HealthInfo } from './types'
 
 interface CreateSeed {
@@ -46,6 +47,13 @@ const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
   { key: 'settings', icon: <SettingOutlined />, label: '设置' }
 ]
 
+// 侧栏视觉分组：保持 NAV 原顺序渲染（自动验收钩子依赖 .ant-menu-item 的扁平顺序）
+const NAV_GROUPS: Array<{ title: string; keys: ViewKey[] }> = [
+  { title: '工作台', keys: ['create', 'compose'] },
+  { title: '素材与工具', keys: ['library', 'distill'] },
+  { title: '记录与设置', keys: ['history', 'settings'] }
+]
+
 const TITLES: Record<ViewKey, string> = {
   create: '创作',
   compose: '合成画布',
@@ -55,26 +63,19 @@ const TITLES: Record<ViewKey, string> = {
   settings: '设置'
 }
 
+const SUBTITLES: Record<ViewKey, string> = {
+  create: '描述画面或拖入参考图，一键生成',
+  compose: '图层拼合 · 智能抠图 · 导出成品',
+  library: '上千个精选提示词案例，点卡片即用',
+  distill: '任意图片反推通用提示词',
+  history: '本机作品与参数，一键复现',
+  settings: '模型服务、密钥与数据目录'
+}
+
 function Logo(): JSX.Element {
   return (
     <div className="logo">
-      <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
-        <defs>
-          <linearGradient id="lg" x1="0" y1="0" x2="48" y2="48">
-            <stop stopColor="#5b8cff" />
-            <stop offset="1" stopColor="#8b5cf6" />
-          </linearGradient>
-        </defs>
-        <rect width="48" height="48" rx="12" fill="url(#lg)" />
-        <path
-          d="M24 10c-7.7 0-14 5.6-14 12.6 0 4.1 2.2 7.7 5.6 10 .4.3.6.8.5 1.3l-.6 2.4c-.2.8.6 1.5 1.4 1.1l3.9-2c.3-.2.7-.2 1-.1.7.1 1.4.2 2.2.2 7.7 0 14-5.6 14-12.9S31.7 10 24 10Z"
-          fill="#fff"
-          fillOpacity=".92"
-        />
-        <circle cx="17.5" cy="22.5" r="2" fill="#5b8cff" />
-        <circle cx="24" cy="22.5" r="2" fill="#5b8cff" />
-        <circle cx="30.5" cy="22.5" r="2" fill="#5b8cff" />
-      </svg>
+      <img className="logo-img" src={logoUrl} alt="妙绘" width={30} height={30} />
       <span className="logo-name">妙绘工作台</span>
     </div>
   )
@@ -161,9 +162,17 @@ export default function App(): JSX.Element {
       <Layout.Sider width={200} className="app-sider">
         <Logo />
         <Menu
-        mode="inline"
-        selectedKeys={[view]}
-          items={NAV.map((n) => ({ key: n.key, icon: n.icon, label: n.label }))}
+          mode="inline"
+          selectedKeys={[view]}
+          items={NAV_GROUPS.map((g) => ({
+            key: `group-${g.title}`,
+            label: g.title,
+            type: 'group' as const,
+            children: g.keys.map((k) => {
+              const n = NAV.find((x) => x.key === k)!
+              return { key: n.key, icon: n.icon, label: n.label }
+            })
+          }))}
           onClick={(e) => setView(e.key as ViewKey)}
         />
         <div className="sider-foot">
@@ -173,9 +182,12 @@ export default function App(): JSX.Element {
       </Layout.Sider>
       <Layout>
         <Layout.Header className="app-header">
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {TITLES[view]}
-          </Typography.Title>
+          <div className="header-title-wrap">
+            <Typography.Title level={4} style={{ margin: 0 }} className="h4-accent">
+              {TITLES[view]}
+            </Typography.Title>
+            <span className="header-sub">{SUBTITLES[view]}</span>
+          </div>
           <div className="header-right">
             <Tooltip title={health ? `百炼 CLI ${health.version || '未检测到'} · 点击刷新` : '点击刷新'}>
               <Badge

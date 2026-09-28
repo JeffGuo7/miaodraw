@@ -1,5 +1,7 @@
 # 妙绘工作台 (MiaoDraw)
 
+<img src="assets/logo/logo-C-256.png" alt="妙绘工作台 Logo" width="96" />
+
 标准桌面客户端的 AI 图像创作平台，阿里云百炼 API 驱动。Electron + React + Ant Design，工程架构对齐 electron-vite 标准脚手架。
 
 ## 功能

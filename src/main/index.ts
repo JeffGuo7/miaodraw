@@ -159,10 +159,16 @@ function writeFavorites(list: FavItem[]): void {
 // ---------- 窗口 ----------
 let win: BrowserWindow | null = null
 
+/** 应用图标：打包态在 resources 下，开发态在 build 下；缺文件时回退默认 */
+const APP_ICON = isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(APP_ROOT, 'build', 'icon.png')
+
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1520,
     height: 940,
+    icon: fs.existsSync(APP_ICON) ? APP_ICON : undefined,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#f5f5f7',

@@ -9,3 +9,11 @@ install.log
 .DS_Store
 screenshot-*.png
 shot-*.png
+build-logo.log
+# logo 一次性生成产物：仅保留选定的 C 方案与派生图，候选原图不入库
+assets/logo/logo-A-*.png
+assets/logo/logo-B-*.png
+assets/logo/logo-D-*.png
+assets/logo-run.log
+assets/icon-status.txt
+assets/key.tmp

@@ -78,13 +78,16 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
             ) : health?.ok ? (
               <Space direction="vertical" size={4} align="center" style={{ width: '100%' }}>
                 <Badge status="success" text={<span style={{ fontSize: 16 }}>引擎在线 · bl {health.version}</span>} />
-                <Typography.Text type="secondary">一切就绪，可以开始出图了</Typography.Text>
+                <Typography.Text type="secondary">
+                  若尚未登录百炼，到「设置 → 百炼密钥」粘贴 API Key 即可直接创作
+                </Typography.Text>
               </Space>
             ) : (
               <Space direction="vertical" size={4} align="center" style={{ width: '100%' }}>
-                <Badge status="error" text={<span style={{ fontSize: 15 }}>未检测到百炼 CLI</span>} />
+                <Badge status="error" text={<span style={{ fontSize: 15 }}>未检测到百炼引擎</span>} />
                 <Typography.Text type="secondary">
-                  请先安装并登录：npm i -g bailian-cli，然后运行 bl auth login，之后重启妙绘
+                  最简单：到「设置 → 百炼密钥」粘贴百炼 / Token Plan 密钥，保存即用；
+                  也可安装命令行版：npm i -g bailian-cli && bl auth login
                 </Typography.Text>
               </Space>
             )}

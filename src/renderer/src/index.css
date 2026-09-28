@@ -855,3 +855,239 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ==================================================================
+   打磨层（polish layer）：设计令牌 + 导航分组 + 微交互
+   —— 追加样式，不改动上方既有规则；如需回滚整段删除即可
+   ================================================================== */
+
+:root {
+  --brand: #0071e3;
+  --brand-deep: #0a5cc0;
+  --brand-soft: rgba(0, 113, 227, 0.08);
+  --brand-grad: linear-gradient(135deg, #5b8cff, #8b5cf6);
+  --ink: #1d1d1f;
+  --ink-2: #6e6e73;
+  --ink-3: #86868b;
+  --bg-app: #f5f5f7;
+  --line: #e8e8ed;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.05);
+  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+}
+
+/* ---------- 侧栏质感 ---------- */
+.app-sider {
+  background: linear-gradient(180deg, #fbfbfd 0%, #f6f6f9 100%) !important;
+}
+
+.logo {
+  padding: 22px 18px 14px;
+}
+
+.logo svg,
+.logo .logo-img {
+  border-radius: 9px;
+  box-shadow: 0 3px 10px rgba(26, 35, 64, 0.28);
+}
+
+.logo-name {
+  background: var(--brand-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 导航分组小标题 */
+.app-sider .ant-menu-item-group-title {
+  padding: 14px 18px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: #a1a1a6;
+}
+
+/* 选中菜单项：渐变底 + 左侧指示条 */
+.app-sider .ant-menu-item-selected {
+  background: linear-gradient(90deg, rgba(0, 113, 227, 0.12), rgba(139, 92, 246, 0.1)) !important;
+  font-weight: 600;
+  position: relative;
+}
+
+.app-sider .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--brand-grad);
+}
+
+.sider-foot {
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 4px;
+}
+
+/* ---------- 顶栏：标题 + 副标题 ---------- */
+.header-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-sub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header .h4-accent {
+  position: relative;
+  padding-left: 12px;
+}
+
+.app-header .h4-accent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--brand-grad);
+}
+
+/* 在线状态绿点呼吸动效 */
+.ant-badge-status-processing,
+.statusbar .ant-badge-status-success,
+.app-header .ant-badge-status-success {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(52, 199, 89, 0); }
+}
+
+/* ---------- 卡片与控件统一质感 ---------- */
+.app-content .ant-card {
+  border-radius: var(--r-xl);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.app-content .ant-card-head-title {
+  font-weight: 650;
+  letter-spacing: -0.1px;
+}
+
+/* 生成主按钮：品牌渐变 + hover 光晕 */
+.gen-btn.ant-btn-primary {
+  background: var(--brand-grad);
+  border: none;
+  box-shadow: 0 4px 14px rgba(91, 140, 255, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.gen-btn.ant-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 6px 20px rgba(120, 110, 250, 0.5);
+  transform: translateY(-1px);
+}
+
+.gen-btn.ant-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* 键盘可达性：统一 focus ring */
+.ant-btn:focus-visible,
+.ant-segmented-item:focus-visible,
+.lib-card:focus-visible {
+  outline: 2px solid rgba(0, 113, 227, 0.5);
+  outline-offset: 2px;
+}
+
+/* ---------- 空态精修：图标衬底 ---------- */
+.result-center .anticon {
+  padding: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.1), rgba(139, 92, 246, 0.12));
+}
+
+/* ---------- 灵感库 / 历史卡片细节 ---------- */
+.lib-card {
+  border-radius: var(--r-xl);
+}
+
+.lib-card-imgwrap img {
+  transition: transform 0.35s cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+
+.lib-card:hover .lib-card-imgwrap img {
+  transform: scale(1.035);
+}
+
+.hist-card.ant-card-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+.lib-toolbar {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.lib-toolbar .ant-select,
+.lib-toolbar .ant-input-search {
+  flex-shrink: 0;
+}
+
+/* 详情抽屉 */
+.ant-drawer-content {
+  border-radius: 18px 0 0 18px;
+}
+
+/* ---------- 命令面板 ---------- */
+.ant-modal-content {
+  border-radius: var(--r-xl);
+  overflow: hidden;
+}
+
+.pal-item {
+  transition: background 0.12s ease;
+}
+
+.pal-item.on {
+  background: linear-gradient(90deg, var(--brand-soft), rgba(139, 92, 246, 0.07));
+}
+
+/* ---------- 设置页节奏 ---------- */
+.settings-wrap > .ant-card:hover {
+  box-shadow: var(--shadow-md), var(--shadow-sm);
+}
+
+/* ---------- 合成画布工作区 ---------- */
+.compose-stage-wrap {
+  background:
+    radial-gradient(1200px 400px at 50% -10%, rgba(91, 140, 255, 0.06), transparent),
+    #eaeaee;
+}
+
+/* ---------- 滚动条细化（更轻盈） ---------- */
+::-webkit-scrollbar-thumb {
+  background: #d8d8dd;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bcbcc4;
+}
