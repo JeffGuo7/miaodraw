@@ -35,6 +35,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   const [bkInput, setBkInput] = useState('')
   const [bkTesting, setBkTesting] = useState(false)
   const [wsInput, setWsInput] = useState('')
+  const [baseUrlInput, setBaseUrlInput] = useState('')
 
   function refresh(): void {
     void window.api.health().then(setHealth)
@@ -43,7 +44,11 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     void window.api.providerKeyGet().then(setPkInfo).catch(() => undefined)
     void window.api
       .getSettings()
-      .then((s) => setWsInput(((s as { bailianWorkspace?: string }).bailianWorkspace) ?? ''))
+      .then((s) => {
+        const adv = s as { bailianWorkspace?: string; bailianBaseUrl?: string }
+        setWsInput(adv.bailianWorkspace ?? '')
+        setBaseUrlInput(adv.bailianBaseUrl ?? '')
+      })
       .catch(() => undefined)
   }
 
@@ -82,8 +87,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   }
 
   async function saveWorkspace(): Promise<void> {
-    await window.api.bailianWsSet(wsInput.trim())
-    message.success('工作空间 ID 已保存并即时生效')
+    await window.api.bailianWsSet({ ws: wsInput.trim(), baseUrl: baseUrlInput.trim() })
+    message.success('工作空间 / 接入点已保存并即时生效')
   }
 
   async function saveProviderKey(provider: string): Promise<void> {
@@ -194,13 +199,25 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
         </Typography.Paragraph>
         <div style={{ marginTop: 12 }}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            工作空间 ID（可选 · <Typography.Text code>o1_</Typography.Text> 工作空间密钥必填，控制台「命令行接入」里可查；普通 sk- 密钥留空）
+            工作空间 ID（可选 · <Typography.Text code>o1_</Typography.Text>/<Typography.Text code>sk-ws-</Typography.Text> 工作空间密钥必填，控制台「命令行接入」里可查；普通 sk- 密钥留空）
           </Typography.Text>
           <Space.Compact style={{ width: '100%', maxWidth: 640, marginTop: 6 }}>
             <Input
               value={wsInput}
               onChange={(e) => setWsInput(e.target.value)}
               placeholder="例：llm-xxxxxxxx"
+              onPressEnter={() => void saveWorkspace()}
+            />
+            <Button onClick={() => void saveWorkspace()}>保存</Button>
+          </Space.Compact>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            专属接入点 Base URL（可选 · 工作空间专用密钥 sk-ws- 需填写 CSV 里的 dashScope 地址）
+          </Typography.Text>
+          <Space.Compact style={{ width: '100%', maxWidth: 640, marginTop: 6 }}>
+            <Input
+              value={baseUrlInput}
+              onChange={(e) => setBaseUrlInput(e.target.value)}
+              placeholder="例：https://xxx.cn-beijing.maas.aliyuncs.com/api/v1"
               onPressEnter={() => void saveWorkspace()}
             />
             <Button onClick={() => void saveWorkspace()}>保存</Button>

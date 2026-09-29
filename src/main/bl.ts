@@ -57,7 +57,8 @@ export function blEntry(): string {
 // ---------- 应用内置密钥（免 bl auth login） ----------
 // CLI 鉴权链为 --api-key > DASHSCOPE_API_KEY > 登录态；这里注入 env 级密钥，
 // 不落 ~/.bailian 配置，与用户命令行登录态互相隔离、应用内优先生效。
-// 新式工作空间密钥（o1_ 前缀）还需 BAILIAN_WORKSPACE_ID（CLI 配置契约：workspace_id.env）。
+// 工作空间密钥（o1_ 主密钥 / sk-ws- 子密钥）需按 CLI 配置契约注入：
+//   BAILIAN_WORKSPACE_ID（workspace_id.env）+ BAILIAN_BASE_URL（工作空间专属接入点）
 let bailianKey = ''
 export function setBailianKey(key: string): void {
   bailianKey = (key || '').trim()
@@ -69,6 +70,10 @@ let bailianWorkspace = ''
 export function setBailianWorkspace(ws: string): void {
   bailianWorkspace = (ws || '').trim()
 }
+let bailianBaseUrl = ''
+export function setBailianBaseUrl(url: string): void {
+  bailianBaseUrl = (url || '').trim()
+}
 
 function spawnBl(args: string[]): ChildProcess {
   const entry = blEntry()
@@ -78,6 +83,7 @@ function spawnBl(args: string[]): ChildProcess {
   const env: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
   if (bailianKey) env['DASHSCOPE_API_KEY'] = bailianKey
   if (bailianWorkspace) env['BAILIAN_WORKSPACE_ID'] = bailianWorkspace
+  if (bailianBaseUrl) env['BAILIAN_BASE_URL'] = bailianBaseUrl
   return spawn(process.execPath, [entry, ...args], { env })
 }
 

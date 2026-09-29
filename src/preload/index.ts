@@ -46,7 +46,8 @@ const api = {
   bailianKeyClear: (): Promise<{ configured: boolean; masked: string; plan: string; plainFallback: boolean }> =>
     ipcRenderer.invoke('bailian-key:clear'),
   bailianKeyTest: (): Promise<{ ok: boolean; out: string }> => ipcRenderer.invoke('bailian-key:test'),
-  bailianWsSet: (ws: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('bailian-ws:set', ws),
+  bailianWsSet: (payload: { ws?: string; baseUrl?: string }): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('bailian-ws:set', payload),
   providerKeyGet: (): Promise<Record<string, { configured: boolean; masked: string; plainFallback: boolean }>> =>
     ipcRenderer.invoke('provider-key:get'),
   providerKeySet: (

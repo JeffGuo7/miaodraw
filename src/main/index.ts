@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, setBailianWorkspace, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
+import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, setBailianBaseUrl, setBailianWorkspace, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
@@ -111,6 +111,8 @@ interface Settings {
   bailianKeyPlain?: boolean
   /** 百炼工作空间 ID（非机密；o1_ 工作空间密钥需注入 BAILIAN_WORKSPACE_ID） */
   bailianWorkspace?: string
+  /** 工作空间专属接入点（sk-ws- 子密钥需注入 BAILIAN_BASE_URL） */
+  bailianBaseUrl?: string
 }
 function readSettings(): Settings {
   try {
@@ -168,13 +170,20 @@ function decryptKey(s: Settings): string {
 function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-plan' | 'ordinary' | 'workspace' | 'unknown'; plainFallback: boolean } {
   const key = decryptKey(readSettings())
   if (!key) return { configured: false, masked: '', plan: 'unknown', plainFallback: false }
-  const plan = key.startsWith('sk-sp-') ? 'token-plan' : key.startsWith('o1_') ? 'workspace' : key.startsWith('sk-') ? 'ordinary' : 'unknown'
+  const plan = key.startsWith('sk-sp-')
+    ? 'token-plan'
+    : key.startsWith('sk-ws-') || key.startsWith('o1_')
+      ? 'workspace'
+      : key.startsWith('sk-')
+        ? 'ordinary'
+        : 'unknown'
   const masked = key.length <= 8 ? '••••' : `${key.slice(0, 6)}••••${key.slice(-4)}`
   return { configured: true, masked, plan, plainFallback: !!readSettings().bailianKeyPlain }
 }
 function initBailianKey(): void {
   setBailianKey(decryptKey(readSettings()))
   setBailianWorkspace(readSettings().bailianWorkspace ?? '')
+  setBailianBaseUrl(readSettings().bailianBaseUrl ?? '')
 }
 
 // ---------- 第三方服务商密钥（safeStorage 加密，与百炼密钥同权；明文不落盘、不回显） ----------
@@ -660,10 +669,15 @@ function registerIpc(): void {
   })
 
   // ---------- 第三方服务商密钥管理 ----------
-  handle('bailian-ws:set', (_e, ws: string) => {
-    const v = String(ws || '').trim()
-    writeSettings({ bailianWorkspace: v })
-    setBailianWorkspace(v) // 热生效，无需重启
+  handle('bailian-ws:set', (_e, payload: { ws?: string; baseUrl?: string }) => {
+    const ws = String(payload?.ws || '').trim()
+    const baseUrl = String(payload?.baseUrl || '').trim()
+    const patch: Settings = {}
+    if (ws) patch.bailianWorkspace = ws
+    if (baseUrl) patch.bailianBaseUrl = baseUrl
+    writeSettings(patch)
+    setBailianWorkspace(ws) // 热生效，无需重启
+    setBailianBaseUrl(baseUrl)
     return { ok: true as const }
   })
   handle('provider-key:get', () => providerKeysInfo())

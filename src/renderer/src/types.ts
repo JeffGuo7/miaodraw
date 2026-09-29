@@ -171,7 +171,7 @@ export interface Api {
   >
   bailianKeyClear(): Promise<BailianKeyInfo>
   bailianKeyTest(): Promise<{ ok: boolean; out: string }>
-  bailianWsSet(ws: string): Promise<{ ok: boolean }>
+  bailianWsSet(payload: { ws?: string; baseUrl?: string }): Promise<{ ok: boolean }>
   providerKeyGet(): Promise<Record<string, ProviderKeyInfo>>
   providerKeySet(
     provider: string,
