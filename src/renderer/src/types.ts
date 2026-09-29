@@ -15,6 +15,12 @@ export interface BailianKeyInfo {
   plainFallback: boolean
 }
 
+export interface ProviderKeyInfo {
+  configured: boolean
+  masked: string
+  plainFallback: boolean
+}
+
 export interface ActiveModel {
   provider: string
   model: string
@@ -133,7 +139,8 @@ export interface SettingsShape {
   model?: string
   size?: string
   onboarded?: string
-  providers?: Record<string, { apiKey?: string }>
+  /** 服务商密钥只以掩码状态下发（configured/masked），明文与密文永不出主进程 */
+  providerKeys?: Record<string, ProviderKeyInfo>
   activeModel?: ActiveModel
 }
 
@@ -164,6 +171,12 @@ export interface Api {
   >
   bailianKeyClear(): Promise<BailianKeyInfo>
   bailianKeyTest(): Promise<{ ok: boolean; out: string }>
+  providerKeyGet(): Promise<Record<string, ProviderKeyInfo>>
+  providerKeySet(
+    provider: string,
+    key: string
+  ): Promise<{ ok: true; info: Record<string, ProviderKeyInfo>; plainFallback: boolean } | { ok: false; err: string }>
+  providerKeyClear(provider: string): Promise<{ ok: true; info: Record<string, ProviderKeyInfo> } | { ok: false; err: string }>
   composeSave(payload: {
     dataUrl: string
     width: number

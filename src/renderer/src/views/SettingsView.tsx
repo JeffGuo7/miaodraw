@@ -20,7 +20,7 @@ import {
   KeyOutlined,
   ReloadOutlined
 } from '@ant-design/icons'
-import type { BailianKeyInfo, HealthInfo } from '../types'
+import type { BailianKeyInfo, HealthInfo, ProviderKeyInfo } from '../types'
 import { PROVIDERS } from '../models'
 
 export default function SettingsView({ visible }: { visible: boolean }): JSX.Element {
@@ -28,7 +28,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   const [health, setHealth] = useState<HealthInfo | null>(null)
   const [info, setInfo] = useState<{ version: string; name: string; libraryRoot: string; outputsDir: string } | null>(null)
   const [updating, setUpdating] = useState(false)
-  const [keys, setKeys] = useState<Record<string, string>>({})
+  const [pkInfo, setPkInfo] = useState<Record<string, ProviderKeyInfo>>({})
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<string | null>(null)
   const [bk, setBk] = useState<BailianKeyInfo | null>(null)
   const [bkInput, setBkInput] = useState('')
@@ -38,16 +39,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     void window.api.health().then(setHealth)
     void window.api.appInfo().then(setInfo)
     void window.api.bailianKeyGet().then(setBk).catch(() => undefined)
-    void window.api
-      .getSettings()
-      .then((s) => {
-        const providers = (s.providers ?? {}) as Record<string, { apiKey?: string }>
-        setKeys({
-          siliconflow: providers.siliconflow?.apiKey ?? '',
-          openai: providers.openai?.apiKey ?? ''
-        })
-      })
-      .catch(() => undefined)
+    void window.api.providerKeyGet().then(setPkInfo).catch(() => undefined)
   }
 
   useEffect(() => {
@@ -84,12 +76,31 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     void window.api.health().then(setHealth)
   }
 
-  async function saveKey(provider: string): Promise<void> {
-    const s = await window.api.getSettings()
-    const providers = { ...((s.providers as Record<string, { apiKey?: string }>) ?? {}) }
-    providers[provider] = { apiKey: keys[provider] ?? '' }
-    await window.api.setSettings({ providers })
-    message.success('已保存')
+  async function saveProviderKey(provider: string): Promise<void> {
+    const draft = (drafts[provider] ?? '').trim()
+    if (!draft) {
+      message.warning('请先粘贴 API Key')
+      return
+    }
+    const r = await window.api.providerKeySet(provider, draft)
+    if (!r.ok) {
+      message.error(r.err)
+      return
+    }
+    setPkInfo(r.info)
+    setDrafts((d) => ({ ...d, [provider]: '' }))
+    if (r.plainFallback) message.warning('已保存，但本机系统安全存储不可用，密钥以编码形式保存（仅本机能读）')
+    else message.success('密钥已加密保存')
+  }
+
+  async function clearProviderKey(provider: string): Promise<void> {
+    const r = await window.api.providerKeyClear(provider)
+    if (r.ok) {
+      setPkInfo(r.info)
+      message.success('已清除该服务商密钥')
+    } else {
+      message.error(r.err)
+    }
   }
 
   async function testProvider(provider: string): Promise<void> {
@@ -176,29 +187,53 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
       <Card title="模型服务" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>
         <Typography.Paragraph type="secondary" style={{ marginTop: 0, fontSize: 13 }}>
           创作页可跨服务商选择模型。阿里云百炼由 bl CLI 管理（文生图 + 改图全支持）；其余服务商填入 API Key 即可启用，当前仅支持文生图。
+          密钥与百炼密钥一样<strong>在本机加密保存</strong>，界面只显示掩码，不会回显明文。
         </Typography.Paragraph>
-        {PROVIDERS.filter((p) => p.id !== 'bailian').map((p) => (
-          <div key={p.id} className="provider-row">
-            <div className="provider-head">
-              <Badge status={keys[p.id] ? 'success' : 'default'} text={<Typography.Text strong>{p.label}</Typography.Text>} />
-              <Typography.Text type="secondary" className="provider-note">
-                {p.note}
-              </Typography.Text>
+        {PROVIDERS.filter((p) => p.id !== 'bailian').map((p) => {
+          const info = pkInfo[p.id]
+          const configured = !!info?.configured
+          return (
+            <div key={p.id} className="provider-row">
+              <div className="provider-head">
+                <Badge status={configured ? 'success' : 'default'} text={<Typography.Text strong>{p.label}</Typography.Text>} />
+                {configured && (
+                  <Typography.Text code style={{ fontSize: 12 }}>
+                    {info.masked}
+                  </Typography.Text>
+                )}
+                <Typography.Text type="secondary" className="provider-note">
+                  {p.note}
+                </Typography.Text>
+              </div>
+              <Space.Compact style={{ width: '100%', maxWidth: 560 }}>
+                <Input.Password
+                  value={drafts[p.id] ?? ''}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+                  placeholder={configured ? '已保存（显示为掩码），粘贴新密钥即可覆盖' : `${p.label} API Key`}
+                  visibilityToggle
+                  onPressEnter={() => drafts[p.id]?.trim() && void saveProviderKey(p.id)}
+                />
+                <Button type="primary" disabled={!drafts[p.id]?.trim()} onClick={() => void saveProviderKey(p.id)}>
+                  保存
+                </Button>
+                <Button loading={testing === p.id} onClick={() => void testProvider(p.id)}>
+                  测试
+                </Button>
+                {configured && (
+                  <Popconfirm
+                    title="清除后需重新输入密钥才能使用该服务商。确认清除？"
+                    okText="清除"
+                    onConfirm={() => void clearProviderKey(p.id)}
+                  >
+                    <Button danger icon={<DeleteOutlined />}>
+                      清除
+                    </Button>
+                  </Popconfirm>
+                )}
+              </Space.Compact>
             </div>
-            <Space.Compact style={{ width: '100%', maxWidth: 560 }}>
-              <Input.Password
-                value={keys[p.id] ?? ''}
-                onChange={(e) => setKeys((k) => ({ ...k, [p.id]: e.target.value }))}
-                placeholder={`${p.label} API Key`}
-                visibilityToggle
-              />
-              <Button onClick={() => void saveKey(p.id)}>保存</Button>
-              <Button loading={testing === p.id} onClick={() => void testProvider(p.id)}>
-                测试
-              </Button>
-            </Space.Compact>
-          </div>
-        ))}
+          )
+        })}
       </Card>
 
       <Card title="创作引擎（百炼 CLI）" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>

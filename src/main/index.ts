@@ -87,7 +87,10 @@ interface Settings {
   model?: string
   size?: string
   onboarded?: string
+  /** @deprecated 旧版明文服务商密钥，仅启动迁移时读取，随后清空 */
   providers?: Record<string, { apiKey?: string }>
+  /** 第三方服务商密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64） */
+  providerKeysEnc?: Record<string, { enc: string; plainFallback?: boolean }>
   activeModel?: { provider: string; model: string }
   /** 百炼密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64 并提示） */
   bailianKeyEnc?: string
@@ -110,12 +113,27 @@ function writeSettings(patch: Settings): Settings {
   return next
 }
 
-// ---------- 百炼密钥（应用内配置，免 bl auth login） ----------
-function encryptKey(plain: string): { enc: string; plainFallback: boolean } {
+// ---------- 密钥加解密（百炼与第三方服务商共用） ----------
+function encryptSecret(plain: string): { enc: string; plainFallback: boolean } {
   if (safeStorage.isEncryptionAvailable()) {
     return { enc: safeStorage.encryptString(plain).toString('base64'), plainFallback: false }
   }
   return { enc: Buffer.from(plain, 'utf-8').toString('base64'), plainFallback: true }
+}
+function decryptSecret(enc: string, plainFallback?: boolean): string {
+  try {
+    if (plainFallback || !safeStorage.isEncryptionAvailable()) {
+      return Buffer.from(enc, 'base64').toString('utf-8')
+    }
+    return safeStorage.decryptString(Buffer.from(enc, 'base64'))
+  } catch {
+    return ''
+  }
+}
+
+// ---------- 百炼密钥（应用内配置，免 bl auth login） ----------
+function encryptKey(plain: string): { enc: string; plainFallback: boolean } {
+  return encryptSecret(plain)
 }
 function decryptKey(s: Settings): string {
   if (!s.bailianKeyEnc) return ''
@@ -137,6 +155,52 @@ function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-p
 }
 function initBailianKey(): void {
   setBailianKey(decryptKey(readSettings()))
+}
+
+// ---------- 第三方服务商密钥（safeStorage 加密，与百炼密钥同权；明文不落盘、不回显） ----------
+const PROVIDER_IDS = ['siliconflow', 'openai'] as const
+type ProviderId = (typeof PROVIDER_IDS)[number]
+
+function isProviderId(v: string): v is ProviderId {
+  return (PROVIDER_IDS as readonly string[]).includes(v)
+}
+
+function getProviderKey(provider: string): string {
+  if (!isProviderId(provider)) return ''
+  const rec = readSettings().providerKeysEnc?.[provider]
+  if (!rec?.enc) return ''
+  return decryptSecret(rec.enc, rec.plainFallback)
+}
+
+function providerKeysInfo(): Record<string, { configured: boolean; masked: string; plainFallback: boolean }> {
+  const s = readSettings()
+  const out: Record<string, { configured: boolean; masked: string; plainFallback: boolean }> = {}
+  for (const id of PROVIDER_IDS) {
+    const rec = s.providerKeysEnc?.[id]
+    if (!rec?.enc) {
+      out[id] = { configured: false, masked: '', plainFallback: false }
+      continue
+    }
+    const k = decryptSecret(rec.enc, rec.plainFallback)
+    out[id] = {
+      configured: k.length > 0,
+      masked: k.length <= 8 ? '••••' : `${k.slice(0, 4)}••••${k.slice(-4)}`,
+      plainFallback: !!rec.plainFallback
+    }
+  }
+  return out
+}
+
+/** 旧版明文 providers.*.apiKey → safeStorage 加密迁移，并从设置中移除明文字段（启动时执行） */
+function migrateLegacyProviderKeys(): void {
+  const s = readSettings()
+  if (!s.providers) return
+  const next: NonNullable<Settings['providerKeysEnc']> = { ...(s.providerKeysEnc ?? {}) }
+  for (const id of PROVIDER_IDS) {
+    const plain = s.providers[id]?.apiKey
+    if (plain && !next[id]?.enc) next[id] = encryptSecret(plain)
+  }
+  writeSettings({ providerKeysEnc: next, providers: undefined })
 }
 
 // ---------- 收藏 ----------
@@ -440,8 +504,7 @@ function registerIpc(): void {
     if (provider === 'bailian') return generate({ ...opts, onProgress }, OUT_DIR)
     // HTTP 多服务商：目前仅支持文生图
     if (opts.ref) throw new Error('当前服务商暂不支持图生图，请切换回百炼模型使用改图')
-    const s = readSettings()
-    const apiKey = s.providers?.[provider]?.apiKey
+    const apiKey = getProviderKey(provider)
     if (!apiKey) {
       const label = provider === 'siliconflow' ? '硅基流动' : provider === 'openai' ? 'OpenAI' : provider
       throw new Error(`未配置 ${label} 的 API Key，请到「设置 → 模型服务」填写`)
@@ -477,8 +540,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('test:provider', async (_e, provider: string) => {
-    const s = readSettings()
-    const apiKey = s.providers?.[provider]?.apiKey
+    const apiKey = getProviderKey(provider)
     if (!apiKey) return { ok: false, out: '请先填写 API Key 并保存' }
     try {
       if (provider === 'siliconflow') {
@@ -517,15 +579,43 @@ function registerIpc(): void {
 
   ipcMain.handle('settings:get', () => {
     const s = readSettings()
-    // 密文绝不回显到渲染进程
-    const { bailianKeyEnc: _drop, bailianKeyPlain: __drop, ...pub } = s
-    return pub
+    // 密文字段与旧明文字段绝不回显到渲染进程；服务商密钥只给掩码状态
+    const { bailianKeyEnc: _a, bailianKeyPlain: _b, providerKeysEnc: _c, providers: _d, ...pub } = s
+    return { ...pub, providerKeys: providerKeysInfo() }
   })
   ipcMain.handle('settings:set', (_e, patch: Settings) => {
-    if (patch && ('bailianKeyEnc' in patch || 'bailianKeyPlain' in patch)) {
-      throw new Error('密钥字段请使用 bailian-key:set 接口')
+    if (
+      patch &&
+      ('bailianKeyEnc' in patch ||
+        'bailianKeyPlain' in patch ||
+        'providerKeysEnc' in patch ||
+        'providers' in patch ||
+        'providerKeys' in patch)
+    ) {
+      throw new Error('密钥字段请使用 bailian-key:set / provider-key:set 接口')
     }
     return writeSettings(patch)
+  })
+
+  // ---------- 第三方服务商密钥管理 ----------
+  ipcMain.handle('provider-key:get', () => providerKeysInfo())
+  ipcMain.handle('provider-key:set', (_e, provider: string, key: string) => {
+    if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
+    const plain = String(key || '').trim()
+    if (!plain) return { ok: false as const, err: '密钥不能为空' }
+    if (/\s/.test(plain)) return { ok: false as const, err: '密钥中间包含空格或换行，请重新完整复制粘贴' }
+    const next = { ...(readSettings().providerKeysEnc ?? {}) }
+    const { enc, plainFallback } = encryptSecret(plain)
+    next[provider] = { enc, plainFallback }
+    writeSettings({ providerKeysEnc: next })
+    return { ok: true as const, info: providerKeysInfo(), plainFallback }
+  })
+  ipcMain.handle('provider-key:clear', (_e, provider: string) => {
+    if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
+    const next = { ...(readSettings().providerKeysEnc ?? {}) }
+    delete next[provider]
+    writeSettings({ providerKeysEnc: next })
+    return { ok: true as const, info: providerKeysInfo() }
   })
 
   // ---------- 百炼密钥管理 ----------
@@ -700,6 +790,7 @@ app.whenReady().then(() => {
   // 方案B：内置百炼 CLI（zip 随包分发、首启解包）；缺失时自动回退全局安装
   setBlVendorEntry(ensureBundledCli())
   initBailianKey()
+  migrateLegacyProviderKeys()
   protocol.handle('media', (req) => {
     const abs = parseMediaUrl(req.url)
     if (!abs) return new Response('not found', { status: 404 })

@@ -85,7 +85,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [seedNum, setSeedNum] = useState<number | null>(null)
   const [refFile, setRefFile] = useState<File | null>(null)
   const [refPreview, setRefPreview] = useState('')
-  const [providerKeys, setProviderKeys] = useState<Record<string, string>>({})
+  const [providerKeys, setProviderKeys] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<GenResult | null>(null)
@@ -123,8 +123,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         } else if (s.model && MODELS_LEGACY[s.model]) {
           setActive({ provider: 'bailian', model: s.model })
         }
-        const pv = (s.providers ?? {}) as Record<string, { apiKey?: string }>
-        setProviderKeys({ siliconflow: pv.siliconflow?.apiKey ?? '', openai: pv.openai?.apiKey ?? '' })
+        const pk = (s.providerKeys ?? {}) as Record<string, { configured?: boolean }>
+        setProviderKeys({ siliconflow: pk.siliconflow?.configured ?? false, openai: pk.openai?.configured ?? false })
       })
       .catch(() => undefined)
   }, [])

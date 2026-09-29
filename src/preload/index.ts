@@ -46,6 +46,20 @@ const api = {
   bailianKeyClear: (): Promise<{ configured: boolean; masked: string; plan: string; plainFallback: boolean }> =>
     ipcRenderer.invoke('bailian-key:clear'),
   bailianKeyTest: (): Promise<{ ok: boolean; out: string }> => ipcRenderer.invoke('bailian-key:test'),
+  providerKeyGet: (): Promise<Record<string, { configured: boolean; masked: string; plainFallback: boolean }>> =>
+    ipcRenderer.invoke('provider-key:get'),
+  providerKeySet: (
+    provider: string,
+    key: string
+  ): Promise<
+    | { ok: true; info: Record<string, { configured: boolean; masked: string; plainFallback: boolean }>; plainFallback: boolean }
+    | { ok: false; err: string }
+  > => ipcRenderer.invoke('provider-key:set', provider, key),
+  providerKeyClear: (
+    provider: string
+  ): Promise<
+    { ok: true; info: Record<string, { configured: boolean; masked: string; plainFallback: boolean }> } | { ok: false; err: string }
+  > => ipcRenderer.invoke('provider-key:clear', provider),
   composeSave: (payload: { dataUrl: string; width: number; height: number }): Promise<{ name: string; url: string }> =>
     ipcRenderer.invoke('compose:save', payload),
   segmentMask: (
