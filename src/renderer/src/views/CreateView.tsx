@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   App as AntdApp,
@@ -34,8 +34,8 @@ import {
   SendOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
-import type { ActiveModel, ChainItem, GenOpts, GenResult } from '../types'
-import { PROVIDERS, providerDef, providerLabel } from '../models'
+import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig } from '../types'
+import { byCap, modelKey, providerDef, providerLabel, resolveDefaults, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
 import { touchActiveModel } from './StatusBar'
 import { mediaUrlData, mediaUrlToFile } from '../utils'
@@ -80,12 +80,19 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [mode, setMode] = useState<'t2i' | 'i2i'>('t2i')
   const [prompt, setPrompt] = useState('')
   const [negative, setNegative] = useState('')
-  const [active, setActive] = useState<ActiveModel>({ provider: PROVIDERS[0].id, model: PROVIDERS[0].models[0].model })
+  const [active, setActive] = useState<ActiveModel>(() => {
+    const first = resolveModels(undefined)[0]
+    return { provider: first?.provider ?? 'bailian', model: first?.model ?? 'qwen-image-3.0-pro' }
+  })
   const [size, setSize] = useState(SIZES[0].value)
   const [seedNum, setSeedNum] = useState<number | null>(null)
   const [refFile, setRefFile] = useState<File | null>(null)
   const [refPreview, setRefPreview] = useState('')
   const [providerKeys, setProviderKeys] = useState<Record<string, boolean>>({})
+  // 通用模型配置：内置模板 + 用户追加模型 + 自定义供应商，统一解析为可用模型目录
+  const [mc, setMc] = useState<ModelConfig | undefined>()
+  const catalog = useMemo(() => resolveModels(mc), [mc])
+  const imageModels = useMemo(() => byCap(catalog, 'image'), [catalog])
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<GenResult | null>(null)
@@ -112,14 +119,14 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     })
   }, [])
   useEffect(() => {
-    window.api
-      .getSettings()
-      .then((s) => {
+    void Promise.all([window.api.getSettings(), window.api.modelConfigGet()])
+      .then(([s, c]) => {
+        setMc(c)
+        const cat = resolveModels(c)
         if (s.size && SIZES.some((x) => x.value === s.size)) setSize(s.size)
         const am = s.activeModel as { provider?: string; model?: string } | undefined
-        if (am?.provider && am?.model && PROVIDERS.some((p) => p.id === am.provider)) {
-          const def = providerDef(am.provider)
-          if (def?.models.some((m) => m.model === am.model)) setActive({ provider: am.provider, model: am.model })
+        if (am?.provider && am?.model && cat.some((m) => m.provider === am.provider && m.model === am.model)) {
+          setActive({ provider: am.provider, model: am.model })
         } else if (s.model && MODELS_LEGACY[s.model]) {
           setActive({ provider: 'bailian', model: s.model })
         }
@@ -140,10 +147,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     if (seed.seed !== undefined) setSeedNum(seed.seed)
     if (seed.model) {
       // 复现必须连模型一起回填，否则结果与历史记录不符
-      const hit = PROVIDERS.flatMap((p) => p.models.map((m) => ({ provider: p.id, model: m.model }))).find(
-        (x) => x.model === seed.model
-      )
-      if (hit) setActive(hit)
+      const hit = catalog.find((m) => m.model === seed.model)
+      if (hit) setActive({ provider: hit.provider, model: hit.model })
       else message.warning(`历史记录的模型 ${seed.model} 不在当前模型列表，已保留当前选择`)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -324,7 +329,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
               type="warning"
               showIcon
               style={{ marginBottom: 12 }}
-              message={`未配置 ${providerLabel(provider)} 的 API Key`}
+              message={`未配置 ${providerLabel(provider, mc)} 的 API Key`}
               action={
                 <Button size="small" onClick={onOpenSettings}>
                   去设置
@@ -415,18 +420,18 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                 value={`${active.provider}::${active.model}`}
                 onChange={(v) => {
                   const [p, m] = String(v).split('::')
+                  if (!catalog.some((c) => c.provider === p && c.model === m)) {
+                    message.warning('该模型不在当前目录中')
+                    return
+                  }
                   setActive({ provider: p, model: m })
                   saveSettings(p, m, size)
                 }}
                 disabled={busy}
                 style={{ width: '100%' }}
-                options={PROVIDERS.map((p) => ({
-                  label: p.label,
-                  title: p.note,
-                  options: p.models.map((m) => ({
-                    value: `${p.id}::${m.model}`,
-                    label: `${m.label}（${m.price}/张）`
-                  }))
+                options={imageModels.map((m) => ({
+                  value: modelKey(m.provider, m.model),
+                  label: `${m.label}（${m.price}/张）`
                 }))}
               />
             </Col>
@@ -505,7 +510,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             <div className="result-center">
               <Spin size="large" />
               <Typography.Text type="secondary" style={{ marginTop: 18 }}>
-                {providerLabel(provider)} {active.model} · 已用 {elapsed} 秒
+                {providerLabel(provider, mc)} {active.model} · 已用 {elapsed} 秒
               </Typography.Text>
               <div className="stage-row">
                 {stages.length === 0 ? (
