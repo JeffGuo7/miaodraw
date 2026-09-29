@@ -27,28 +27,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 }
 
-// ---------- 单实例 ----------
-const segmentService = createSegmentService((url) => {
-  try {
-    const u = new URL(url)
-    if (u.protocol !== 'media:') return null
-    const segs = decodeURIComponent(u.pathname).split('/').filter(Boolean)
-    if (segs.length < 2) return null
-    const base =
-      segs[0] === 'out'
-        ? OUT_DIR
-        : segs[0] === 'lib-a'
-          ? path.join(LIB_ROOT, 'libA', 'images')
-          : segs[0] === 'lib-b'
-            ? path.join(LIB_ROOT, 'libB', 'data', 'images')
-            : null
-    if (!base) return null
-    const abs = path.resolve(base, ...segs.slice(1))
-    return abs
-  } catch {
-    return null
-  }
-})
+// ---------- 分割服务（复用带目录逃逸校验的 parseMediaUrl，勿在此重复实现） ----------
+const segmentService = createSegmentService((url) => parseMediaUrl(url))
 
 // ---------- media:// 协议 ----------
 protocol.registerSchemesAsPrivileged([
@@ -78,6 +58,17 @@ function parseMediaUrl(url: string): string | null {
   } catch {
     return null
   }
+}
+
+/** 作品目录内文件名 → 绝对路径：拒绝分隔符/越界，仅允许图片扩展名。
+ *  唯一出口：history:delete / agent:run / image:chain 共用，勿在别处自行 path.join */
+function resolveOutputPath(name: string): string | null {
+  if (!name || typeof name !== 'string') return null
+  if (name.includes('/') || name.includes('\\') || name.includes('..')) return null
+  if (!/\.(png|jpe?g|webp)$/i.test(name)) return null
+  const abs = path.resolve(OUT_DIR, name)
+  if (!abs.startsWith(path.resolve(OUT_DIR) + path.sep)) return null
+  return abs
 }
 
 // ---------- 设置 ----------
@@ -481,13 +472,10 @@ function registerIpc(): void {
     }
   })
 
-  // 删除一条历史：仅限作品目录内的图片文件（含同名参数 sidecar），带目录逃逸校验
+  // 删除一条历史：仅限作品目录内的图片文件（含同名参数 sidecar），走统一校验
   ipcMain.handle('history:delete', async (_e, name: string) => {
-    if (!name || typeof name !== 'string') throw new Error('参数无效')
-    if (name.includes('/') || name.includes('\\') || name.includes('..')) throw new Error('文件名不合法')
-    if (!/\.(png|jpe?g|webp)$/i.test(name)) throw new Error('只能删除图片作品')
-    const abs = path.resolve(OUT_DIR, name)
-    if (!abs.startsWith(path.resolve(OUT_DIR) + path.sep)) throw new Error('越界路径')
+    const abs = resolveOutputPath(name)
+    if (!abs) throw new Error('文件名不合法')
     if (!fs.existsSync(abs)) return { ok: true } // 已不存在视为成功
     await fsp.unlink(abs)
     await fsp.rm(`${abs}.json`, { force: true })
@@ -654,6 +642,7 @@ function registerIpc(): void {
 
   ipcMain.handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string }) => {
     if (!payload?.goal?.trim()) throw new Error('请输入指令')
+    if (payload.baseName && !resolveOutputPath(payload.baseName)) throw new Error('底图文件不合法')
     const runOpts = {
       runId: payload.runId,
       goal: payload.goal.trim(),
@@ -669,6 +658,7 @@ function registerIpc(): void {
     const chain: Array<{ name: string; url: string }> = []
     let cur = name
     for (let i = 0; i < 20; i++) {
+      if (!resolveOutputPath(cur)) break
       const abs = path.join(OUT_DIR, cur)
       if (!fs.existsSync(abs)) break
       chain.unshift({ name: cur, url: `media://local/out/${encodeURIComponent(cur)}` })

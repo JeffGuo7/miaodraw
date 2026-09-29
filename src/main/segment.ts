@@ -72,8 +72,7 @@ async function readRaw(src: string, absMapper: (url: string) => string | null): 
     }
     return new tf.RawImage(rgb, size.width, size.height, 3)
   }
-  if (fs.existsSync(src)) return tf.RawImage.read(src)
-  throw new Error('无法读取图片')
+  throw new Error('无法读取图片：仅支持应用内图片（media://）或内嵌数据')
 }
 
 function maskToDataUrl(mask: Uint8Array, w: number, h: number): string {
