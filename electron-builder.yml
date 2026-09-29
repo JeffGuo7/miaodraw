@@ -1,5 +1,8 @@
 appId: com.miaodraw.app
-productName: 妙绘工作台
+# ASCII productName：卸载器名（Uninstall MiaoDraw.exe）、安装向导、产物名全部 ASCII 化，
+# 根治非 ASCII 文件名在 NSIS/更新链路上的问题；中文品牌保留在快捷方式名（shortcutName）
+# 与窗口标题（index.html <title> 妙绘工作台）中，userData 用 package.json 的 name（miaodraw）不受影响
+productName: MiaoDraw
 directories:
   buildResources: build
 files:
