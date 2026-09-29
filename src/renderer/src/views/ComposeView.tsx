@@ -81,6 +81,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [canvasSize, setCanvasSize] = useState(CANVAS_PRESETS[0])
   const [layers, setLayers] = useState<CompLayer[]>([])
+  const layersRef = useRef<CompLayer[]>([]) // 最新已提交图层的镜像：异步流程（await 之后）也能读到当前值
   const [selected, setSelected] = useState<string | null>(null)
   const [images, setImages] = useState<Record<string, HTMLImageElement>>({})
   const [view, setView] = useState<Viewport>({ scale: 0.5, x: 0, y: 0 })
@@ -165,26 +166,26 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   )
 
   const applySnapshot = (snap: Snapshot): void => {
-    setLayers(snap.layers)
+    writeLayers(snap.layers)
   }
 
   const undo = useCallback((): void => {
     if (undoStack.current.length === 0) return
-    const cur: Snapshot = { layers: JSON.parse(JSON.stringify(layers)) }
+    const cur: Snapshot = { layers: JSON.parse(JSON.stringify(layersRef.current)) }
     redoStack.current.push(cur)
     const prev = undoStack.current.pop()!
     applySnapshot(prev)
     setSelected(null)
-  }, [layers])
+  }, [])
 
   const redo = useCallback((): void => {
     if (redoStack.current.length === 0) return
-    const cur: Snapshot = { layers: JSON.parse(JSON.stringify(layers)) }
+    const cur: Snapshot = { layers: JSON.parse(JSON.stringify(layersRef.current)) }
     undoStack.current.push(cur)
     const nxt = redoStack.current.pop()!
     applySnapshot(nxt)
     setSelected(null)
-  }, [layers])
+  }, [])
 
   useEffect(() => {
     if (!visible) return
@@ -203,9 +204,25 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   }, [visible, undo, redo])
 
   // ---------- 图层操作 ----------
+  /** 统一写入入口：updater 内只做纯计算 + 镜像赋值（幂等，StrictMode 双调用安全） */
+  function writeLayers(next: CompLayer[] | ((prev: CompLayer[]) => CompLayer[])): void {
+    setLayers((prev) => {
+      const v = typeof next === 'function' ? next(prev) : next
+      layersRef.current = v
+      return v
+    })
+  }
+
   function commit(next: CompLayer[]): void {
-    pushHistory(layers)
-    setLayers(next)
+    pushHistory(layersRef.current)
+    writeLayers(next)
+  }
+
+  /** 异步流程（await 之后）追加图层：历史基线取自最新镜像，避免陈旧闭包互相覆盖丢图层 */
+  function appendLayer(layer: CompLayer): void {
+    pushHistory(layersRef.current)
+    writeLayers((prev) => [...prev, layer])
+    setSelected(layer.id)
   }
 
   async function addImage(src: string, name: string): Promise<void> {
@@ -226,8 +243,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
         visible: true
       }
       setImages((m) => ({ ...m, [src]: img }))
-      commit([...layers, layer])
-      setSelected(layer.id)
+      appendLayer(layer)
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e))
     }
@@ -249,8 +265,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
       fontSize: 64,
       fill: '#1d1d1f'
     }
-    commit([...layers, layer])
-    setSelected(layer.id)
+    appendLayer(layer)
   }
 
   function removeSelected(): void {
@@ -272,7 +287,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   function updateLayer(id: string, patch: Partial<CompLayer>, history = false): void {
     const next = layers.map((l) => (l.id === id ? { ...l, ...patch } : l))
     if (history) commit(next)
-    else setLayers(next)
+    else writeLayers(next)
   }
 
   // 滑条/取色器：一次连续拖动只记一条撤销历史（首次变更入栈，结束时复位）
@@ -371,8 +386,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
     }
     const img = await loadImage(url)
     setImages((m) => ({ ...m, [url]: img }))
-    commit([...layers, layer])
-    setSelected(layer.id)
+    appendLayer(layer)
     exitPick()
     message.success('已提取为新图层')
   }
