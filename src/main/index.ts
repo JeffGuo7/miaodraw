@@ -114,7 +114,10 @@ interface Settings {
 }
 function readSettings(): Settings {
   try {
-    const s = JSON.parse(fs.readFileSync(SETTINGS_FILE(), 'utf-8')) as Settings
+    // 容错 UTF-8 BOM：外部工具（PowerShell 5.1 等）写出的配置带 BOM 会让 JSON.parse 抛异常，
+    // 进而被当成"空设置"覆盖用户全部配置——历史真实事故，此处必须剥离
+    const raw = fs.readFileSync(SETTINGS_FILE(), 'utf-8').replace(/^\uFEFF/, '')
+    const s = JSON.parse(raw) as Settings
     // 旧版单模型设置迁移到多服务商结构
     if (!s.activeModel && s.model) s.activeModel = { provider: 'bailian', model: s.model }
     return s
