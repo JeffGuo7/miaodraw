@@ -52,6 +52,18 @@ const CANVAS_PRESETS = [
   { value: '768x1344', label: '竖屏 9:16 · 768×1344', w: 768, h: 1344 }
 ]
 
+/** 视口变换：Stage 占满容器，画布通过平移+缩放映射进来（参考 ai-picture-editor 的 CanvasStage 模式） */
+interface Viewport {
+  scale: number
+  x: number
+  y: number
+}
+
+const MIN_SCALE = 0.08
+const MAX_SCALE = 4
+
+const clampScale = (v: number): number => Math.min(MAX_SCALE, Math.max(MIN_SCALE, v))
+
 let uid = 0
 const nextId = (): string => `L${++uid}`
 
@@ -71,17 +83,76 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   const [layers, setLayers] = useState<CompLayer[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [images, setImages] = useState<Record<string, HTMLImageElement>>({})
-  const [viewScale, setViewScale] = useState(0.5)
+  const [view, setView] = useState<Viewport>({ scale: 0.5, x: 0, y: 0 })
   const [busy, setBusy] = useState(false)
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([])
   const stageRef = useRef<any>(null)
   const trRef = useRef<any>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [wrapSize, setWrapSize] = useState({ w: 0, h: 0 })
   const undoStack = useRef<Snapshot[]>([])
   const redoStack = useRef<Snapshot[]>([])
+  const manualView = useRef(false) // 用户手动缩放/平移后，容器变化不再自动重适配
 
   useEffect(() => {
     if (visible) void window.api.history().then(setHistoryItems).catch(() => undefined)
   }, [visible])
+
+  // ---------- 容器尺寸测量（Stage 占满工作区） ----------
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setWrapSize({ w: el.clientWidth, h: el.clientHeight })
+    })
+    ro.observe(el)
+    setWrapSize({ w: el.clientWidth, h: el.clientHeight })
+    return () => ro.disconnect()
+  }, [visible])
+
+  /** 适配窗口：画布完整居中显示 */
+  const fitToWindow = useCallback(
+    (size = wrapSize, canvas = canvasSize): void => {
+      if (size.w < 40 || size.h < 40) return
+      manualView.current = false
+      const scale = clampScale(Math.min((size.w - 48) / canvas.w, (size.h - 48) / canvas.h, 1))
+      setView({ scale, x: (size.w - canvas.w * scale) / 2, y: (size.h - canvas.h * scale) / 2 })
+    },
+    [wrapSize, canvasSize]
+  )
+
+  // 首次量到尺寸、容器尺寸变化、或切换画幅时自动适配（手动缩放过则不干预）
+  useEffect(() => {
+    if (wrapSize.w < 40 || manualView.current) return
+    fitToWindow(wrapSize, canvasSize)
+  }, [wrapSize, canvasSize, fitToWindow])
+
+  /** 以某个屏幕点为锚缩放（滚轮缩放不跑偏的关键） */
+  const zoomAt = useCallback((screenX: number, screenY: number, factor: number): void => {
+    manualView.current = true
+    setView((v) => {
+      const next = clampScale(v.scale * factor)
+      if (next === v.scale) return v
+      const k = next / v.scale
+      return { scale: next, x: screenX - (screenX - v.x) * k, y: screenY - (screenY - v.y) * k }
+    })
+  }, [])
+
+  const zoomCenter = useCallback(
+    (factor: number): void => {
+      zoomAt(wrapSize.w / 2, wrapSize.h / 2, factor)
+    },
+    [wrapSize, zoomAt]
+  )
+
+  // 屏幕坐标 → 画布坐标
+  const toCanvas = useCallback(
+    (px: number, py: number): { x: number; y: number } => ({
+      x: (px - view.x) / view.scale,
+      y: (py - view.y) / view.scale
+    }),
+    [view]
+  )
 
   // ---------- 撤销/重做 ----------
   const pushHistory = useCallback(
@@ -327,7 +398,14 @@ export default function ComposeView({ visible }: Props): JSX.Element {
     try {
       setSelected(null)
       await new Promise((r) => setTimeout(r, 60))
-      const dataUrl = stage.toDataURL({ pixelRatio: 1 / viewScale })
+      // 视口模式下按画布区域裁剪 + 反向 pixelRatio，任何缩放级别都导出原始分辨率
+      const dataUrl = stage.toDataURL({
+        x: view.x,
+        y: view.y,
+        width: canvasSize.w * view.scale,
+        height: canvasSize.h * view.scale,
+        pixelRatio: 1 / view.scale
+      })
       const r = await window.api.composeSave({ dataUrl, width: canvasSize.w, height: canvasSize.h })
       message.success(`已导出到作品目录：${r.name}`)
     } catch (e) {
@@ -344,7 +422,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   )
 
   return (
-    <Row gutter={16}>
+    <Row gutter={16} wrap={false} className="create-row">
       {/* 左：图层与素材 */}
       <Col flex="330px">
         <Card title="画布" size="small" styles={{ body: { padding: 12 } }}>
@@ -486,7 +564,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
         )}
       </Col>
 
-      {/* 右：画布 */}
+      {/* 右：画布工作区（Stage 占满容器，视口平移缩放） */}
       <Col flex="auto" className="create-main">
         <Card
           styles={{ body: { padding: 12, height: '100%', display: 'flex', flexDirection: 'column' } }}
@@ -503,17 +581,17 @@ export default function ComposeView({ visible }: Props): JSX.Element {
             </Space>
             <div className="toolbar-spacer" />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              显示 {Math.round(viewScale * 100)}% · 导出 {canvasSize.w}×{canvasSize.h}
+              {Math.round(view.scale * 100)}% · 导出 {canvasSize.w}×{canvasSize.h}
             </Typography.Text>
             <Space size={6}>
-              <Tooltip title="放大">
-                <Button size="small" type="text" icon={<ZoomInOutlined />} onClick={() => setViewScale((v) => Math.min(1.5, v + 0.1))} />
-              </Tooltip>
               <Tooltip title="缩小">
-                <Button size="small" type="text" icon={<ZoomOutOutlined />} onClick={() => setViewScale((v) => Math.max(0.15, v - 0.1))} />
+                <Button size="small" type="text" icon={<ZoomOutOutlined />} onClick={() => zoomCenter(1 / 1.25)} />
+              </Tooltip>
+              <Tooltip title="放大">
+                <Button size="small" type="text" icon={<ZoomInOutlined />} onClick={() => zoomCenter(1.25)} />
               </Tooltip>
               <Tooltip title="适配窗口">
-                <Button size="small" type="text" icon={<CompressOutlined />} onClick={() => setViewScale(0.5)} />
+                <Button size="small" type="text" icon={<CompressOutlined />} onClick={() => fitToWindow()} />
               </Tooltip>
             </Space>
             {pickMode ? (
@@ -548,14 +626,32 @@ export default function ComposeView({ visible }: Props): JSX.Element {
               导出 PNG
             </Button>
           </div>
-          <div className="compose-stage-wrap">
+          <div className="compose-stage-wrap" ref={wrapRef}>
             <Stage
               ref={stageRef}
-              width={canvasSize.w * viewScale}
-              height={canvasSize.h * viewScale}
-              scaleX={viewScale}
-              scaleY={viewScale}
-              style={{ background: '#fff', borderRadius: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.1)', cursor: pickMode ? 'crosshair' : 'default' }}
+              width={Math.max(1, wrapSize.w)}
+              height={Math.max(1, wrapSize.h)}
+              x={view.x}
+              y={view.y}
+              scaleX={view.scale}
+              scaleY={view.scale}
+              draggable={!pickMode}
+              style={{ cursor: pickMode ? 'crosshair' : 'grab' }}
+              onDragEnd={(e) => {
+                // 只同步画布视口的拖拽，图层自身的拖拽在各自 onDragEnd 处理
+                if (e.target === stageRef.current) {
+                  manualView.current = true
+                  setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }))
+                }
+              }}
+              onWheel={(e) => {
+                e.evt.preventDefault()
+                const pos = e.target.getStage()?.getPointerPosition()
+                if (!pos) return
+                // 6% 每格，方向跟随滚轮；按住 Alt 反向
+                const factor = e.evt.deltaY < 0 ? 1.06 : 1 / 1.06
+                zoomAt(pos.x, pos.y, e.evt.altKey ? 1 / factor : factor)
+              }}
               onMouseDown={(e) => {
                 const stage = e.target.getStage()
                 if (pickMode) {
@@ -565,9 +661,9 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                   const imgEl = images[pickTarget.src]
                   const natW = imgEl?.naturalWidth || pickTarget.width
                   const natH = imgEl?.naturalHeight || pickTarget.height
-                  const sx = viewScale
-                  const localX = ((pos.x - pickTarget.x * sx) / sx) * (natW / pickTarget.width)
-                  const localY = ((pos.y - pickTarget.y * sx) / sx) * (natH / pickTarget.height)
+                  const c = toCanvas(pos.x, pos.y)
+                  const localX = ((c.x - pickTarget.x) / pickTarget.width) * natW
+                  const localY = ((c.y - pickTarget.y) / pickTarget.height) * natH
                   const pts = [...pickPoints, { x: localX, y: localY }]
                   setPickPoints(pts)
                   setSegBusy(true)
@@ -578,11 +674,22 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                     .finally(() => setSegBusy(false))
                   return
                 }
-                if (e.target === e.target.getStage()) setSelected(null)
+                if (e.target === stage) setSelected(null)
               }}
             >
               <Layer>
-                <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#ffffff" />
+                {/* 画板：白色画布 + 投影，随视口一起缩放 */}
+                <Rect
+                  x={0}
+                  y={0}
+                  width={canvasSize.w}
+                  height={canvasSize.h}
+                  fill="#ffffff"
+                  shadowColor="#1d1d1f"
+                  shadowBlur={28}
+                  shadowOpacity={0.14}
+                  shadowOffset={{ x: 0, y: 6 }}
+                />
                 {layers
                   .filter((l) => l.visible && (l.type !== 'image' || images[l.src ?? '']))
                   .map((l) =>
@@ -637,7 +744,23 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                         onDragEnd={(e) => updateLayer(l.id, { x: e.target.x(), y: e.target.y() }, true)}
                         onTransformEnd={(e) => {
                           const node = e.target
-                          updateLayer(l.id, { x: node.x(), y: node.y(), rotation: node.rotation() }, true)
+                          // 缩放折算进宽高与字号，再把节点 scale 复位，避免下次渲染弹回
+                          const sx = Math.max(0.1, node.scaleX())
+                          const sy = Math.max(0.1, node.scaleY())
+                          updateLayer(
+                            l.id,
+                            {
+                              x: node.x(),
+                              y: node.y(),
+                              width: Math.max(40, node.width() * sx),
+                              height: Math.max(16, node.height() * sy),
+                              fontSize: Math.max(8, Math.round(((node as unknown as { fontSize?: () => number }).fontSize?.() ?? l.fontSize ?? 64) * sy)),
+                              rotation: node.rotation()
+                            },
+                            true
+                          )
+                          node.scaleX(1)
+                          node.scaleY(1)
                         }}
                       />
                     )
@@ -653,7 +776,16 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                       listening={false}
                     />
                   )}
-                <Transformer ref={trRef} rotateEnabled keepRatio={false} borderStroke="#0071e3" anchorStroke="#0071e3" anchorFill="#ffffff" anchorSize={9} />
+                <Transformer
+                  ref={trRef}
+                  rotateEnabled
+                  keepRatio={false}
+                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                  borderStroke="#0071e3"
+                  anchorStroke="#0071e3"
+                  anchorFill="#ffffff"
+                  anchorSize={9}
+                />
               </Layer>
             </Stage>
           </div>

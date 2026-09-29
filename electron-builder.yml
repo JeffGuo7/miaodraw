@@ -4,6 +4,17 @@ directories:
   buildResources: build
 files:
   - out/**
+  # --- 瘦身排除：只保留 win32-x64 运行时真正需要的内容 ---
+  - '!**/*.map'
+  - '!**/*.md'
+  - '!**/{LICENSE,NOTICE,AUTHORS}*'
+  # onnxruntime-node 全平台发布：非本平台二进制全部剔除（实测省 ~223MB）
+  - '!**/node_modules/onnxruntime-node/bin/*/darwin/**'
+  - '!**/node_modules/onnxruntime-node/bin/*/linux/**'
+  - '!**/node_modules/onnxruntime-node/bin/*/win32/arm64/**'
+  # Node 主进程只用 onnxruntime-node，web 版 wasm 无引用（实测省 ~138MB）
+  - '!**/node_modules/onnxruntime-web/**'
+  - '!**/node_modules/@img/sharp-wasm32/**'
 extraResources:
   - from: library
     to: library
@@ -15,8 +26,14 @@ extraResources:
 win:
   target:
     - nsis
+    - portable
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: 妙绘工作台
+  # ASCII 产物名：修复 latest.yml 与实际文件名不一致（非 ASCII productName 触发安全名）
+  artifactName: miaodraw-setup-${version}.${ext}
+portable:
+  # 免安装单文件版：彻底绕开 NSIS 安装链路，作为安装器的可靠后路
+  artifactName: miaodraw-portable-${version}.${ext}

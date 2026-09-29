@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -20,11 +20,37 @@ export function usingBundledCli(): boolean {
   return !!vendorEntry && blEntry() === vendorEntry && fs.existsSync(vendorEntry)
 }
 
+const GLOBAL_ENTRY_RELS = [
+  path.join('node_modules', 'bailian-cli', 'dist', 'bailian.mjs'),
+  path.join('node_modules', '@aliyun', 'bailian-cli', 'dist', 'bailian.mjs')
+]
+
+/** 通过 PATH 探测全局安装的 bailian-cli，返回绝对 .mjs 入口；找不到返回 ''。
+ *  绝不回退 spawn('bl', { shell: true })：args 含用户提示词，直连 cmd.exe 等于命令注入。 */
+function resolveGlobalEntry(): string {
+  const probe = process.platform === 'win32' ? 'where.exe' : 'which'
+  try {
+    const r = spawnSync(probe, ['bl'], { encoding: 'utf8', windowsHide: true, timeout: 8000 })
+    if (r.status !== 0 || !r.stdout) return ''
+    for (const line of r.stdout.split(/\r?\n/)) {
+      const dir = path.dirname(line.trim())
+      if (!dir || dir === '.') continue
+      for (const rel of GLOBAL_ENTRY_RELS) {
+        const p = path.join(dir, rel)
+        if (fs.existsSync(p)) return p
+      }
+    }
+  } catch {
+    /* 探测失败按未安装处理 */
+  }
+  return ''
+}
+
 export function blEntry(): string {
   if (process.env.BL_ENTRY && fs.existsSync(process.env.BL_ENTRY)) return process.env.BL_ENTRY
   if (vendorEntry && fs.existsSync(vendorEntry)) return vendorEntry
   for (const c of BL_ENTRY_CANDIDATES) if (fs.existsSync(c)) return c
-  return 'bl' // 兜底走 PATH（spawn shell:true）
+  return resolveGlobalEntry() // '' = 未找到任何可用 CLI 入口
 }
 
 // ---------- 应用内置密钥（免 bl auth login） ----------
@@ -40,9 +66,11 @@ export function hasBailianKey(): boolean {
 
 function spawnBl(args: string[]): ChildProcess {
   const entry = blEntry()
+  if (!entry) {
+    throw new Error('未找到百炼 CLI：内置副本缺失且全局安装探测失败。请重新安装妙绘工作台，或先 npm i -g bailian-cli')
+  }
   const env: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
   if (bailianKey) env['DASHSCOPE_API_KEY'] = bailianKey
-  if (entry === 'bl') return spawn('bl', args, { shell: true, env })
   return spawn(process.execPath, [entry, ...args], { env })
 }
 

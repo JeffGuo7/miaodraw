@@ -47,6 +47,9 @@ const MODELS_LEGACY: Record<string, boolean> = {
   'wanx2.0-t2i-turbo': true
 }
 
+/** 百炼兜底模型：唯一事实源是 models.ts，避免散落的硬编码与清单漂移 */
+const BAILIAN_FALLBACK_MODEL = providerDef('bailian')?.models[0].model ?? 'qwen-image-3.0-pro'
+
 const SIZES = [
   { value: '1024x1024', label: '方图 1:1 · 1024' },
   { value: '896x1152', label: '竖图 3:4 · 896×1152' },
@@ -135,6 +138,14 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     if (seed.negative !== undefined) setNegative(seed.negative)
     if (seed.size && SIZES.some((s) => s.value === seed.size)) setSize(seed.size)
     if (seed.seed !== undefined) setSeedNum(seed.seed)
+    if (seed.model) {
+      // 复现必须连模型一起回填，否则结果与历史记录不符
+      const hit = PROVIDERS.flatMap((p) => p.models.map((m) => ({ provider: p.id, model: m.model }))).find(
+        (x) => x.model === seed.model
+      )
+      if (hit) setActive(hit)
+      else message.warning(`历史记录的模型 ${seed.model} 不在当前模型列表，已保留当前选择`)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed.ts])
 
@@ -165,7 +176,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const needKey = provider !== 'bailian' && !providerKeys[provider]
   const i2iUnsupported = mode === 'i2i' && !(providerDef(provider)?.i2i ?? false)
 
-  async function doGenerate(): Promise<void> {
+  /** seedOverride：0 = 让主进程随机种子；不传 = 沿用当前种子输入 */
+  async function doGenerate(seedOverride?: number): Promise<void> {
     if (busy) return
     const p = prompt.trim()
     if (!p) {
@@ -188,7 +200,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         negative: negative.trim() || undefined,
         w,
         h,
-        seed: seedNum ?? 0,
+        seed: seedOverride ?? seedNum ?? 0,
         model: active.model,
         provider,
         runId,
@@ -218,8 +230,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   }
 
   async function reroll(): Promise<void> {
-    setSeedNum(null)
-    await doGenerate()
+    // 必须显式传 0（主进程随机）：setSeedNum(null) 要下次渲染才生效，本闭包里还是旧种子
+    await doGenerate(0)
   }
 
   async function runAgentFlow(): Promise<void> {
@@ -234,8 +246,9 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     setAgentReply('')
     setErr('')
     const runId = crypto.randomUUID()
+    let offAgent: (() => void) | undefined
     try {
-      const off = window.api.onAgentProgress((e) => {
+      offAgent = window.api.onAgentProgress((e) => {
         if (e.runId !== runId) return
         if (e.stage === 'plan') {
           setAgentSteps([{ label: 'AI 规划中', done: false }])
@@ -245,9 +258,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           setAgentSteps((old) => old.map((s) => ({ ...s, done: true })))
         }
       })
-      const defaultModel = provider === 'bailian' ? active.model : 'qwen-image-3.0'
+      const defaultModel = provider === 'bailian' ? active.model : BAILIAN_FALLBACK_MODEL
       const r = await window.api.agentRun({ runId, goal, baseName: result?.file, model: defaultModel })
-      off()
       if (r.last) {
         setResult({ file: r.last.file, url: r.last.url, elapsed: 0, seed: 0, model: defaultModel })
         void window.api
@@ -261,6 +273,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
+      offAgent?.() // 无论成败都要解绑，否则失败一次泄漏一个监听器
       setAgentBusy(false)
     }
   }
@@ -289,7 +302,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   }
 
   return (
-    <Row gutter={20} className="create-row">
+    <Row gutter={20} wrap={false} className="create-row">
       {/* 左：控制面板 */}
       <Col flex="420px" className="create-side">
         <Card
@@ -328,7 +341,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
               action={
                 <Button
                   size="small"
-                  onClick={() => setActive({ provider: 'bailian', model: 'qwen-image-3.0' })}
+                  onClick={() => setActive({ provider: 'bailian', model: BAILIAN_FALLBACK_MODEL })}
                 >
                   切回百炼
                 </Button>
@@ -454,7 +467,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             block
             loading={busy}
             disabled={needKey || i2iUnsupported}
-            onClick={doGenerate}
+            onClick={() => void doGenerate()}
             className="gen-btn"
           >
             {busy ? `生成中… ${elapsed}s` : '生成'}

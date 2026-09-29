@@ -18,7 +18,12 @@ const OUT_DIR = isPackaged ? path.join(app.getPath('userData'), 'outputs') : pat
 const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json')
 
 // ---------- 单实例 ----------
+// 验收截图模式使用独立 userData，避免与正在运行的正式实例抢单实例锁
+if (process.env.TEST_MODE === 'screenshot') {
+  app.setPath('userData', path.join(app.getPath('userData'), 'shot-session'))
+}
 if (!app.requestSingleInstanceLock()) {
+  console.log('[debug] single-instance lock denied, quitting')
   app.quit()
 }
 
@@ -186,9 +191,16 @@ function createWindow(): void {
     }
   })
   win.on('ready-to-show', () => win?.show())
+  // 外链只放行 http(s)；file:/smb:/自定义 scheme 一律不交给系统打开
   win.webContents.setWindowOpenHandler((d) => {
-    shell.openExternal(d.url)
+    if (/^https?:\/\//i.test(d.url)) void shell.openExternal(d.url)
     return { action: 'deny' }
+  })
+  // 禁止整窗导航离开应用页面：一旦被导去外部站点，preload 仍会注入，等于把全套 IPC 交给对方
+  win.webContents.on('will-navigate', (e, url) => {
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    const allowed = devUrl ? url.startsWith(devUrl) : url.startsWith('file://')
+    if (!allowed) e.preventDefault()
   })
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])

@@ -14,7 +14,14 @@ const LOG = path.join(ROOT, 'assets', 'logo-run.log')
 function log(m) {
   const line = '[' + new Date().toISOString() + '] ' + m
   fs.appendFileSync(LOG, line + '\n')
-  console.log(line)
+  // 防护：若父进程/终端退出导致 stdout 管道断开（EPIPE），此处写 console 会抛异常；
+  // 曾因 uncaughtException 处理器再调 log() 形成自触发死循环，3 小时刷出 28GB 日志。
+  // console 写失败只丢回显，绝不允许异常向外传播。
+  try {
+    console.log(line)
+  } catch {
+    /* ignore EPIPE / stdout closed */
+  }
 }
 
 const KEY = fs.readFileSync(KEY_TMP, 'utf-8').trim()
