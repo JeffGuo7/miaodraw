@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog, safeStorage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog, safeStorage, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -242,7 +242,8 @@ function createWindow(): void {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true
     }
   })
   win.on('ready-to-show', () => win?.show())
@@ -424,7 +425,17 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
 
 // ---------- IPC ----------
 function registerIpc(): void {
-  ipcMain.handle('health', async () => {
+  /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
+  function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {
+    ipcMain.handle(channel, (e, ...args: unknown[]) => {
+      if (!win || e.sender.id !== win.webContents.id) {
+        throw new Error('拒绝来源不明的 IPC 调用')
+      }
+      // 守卫通过后调用真实处理器（参数类型由各 handler 自行声明并校验）
+      return (fn as (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown)(e, ...args)
+    })
+  }
+  handle('health', async () => {
     const bl = await blHealth()
     return {
       ok: bl.ok,
@@ -437,12 +448,12 @@ function registerIpc(): void {
     }
   })
 
-  ipcMain.handle('library', () => {
+  handle('library', () => {
     libPromise ??= loadLibrary(LIB_ROOT, path.join(app.getPath('userData'), 'library-hash-cache.json'))
     return libPromise
   })
 
-  ipcMain.handle('history', async () => {
+  handle('history', async () => {
     try {
       await fsp.mkdir(OUT_DIR, { recursive: true })
       const files = await fsp.readdir(OUT_DIR)
@@ -473,7 +484,7 @@ function registerIpc(): void {
   })
 
   // 删除一条历史：仅限作品目录内的图片文件（含同名参数 sidecar），走统一校验
-  ipcMain.handle('history:delete', async (_e, name: string) => {
+  handle('history:delete', async (_e, name: string) => {
     const abs = resolveOutputPath(name)
     if (!abs) throw new Error('文件名不合法')
     if (!fs.existsSync(abs)) return { ok: true } // 已不存在视为成功
@@ -482,7 +493,7 @@ function registerIpc(): void {
     return { ok: true }
   })
 
-  ipcMain.handle('generate', async (_e, raw: GenOpts & { provider?: string; runId?: string }) => {
+  handle('generate', async (_e, raw: GenOpts & { provider?: string; runId?: string }) => {
     const opts = raw as GenOpts & { provider?: string; runId?: string }
     if (!opts || !opts.prompt || !opts.prompt.trim()) throw new Error('提示词不能为空')
     const provider = opts.provider || 'bailian'
@@ -527,7 +538,7 @@ function registerIpc(): void {
     }
   })
 
-  ipcMain.handle('test:provider', async (_e, provider: string) => {
+  handle('test:provider', async (_e, provider: string) => {
     const apiKey = getProviderKey(provider)
     if (!apiKey) return { ok: false, out: '请先填写 API Key 并保存' }
     try {
@@ -560,18 +571,18 @@ function registerIpc(): void {
     }
   })
 
-  ipcMain.handle('distill', (_e, payload: { data: ArrayBuffer; name: string }) => {
+  handle('distill', (_e, payload: { data: ArrayBuffer; name: string }) => {
     if (!payload?.data) throw new Error('没收到图片')
     return distill(payload.data, payload.name || 'image.png')
   })
 
-  ipcMain.handle('settings:get', () => {
+  handle('settings:get', () => {
     const s = readSettings()
     // 密文字段与旧明文字段绝不回显到渲染进程；服务商密钥只给掩码状态
     const { bailianKeyEnc: _a, bailianKeyPlain: _b, providerKeysEnc: _c, providers: _d, ...pub } = s
     return { ...pub, providerKeys: providerKeysInfo() }
   })
-  ipcMain.handle('settings:set', (_e, patch: Settings) => {
+  handle('settings:set', (_e, patch: Settings) => {
     if (
       patch &&
       ('bailianKeyEnc' in patch ||
@@ -586,8 +597,8 @@ function registerIpc(): void {
   })
 
   // ---------- 第三方服务商密钥管理 ----------
-  ipcMain.handle('provider-key:get', () => providerKeysInfo())
-  ipcMain.handle('provider-key:set', (_e, provider: string, key: string) => {
+  handle('provider-key:get', () => providerKeysInfo())
+  handle('provider-key:set', (_e, provider: string, key: string) => {
     if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
     const plain = String(key || '').trim()
     if (!plain) return { ok: false as const, err: '密钥不能为空' }
@@ -598,7 +609,7 @@ function registerIpc(): void {
     writeSettings({ providerKeysEnc: next })
     return { ok: true as const, info: providerKeysInfo(), plainFallback }
   })
-  ipcMain.handle('provider-key:clear', (_e, provider: string) => {
+  handle('provider-key:clear', (_e, provider: string) => {
     if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
     const next = { ...(readSettings().providerKeysEnc ?? {}) }
     delete next[provider]
@@ -607,8 +618,8 @@ function registerIpc(): void {
   })
 
   // ---------- 百炼密钥管理 ----------
-  ipcMain.handle('bailian-key:get', () => bailianKeyInfo())
-  ipcMain.handle('bailian-key:set', (_e, key: string) => {
+  handle('bailian-key:get', () => bailianKeyInfo())
+  handle('bailian-key:set', (_e, key: string) => {
     const plain = String(key || '').trim()
     if (!plain) return { ok: false as const, err: '密钥不能为空' }
     if (/\s/.test(plain)) {
@@ -620,18 +631,18 @@ function registerIpc(): void {
     setBailianKey(plain)
     return { ok: true as const, info: bailianKeyInfo(), plainFallback }
   })
-  ipcMain.handle('bailian-key:clear', () => {
+  handle('bailian-key:clear', () => {
     writeSettings({ bailianKeyEnc: undefined, bailianKeyPlain: undefined })
     setBailianKey('')
     return bailianKeyInfo()
   })
-  ipcMain.handle('bailian-key:test', async () => {
+  handle('bailian-key:test', async () => {
     if (!hasBailianKey()) return { ok: false, out: '尚未配置百炼密钥，请先填写并保存' }
     return bailianAuthTest()
   })
 
-  ipcMain.handle('favorites:list', () => readFavorites().sort((a, b) => b.savedAt - a.savedAt))
-  ipcMain.handle('favorites:toggle', (_e, item: Omit<FavItem, 'savedAt'>) => {
+  handle('favorites:list', () => readFavorites().sort((a, b) => b.savedAt - a.savedAt))
+  handle('favorites:toggle', (_e, item: Omit<FavItem, 'savedAt'>) => {
     const list = readFavorites()
     const idx = list.findIndex((f) => f.key === item.key)
     if (idx >= 0) list.splice(idx, 1)
@@ -640,7 +651,7 @@ function registerIpc(): void {
     return list.sort((a, b) => b.savedAt - a.savedAt)
   })
 
-  ipcMain.handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string }) => {
+  handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string }) => {
     if (!payload?.goal?.trim()) throw new Error('请输入指令')
     if (payload.baseName && !resolveOutputPath(payload.baseName)) throw new Error('底图文件不合法')
     const runOpts = {
@@ -654,7 +665,7 @@ function registerIpc(): void {
     return runAgent(runOpts)
   })
 
-  ipcMain.handle('image:chain', async (_e, name: string) => {
+  handle('image:chain', async (_e, name: string) => {
     const chain: Array<{ name: string; url: string }> = []
     let cur = name
     for (let i = 0; i < 20; i++) {
@@ -675,17 +686,17 @@ function registerIpc(): void {
     return chain
   })
 
-  ipcMain.handle('bl:update', async () => {
+  handle('bl:update', async () => {
     const r = await runBl(['update'], 300000)
     return { ok: r.code === 0, out: (r.stdout + '\n' + r.stderr).trim().slice(-800) }
   })
 
-  ipcMain.handle('segment:mask', async (_e, src: string, points: Array<{ x: number; y: number }>) => {
+  handle('segment:mask', async (_e, src: string, points: Array<{ x: number; y: number }>) => {
     if (!points?.length) throw new Error('请先在图上点击至少一个点')
     return segmentService.mask(src, points)
   })
 
-  ipcMain.handle('compose:save', async (_e, payload: { dataUrl: string; width: number; height: number }) => {
+  handle('compose:save', async (_e, payload: { dataUrl: string; width: number; height: number }) => {
     if (!payload?.dataUrl?.startsWith('data:image/png;base64,')) throw new Error('导出数据无效')
     await fsp.mkdir(OUT_DIR, { recursive: true })
     const name = `compose_${Date.now()}.png`
@@ -702,7 +713,7 @@ function registerIpc(): void {
     return { name, url: `media://local/out/${encodeURIComponent(name)}` }
   })
 
-  ipcMain.handle('open:path', (_e, kind: string) => {
+  handle('open:path', (_e, kind: string) => {
     const p =
       kind === 'outputs'
         ? OUT_DIR
@@ -716,20 +727,20 @@ function registerIpc(): void {
     return { ok: true }
   })
 
-  ipcMain.handle('app:info', () => ({
+  handle('app:info', () => ({
     version: app.getVersion(),
     name: '妙绘工作台',
     libraryRoot: LIB_ROOT,
     outputsDir: OUT_DIR
   }))
 
-  ipcMain.handle('image:read', (_e, url: string) => {
+  handle('image:read', (_e, url: string) => {
     const abs = parseMediaUrl(url)
     if (!abs) throw new Error('找不到文件')
     return fsp.readFile(abs)
   })
 
-  ipcMain.handle('image:save', async (_e, url: string) => {
+  handle('image:save', async (_e, url: string) => {
     const abs = parseMediaUrl(url)
     if (!abs) return { ok: false, err: '找不到源文件' }
     const ext = path.extname(abs) || '.png'
@@ -742,7 +753,7 @@ function registerIpc(): void {
     return { ok: true, path: r.filePath }
   })
 
-  ipcMain.handle('image:reveal', (_e, url: string) => {
+  handle('image:reveal', (_e, url: string) => {
     const abs = parseMediaUrl(url)
     if (abs) shell.showItemInFolder(abs)
     return { ok: !!abs }
