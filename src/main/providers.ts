@@ -1,11 +1,18 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 
-export type HttpProvider = 'siliconflow' | 'openai'
+/** 内置供应商的默认 API 地址；自定义供应商必须自带 baseUrl */
+export const PROVIDER_BASE_URLS: Record<string, string> = {
+  siliconflow: 'https://api.siliconflow.cn/v1',
+  openai: 'https://api.openai.com/v1'
+}
 
 export interface HttpGenOpts {
-  provider: HttpProvider
+  /** 供应商 ID：内置 'siliconflow' | 'openai'，或任意自定义 OpenAI 兼容供应商 */
+  provider: string
   apiKey: string
+  /** OpenAI 兼容 API 根地址（缺省取内置表；自定义供应商必填） */
+  apiBase?: string
   prompt: string
   negative?: string
   w: number
@@ -20,40 +27,20 @@ export interface HttpGenResult {
   seed: number
 }
 
-/** HTTP 直连的多服务商文生图（改图/反推仍走百炼 bl，能力最全） */
+/** HTTP 直连的 OpenAI 兼容文生图（改图/反推仍走百炼 bl，能力最全） */
 export async function httpGenerate(o: HttpGenOpts): Promise<HttpGenResult> {
   const t0 = Date.now()
   await fsp.mkdir(o.outputsDir, { recursive: true })
+  const base = (o.apiBase || PROVIDER_BASE_URLS[o.provider] || '').replace(/\/+$/, '')
+  if (!base) throw new Error(`供应商 ${o.provider} 缺少 API 地址`)
   const seed = o.seed && o.seed > 0 ? o.seed : Math.floor(Math.random() * 2147483647)
   let b64: string | null = null
   let url: string | null = null
 
-  if (o.provider === 'siliconflow') {
-    const body: Record<string, unknown> = {
-      model: o.model,
-      prompt: o.prompt,
-      image_size: `${o.w}x${o.h}`,
-      batch_size: 1,
-      seed
-    }
-    if (o.negative) body.negative_prompt = o.negative
-    const r = await fetch('https://api.siliconflow.cn/v1/images/generations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${o.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    const j = (await r.json().catch(() => ({}))) as {
-      message?: string
-      images?: Array<{ url?: string }>
-      data?: Array<{ url?: string }>
-    }
-    if (!r.ok) throw new Error(j.message || `HTTP ${r.status}`)
-    url = j.images?.[0]?.url ?? j.data?.[0]?.url ?? null
-    if (!url) throw new Error('服务商未返回图片')
-  } else {
-    // OpenAI gpt-image-1
+  if (o.provider === 'openai') {
+    // OpenAI gpt-image-1：尺寸走枚举、返回 b64
     const size = o.w === o.h ? '1024x1024' : o.h > o.w ? '1024x1536' : '1536x1024'
-    const r = await fetch('https://api.openai.com/v1/images/generations', {
+    const r = await fetch(`${base}/images/generations`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${o.apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: o.model, prompt: o.prompt, size, n: 1 })
@@ -66,6 +53,29 @@ export async function httpGenerate(o: HttpGenOpts): Promise<HttpGenResult> {
     b64 = j.data?.[0]?.b64_json ?? null
     url = j.data?.[0]?.url ?? null
     if (!b64 && !url) throw new Error('服务商未返回图片')
+  } else {
+    // 通用 OpenAI 兼容 images 端点（硅基流动及绝大多数网关同构）
+    const body: Record<string, unknown> = {
+      model: o.model,
+      prompt: o.prompt,
+      image_size: `${o.w}x${o.h}`,
+      batch_size: 1,
+      seed
+    }
+    if (o.negative) body.negative_prompt = o.negative
+    const r = await fetch(`${base}/images/generations`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${o.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const j = (await r.json().catch(() => ({}))) as {
+      message?: string
+      images?: Array<{ url?: string }>
+      data?: Array<{ url?: string }>
+    }
+    if (!r.ok) throw new Error(j.message || `HTTP ${r.status}`)
+    url = j.images?.[0]?.url ?? j.data?.[0]?.url ?? null
+    if (!url) throw new Error('服务商未返回图片')
   }
 
   const file = `image_${t0}.png`

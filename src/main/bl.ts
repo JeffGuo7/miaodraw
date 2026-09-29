@@ -365,13 +365,15 @@ const DISTILL_PROMPT = [
   '只输出提示词本身，不要任何解释，不要用"图中""这是"等措辞，直接描述画面。'
 ].join('')
 
-export async function distill(data: ArrayBuffer, name: string): Promise<{ prompt: string; elapsed: number }> {
+export async function distill(data: ArrayBuffer, name: string, model?: string): Promise<{ prompt: string; elapsed: number }> {
   const t0 = Date.now()
   const ext = (path.extname(name) || '.png').toLowerCase()
   const tmp = path.join(os.tmpdir(), `distill-${t0}${ext}`)
   await fsp.writeFile(tmp, Buffer.from(data))
   try {
-    const r = await runBl(['vision', 'describe', '--image', tmp, '--prompt', DISTILL_PROMPT, '--timeout', '120'], 180000, 'distill-' + t0)
+    const args = ['vision', 'describe', '--image', tmp, '--prompt', DISTILL_PROMPT, '--timeout', '120']
+    if (model) args.push('--model', model)
+    const r = await runBl(args, 180000, 'distill-' + t0)
     const prompt = r.stdout.trim()
     if (r.code !== 0 || !prompt) throw new Error(tail(r.stdout + r.stderr))
     return { prompt, elapsed: Date.now() - t0 }

@@ -24,6 +24,8 @@ interface RunOpts {
   goal: string
   baseImage?: string // outputs 目录内的文件名（无扩展名歧义）
   defaultModel: string
+  /** Agent 规划（文本对话）所用模型：来自通用配置 defaults.text */
+  textModel?: string
   outputsDir: string
   onEvent: (e: AgentEvent) => void
 }
@@ -41,12 +43,12 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
     ? `已有图片 1 张（文件 ${opts.baseImage}），edit_image 可直接基于它修改。`
     : '画布为空，只能使用 generate_image。'
 
-  // ---- 规划 ----
+  // ---- 规划（文本模型来自通用配置 defaults.text，未配置回退 qwen3.8-flash） ----
   opts.onEvent({ runId, stage: 'plan', label: 'AI 规划步骤中' })
   const r = await runBl(
     [
       'text', 'chat',
-      '--model', 'qwen3.8-flash',
+      '--model', opts.textModel || 'qwen3.8-flash',
       '--system', plannerSystem(context),
       '--message', goal,
       '--temperature', '0.3',
@@ -98,8 +100,8 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
       label: `${specLabel}：${String(step.params.prompt ?? '').slice(0, 30)}`
     })
     const size = parseSize(step.params.size, 1024, 1024)
-    // 改图必须用支持编辑的模型（wan2.7-image 只支持文生图）
-    const stepModel = step.tool === 'edit_image' ? 'qwen-image-3.0-pro' : opts.defaultModel
+    // 生图模型统一来自通用配置默认（默认图像模型需支持编辑；不支持时 CLI 会报错提示换模型）
+    const stepModel = opts.defaultModel
     const genOpts: GenOpts = {
       prompt: String(step.params.prompt ?? ''),
       negative: typeof step.params.negative === 'string' ? step.params.negative : undefined,

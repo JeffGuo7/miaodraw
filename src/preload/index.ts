@@ -63,6 +63,8 @@ const api = {
     { ok: true; info: Record<string, { configured: boolean; masked: string; plainFallback: boolean }> } | { ok: false; err: string }
   > => ipcRenderer.invoke('provider-key:clear', provider),
   cancelRun: (runId: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('gen:cancel', runId),
+  modelConfigGet: (): Promise<unknown> => ipcRenderer.invoke('model-config:get'),
+  modelConfigSet: (cfg: unknown): Promise<unknown> => ipcRenderer.invoke('model-config:set', cfg),
   composeSave: (payload: { dataUrl: string; width: number; height: number }): Promise<{ name: string; url: string }> =>
     ipcRenderer.invoke('compose:save', payload),
   segmentMask: (

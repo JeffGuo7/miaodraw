@@ -105,6 +105,8 @@ interface Settings {
   providers?: Record<string, { apiKey?: string }>
   /** 第三方服务商密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64） */
   providerKeysEnc?: Record<string, { enc: string; plainFallback?: boolean }>
+  /** 通用模型配置：自定义供应商/模型 + 能力默认值 */
+  modelConfig?: ModelConfig
   activeModel?: { provider: string; model: string }
   /** 百炼密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64 并提示） */
   bailianKeyEnc?: string
@@ -199,6 +201,39 @@ function getProviderKey(provider: string): string {
   const rec = readSettings().providerKeysEnc?.[provider]
   if (!rec?.enc) return ''
   return decryptSecret(rec.enc, rec.plainFallback)
+}
+
+// ---------- 通用模型配置（Cherry Studio 式：供应商 + 模型条目 + 能力默认值） ----------
+interface UserModelEntry {
+  id: string
+  name: string
+  caps: string[]
+}
+interface CustomProvider {
+  id: string
+  name: string
+  baseUrl: string
+  enabled: boolean
+  models: UserModelEntry[]
+}
+interface ModelConfig {
+  extraModels?: Record<string, UserModelEntry[]>
+  customProviders?: CustomProvider[]
+  defaults?: { image?: string; text?: string; vision?: string }
+}
+
+function getModelConfig(): ModelConfig {
+  return readSettings().modelConfig ?? {}
+}
+
+/** 能力默认值解析："provider::model" → { provider, model }；未配置回退内置 */
+function resolveDefault(kind: 'image' | 'text' | 'vision', fallback: { provider: string; model: string }): { provider: string; model: string } {
+  const raw = getModelConfig().defaults?.[kind]
+  if (raw) {
+    const [p, m] = raw.split('::')
+    if (p && m) return { provider: p, model: m }
+  }
+  return fallback
 }
 
 function providerKeysInfo(): Record<string, { configured: boolean; masked: string; plainFallback: boolean }> {
@@ -572,17 +607,21 @@ function registerIpc(): void {
         throw e
       }
     }
-    // HTTP 多服务商：目前仅支持文生图
+    // HTTP 多服务商：OpenAI 兼容（内置模板 + 自定义供应商），目前仅文生图
     if (opts.ref) throw new Error('当前服务商暂不支持图生图，请切换回百炼模型使用改图')
     const apiKey = getProviderKey(provider)
     if (!apiKey) {
       const label = provider === 'siliconflow' ? '硅基流动' : provider === 'openai' ? 'OpenAI' : provider
       throw new Error(`未配置 ${label} 的 API Key，请到「设置 → 模型服务」填写`)
     }
-    if (provider !== 'siliconflow' && provider !== 'openai') throw new Error(`未知服务商：${provider}`)
+    const mc = getModelConfig()
+    const custom = mc.customProviders?.find((c) => c.id === provider)
+    if (!custom && provider !== 'siliconflow' && provider !== 'openai') throw new Error(`未知服务商：${provider}`)
+    if (custom && !custom.enabled) throw new Error(`供应商 ${custom.name} 已停用`)
     const t0 = Date.now()
     const r = await httpGenerate({
       provider,
+      apiBase: custom?.baseUrl,
       apiKey,
       prompt: opts.prompt,
       negative: opts.negative,
@@ -645,7 +684,15 @@ function registerIpc(): void {
 
   handle('distill', (_e, payload: { data: ArrayBuffer; name: string }) => {
     if (!payload?.data) throw new Error('没收到图片')
-    return distill(payload.data, payload.name || 'image.png')
+    const visionModel = resolveDefault('vision', { provider: 'bailian', model: 'qwen3-vl-plus' }).model
+    return distill(payload.data, payload.name || 'image.png', visionModel)
+  })
+
+  // ---------- 通用模型配置 ----------
+  handle('model-config:get', () => getModelConfig())
+  handle('model-config:set', (_e, cfg: ModelConfig) => {
+    writeSettings({ modelConfig: cfg ?? {} })
+    return getModelConfig()
   })
 
   handle('settings:get', () => {
@@ -737,11 +784,15 @@ function registerIpc(): void {
   handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string }) => {
     if (!payload?.goal?.trim()) throw new Error('请输入指令')
     if (payload.baseName && !resolveOutputPath(payload.baseName)) throw new Error('底图文件不合法')
+    // 模型默认值来自通用配置：文本模型驱动 Agent 规划，生图默认驱动 generate 步骤
+    const textModel = resolveDefault('text', { provider: 'bailian', model: 'qwen3.8-flash' }).model
+    const imageModel = resolveDefault('image', { provider: 'bailian', model: 'qwen-image-3.0-pro' }).model
     const runOpts = {
       runId: payload.runId,
       goal: payload.goal.trim(),
       baseImage: payload.baseName,
-      defaultModel: payload.model || 'qwen-image-3.0',
+      defaultModel: payload.model || imageModel,
+      textModel,
       outputsDir: OUT_DIR,
       onEvent: (e: unknown) => win?.webContents.send('agent-progress', e)
     }

@@ -26,6 +26,38 @@ export interface ActiveModel {
   model: string
 }
 
+export type ModelCap = 'image' | 'text' | 'vision'
+
+/** 用户为某个供应商追加的自定义模型条目 */
+export interface UserModelEntry {
+  id: string
+  name: string
+  caps: ModelCap[]
+}
+
+/** 用户自定义的 OpenAI 兼容供应商 */
+export interface CustomProvider {
+  id: string
+  name: string
+  baseUrl: string
+  enabled: boolean
+  models: UserModelEntry[]
+}
+
+/** 能力默认值：值形如 "provider::modelId" */
+export interface ModelDefaults {
+  image?: string
+  text?: string
+  vision?: string
+}
+
+/** 通用模型配置：供应商模板 + 自定义供应商/模型 + 能力默认值 */
+export interface ModelConfig {
+  extraModels?: Record<string, UserModelEntry[]>
+  customProviders?: CustomProvider[]
+  defaults?: ModelDefaults
+}
+
 export interface GenParams {
   prompt: string
   negative?: string
@@ -179,6 +211,8 @@ export interface Api {
   ): Promise<{ ok: true; info: Record<string, ProviderKeyInfo>; plainFallback: boolean } | { ok: false; err: string }>
   providerKeyClear(provider: string): Promise<{ ok: true; info: Record<string, ProviderKeyInfo> } | { ok: false; err: string }>
   cancelRun(runId: string): Promise<{ ok: boolean }>
+  modelConfigGet(): Promise<ModelConfig>
+  modelConfigSet(cfg: ModelConfig): Promise<ModelConfig>
   composeSave(payload: {
     dataUrl: string
     width: number
