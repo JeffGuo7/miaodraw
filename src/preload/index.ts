@@ -60,6 +60,7 @@ const api = {
   ): Promise<
     { ok: true; info: Record<string, { configured: boolean; masked: string; plainFallback: boolean }> } | { ok: false; err: string }
   > => ipcRenderer.invoke('provider-key:clear', provider),
+  cancelRun: (runId: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('gen:cancel', runId),
   composeSave: (payload: { dataUrl: string; width: number; height: number }): Promise<{ name: string; url: string }> =>
     ipcRenderer.invoke('compose:save', payload),
   segmentMask: (

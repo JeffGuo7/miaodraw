@@ -4,11 +4,12 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { blHealth, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, type GenOpts } from './bl'
+import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
 import { loadLibrary, libraryRoot } from './library'
+import { initLogger, log } from './logger'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -500,7 +501,14 @@ function registerIpc(): void {
     const onProgress = (stage: string, detail?: string): void => {
       win?.webContents.send('gen-progress', { runId: opts.runId, stage, detail })
     }
-    if (provider === 'bailian') return generate({ ...opts, onProgress }, OUT_DIR)
+    if (provider === 'bailian') {
+      try {
+        return await generate({ ...opts, onProgress }, OUT_DIR)
+      } catch (e) {
+        log('error', `generate failed: ${e instanceof Error ? e.message : String(e)}`)
+        throw e
+      }
+    }
     // HTTP 多服务商：目前仅支持文生图
     if (opts.ref) throw new Error('当前服务商暂不支持图生图，请切换回百炼模型使用改图')
     const apiKey = getProviderKey(provider)
@@ -538,6 +546,7 @@ function registerIpc(): void {
     }
   })
 
+  handle('gen:cancel', (_e, runId: string) => ({ ok: blCancel(String(runId || '')) }))
   handle('test:provider', async (_e, provider: string) => {
     const apiKey = getProviderKey(provider)
     if (!apiKey) return { ok: false, out: '请先填写 API Key 并保存' }
@@ -788,6 +797,7 @@ function ensureBundledCli(): string {
 
 // ---------- 生命周期 ----------
 app.whenReady().then(() => {
+  initLogger(path.join(app.getPath('userData'), 'logs'))
   // 方案B：内置百炼 CLI（zip 随包分发、首启解包）；缺失时自动回退全局安装
   setBlVendorEntry(ensureBundledCli())
   initBailianKey()
@@ -819,4 +829,9 @@ app.on('second-instance', () => {
 
 app.on('window-all-closed', () => {
   app.quit()
+})
+
+// 退出前终止所有存活 CLI 子进程，避免后台继续消耗额度
+app.on('before-quit', () => {
+  blKillAll()
 })

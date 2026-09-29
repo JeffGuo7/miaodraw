@@ -106,6 +106,7 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
       w: size.w,
       h: size.h,
       model: stepModel,
+      runId: opts.runId ? `${opts.runId}-s${i}` : undefined,
       parent: currentName,
       ref: currentAbs
         ? { name: path.basename(currentAbs), data: new Uint8Array(await fsp.readFile(currentAbs)).buffer as ArrayBuffer }

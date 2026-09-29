@@ -472,6 +472,15 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           >
             {busy ? `生成中… ${elapsed}s` : '生成'}
           </Button>
+          {busy && (
+            <Button
+              size="large"
+              style={{ marginInlineStart: 8 }}
+              onClick={() => runIdRef.current && void window.api.cancelRun(runIdRef.current)}
+            >
+              取消
+            </Button>
+          )}
           <Typography.Text type="secondary" className="tip-text">
             Ctrl + Enter 快速生成 · 出图约 30~60 秒
           </Typography.Text>

@@ -177,6 +177,7 @@ export interface Api {
     key: string
   ): Promise<{ ok: true; info: Record<string, ProviderKeyInfo>; plainFallback: boolean } | { ok: false; err: string }>
   providerKeyClear(provider: string): Promise<{ ok: true; info: Record<string, ProviderKeyInfo> } | { ok: false; err: string }>
+  cancelRun(runId: string): Promise<{ ok: boolean }>
   composeSave(payload: {
     dataUrl: string
     width: number
