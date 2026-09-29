@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxlint-schema/main/schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "no-empty": "off",
+    "no-unused-vars": "warn"
+  },
+  "ignorePatterns": ["out/**", "dist/**", "node_modules/**", "vendor/**", "library/**", "scripts/**"]
+}

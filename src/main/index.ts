@@ -187,7 +187,7 @@ function providerKeysInfo(): Record<string, { configured: boolean; masked: strin
 function migrateLegacyProviderKeys(): void {
   const s = readSettings()
   if (!s.providers) return
-  const next: NonNullable<Settings['providerKeysEnc']> = { ...(s.providerKeysEnc ?? {}) }
+  const next: NonNullable<Settings['providerKeysEnc']> = { ...s.providerKeysEnc }
   for (const id of PROVIDER_IDS) {
     const plain = s.providers[id]?.apiKey
     if (plain && !next[id]?.enc) next[id] = encryptSecret(plain)
@@ -269,11 +269,23 @@ function createWindow(): void {
 // ---------- 验收截图模式（与 aodl-pilot 的 TEST_MODE 同思路） ----------
 const VIEW_INDEX: Record<string, number> = { create: 0, compose: 1, library: 2, distill: 3, history: 4, settings: 5 }
 
+/** smoke 断言：记录每个验收点的结果，ERR/异常计入失败，最终决定退出码 */
+let shotErrors = 0
+function check(label: string, v: unknown): void {
+  const s = String(v)
+  if (s.startsWith('ERR') || s.includes('"err"')) {
+    shotErrors++
+    console.log(`[shot] FAIL ${label}:`, s.slice(0, 200))
+  } else {
+    console.log(`[shot] ok   ${label}:`, s.slice(0, 200))
+  }
+}
+
 async function screenshotMode(w: BrowserWindow): Promise<void> {
   w.webContents.on('console-message', (_e, _level, message) => {
     if (message.toLowerCase().includes('error')) console.log('[renderer]', message.slice(0, 300))
   })
-  // 整体看门狗：无论卡在哪，90s 后强制截图退出
+  // 整体看门狗：无论卡在哪，90s 后强制截图退出（超时计为失败）
   const watchdog = setTimeout(
     () => {
       console.log('[shot] watchdog fired')
@@ -281,7 +293,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         .capturePage()
         .then((img) => fs.writeFileSync(process.env.SHOT_PATH || path.join(APP_ROOT, 'screenshot-client.png'), img.toPNG()))
         .catch(() => undefined)
-        .finally(() => app.exit(0))
+        .finally(() => app.exit(1))
     },
     90000
   )
@@ -301,6 +313,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       }).then(x => 'OK:' + x.file).catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] generate:', r)
+    check('generate', r)
     await w.webContents.executeJavaScript(
       `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.history}].click()`
     )
@@ -324,6 +337,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       })().catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] distill:', r)
+    check('distill', r)
     await new Promise((r2) => setTimeout(r2, 1000))
   }
   if (process.env.SHOT_PAL === '1') {
@@ -345,6 +359,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       })()`
     )
     console.log('[shot] pal:', r)
+    check('pal', r)
     await new Promise((r2) => setTimeout(r2, 800))
   }
   clearTimeout(watchdog)
@@ -361,6 +376,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       })().catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] agent:', r)
+    check('agent', r)
     await new Promise((r2) => setTimeout(r2, 500))
   }
   if (process.env.SHOT_COMPOSE === '1') {
@@ -393,6 +409,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       })()`
     )
     console.log('[shot] key:', r)
+    check('key', r)
     await new Promise((r2) => setTimeout(r2, 500))
   }
   if (process.env.SHOT_SEG === '1') {
@@ -408,6 +425,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       })().catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] seg:', r)
+    check('seg', r)
     try {
       const maskUrl = await w.webContents.executeJavaScript(`window.__segMask`)
       if (maskUrl) fs.writeFileSync(path.join(APP_ROOT, 'seg-mask.png'), Buffer.from(maskUrl.split(',')[1], 'base64'))
@@ -420,8 +438,10 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] saved:', out)
   } catch (e) {
     console.error('[shot] failed:', e)
+    shotErrors++
   }
-  app.exit(0)
+  // 有断言失败则以非零退出，让 CI / smoke 脚本能感知
+  app.exit(shotErrors > 0 ? 1 : 0)
 }
 
 // ---------- IPC ----------
@@ -618,7 +638,7 @@ function registerIpc(): void {
     const plain = String(key || '').trim()
     if (!plain) return { ok: false as const, err: '密钥不能为空' }
     if (/\s/.test(plain)) return { ok: false as const, err: '密钥中间包含空格或换行，请重新完整复制粘贴' }
-    const next = { ...(readSettings().providerKeysEnc ?? {}) }
+    const next = { ...readSettings().providerKeysEnc }
     const { enc, plainFallback } = encryptSecret(plain)
     next[provider] = { enc, plainFallback }
     writeSettings({ providerKeysEnc: next })
@@ -626,7 +646,7 @@ function registerIpc(): void {
   })
   handle('provider-key:clear', (_e, provider: string) => {
     if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
-    const next = { ...(readSettings().providerKeysEnc ?? {}) }
+    const next = { ...readSettings().providerKeysEnc }
     delete next[provider]
     writeSettings({ providerKeysEnc: next })
     return { ok: true as const, info: providerKeysInfo() }

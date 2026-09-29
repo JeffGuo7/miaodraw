@@ -5,7 +5,9 @@
   "main": "./out/main/index.js",
   "author": "miaodraw",
   "license": "MIT",
+  "private": true,
   "scripts": {
+    "lint": "oxlint src",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -35,6 +37,7 @@
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
     "konva": "^10.7.0",
+    "oxlint": "^1.86.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-konva": "^19.3.0",
