@@ -31,6 +31,10 @@ async function getTf(): Promise<any> {
       const model = await tf.SamModel.from_pretrained(MODEL_ID)
       return { processor, model, RawImage: tf.RawImage, Tensor: tf.Tensor }
     })()
+    // 首次失败后清空缓存允许重试，否则一次断网/镜像抖动会让整个会话永久不可用
+    modelPromise.catch(() => {
+      modelPromise = null
+    })
   }
   return modelPromise
 }

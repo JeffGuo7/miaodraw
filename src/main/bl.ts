@@ -206,15 +206,26 @@ export async function blUpdate(): Promise<{ ok: boolean; out: string }> {
   return { ok: r.code === 0, out: (r.stdout + '\n' + r.stderr).trim().slice(-800) }
 }
 
-export async function blHealth(): Promise<{ ok: boolean; version: string; entry: string; bundled: boolean }> {
+let healthCache: { at: number; value: { ok: boolean; version: string; entry: string; bundled: boolean } } | null = null
+const HEALTH_TTL_OK = 5 * 60 * 1000 // 成功缓存 5 分钟：避免渲染层双轮询每分钟空起 CLI 进程
+const HEALTH_TTL_FAIL = 60 * 1000 // 失败只缓存 1 分钟，尽快给出恢复机会
+
+export async function blHealth(force = false): Promise<{ ok: boolean; version: string; entry: string; bundled: boolean }> {
+  if (!force && healthCache && Date.now() - healthCache.at < (healthCache.value.ok ? HEALTH_TTL_OK : HEALTH_TTL_FAIL)) {
+    return healthCache.value
+  }
   const entry = blEntry()
   const bundled = usingBundledCli()
   try {
     const r = await runBl(['--version'], 20000)
     const version = r.stdout.trim().split(/\r?\n/).pop()?.trim() ?? ''
-    return { ok: r.code === 0 && version.length > 0, version, entry, bundled }
+    const value = { ok: r.code === 0 && version.length > 0, version, entry, bundled }
+    healthCache = { at: Date.now(), value }
+    return value
   } catch {
-    return { ok: false, version: '', entry, bundled }
+    const value = { ok: false, version: '', entry, bundled }
+    healthCache = { at: Date.now(), value }
+    return value
   }
 }
 

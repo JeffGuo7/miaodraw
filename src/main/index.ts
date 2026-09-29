@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, type GenOpts } from './bl'
+import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
@@ -450,7 +450,13 @@ function registerIpc(): void {
   })
 
   handle('library', () => {
-    libPromise ??= loadLibrary(LIB_ROOT, path.join(app.getPath('userData'), 'library-hash-cache.json'))
+    if (!libPromise) {
+      libPromise = loadLibrary(LIB_ROOT, path.join(app.getPath('userData'), 'library-hash-cache.json'))
+      // 失败后清空缓存允许重试，否则一次解析失败会让灵感库整个会话永久不可用
+      libPromise.catch(() => {
+        libPromise = null
+      })
+    }
     return libPromise
   })
 
@@ -800,6 +806,7 @@ app.whenReady().then(() => {
   initLogger(path.join(app.getPath('userData'), 'logs'))
   // 方案B：内置百炼 CLI（zip 随包分发、首启解包）；缺失时自动回退全局安装
   setBlVendorEntry(ensureBundledCli())
+  log('info', `app ready version=${app.getVersion()} packaged=${isPackaged} bundledCli=${usingBundledCli()}`)
   initBailianKey()
   migrateLegacyProviderKeys()
   protocol.handle('media', (req) => {
