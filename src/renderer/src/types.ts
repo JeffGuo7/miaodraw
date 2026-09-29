@@ -11,7 +11,7 @@ export interface HealthInfo {
 export interface BailianKeyInfo {
   configured: boolean
   masked: string
-  plan: 'token-plan' | 'ordinary' | 'unknown'
+  plan: 'token-plan' | 'ordinary' | 'workspace' | 'unknown'
   plainFallback: boolean
 }
 
@@ -171,6 +171,7 @@ export interface Api {
   >
   bailianKeyClear(): Promise<BailianKeyInfo>
   bailianKeyTest(): Promise<{ ok: boolean; out: string }>
+  bailianWsSet(ws: string): Promise<{ ok: boolean }>
   providerKeyGet(): Promise<Record<string, ProviderKeyInfo>>
   providerKeySet(
     provider: string,

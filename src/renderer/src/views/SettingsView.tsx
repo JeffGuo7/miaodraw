@@ -34,12 +34,17 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   const [bk, setBk] = useState<BailianKeyInfo | null>(null)
   const [bkInput, setBkInput] = useState('')
   const [bkTesting, setBkTesting] = useState(false)
+  const [wsInput, setWsInput] = useState('')
 
   function refresh(): void {
     void window.api.health().then(setHealth)
     void window.api.appInfo().then(setInfo)
     void window.api.bailianKeyGet().then(setBk).catch(() => undefined)
     void window.api.providerKeyGet().then(setPkInfo).catch(() => undefined)
+    void window.api
+      .getSettings()
+      .then((s) => setWsInput(((s as { bailianWorkspace?: string }).bailianWorkspace) ?? ''))
+      .catch(() => undefined)
   }
 
   useEffect(() => {
@@ -74,6 +79,11 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     setBk(await window.api.bailianKeyClear())
     message.success('已清除应用内百炼密钥')
     void window.api.health().then(setHealth)
+  }
+
+  async function saveWorkspace(): Promise<void> {
+    await window.api.bailianWsSet(wsInput.trim())
+    message.success('工作空间 ID 已保存并即时生效')
   }
 
   async function saveProviderKey(provider: string): Promise<void> {
@@ -122,8 +132,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
             <KeyOutlined />
             <span>百炼密钥（免登录直接使用）</span>
             {bk?.configured && (
-              <Tag color={bk.plan === 'token-plan' ? 'gold' : 'blue'} style={{ marginInlineStart: 4 }}>
-                {bk.plan === 'token-plan' ? 'Token Plan 订阅密钥' : bk.plan === 'ordinary' ? '普通 API Key' : '自定义密钥'}
+              <Tag color={bk.plan === 'token-plan' ? 'gold' : bk.plan === 'workspace' ? 'purple' : 'blue'} style={{ marginInlineStart: 4 }}>
+                {bk.plan === 'token-plan' ? 'Token Plan 订阅密钥' : bk.plan === 'workspace' ? '工作空间密钥' : bk.plan === 'ordinary' ? '普通 API Key' : '自定义密钥'}
               </Tag>
             )}
           </Space>
@@ -182,6 +192,20 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
           密钥获取：登录百炼控制台，在「API-KEY 管理」下载普通密钥，或在「Token Plan · 订阅总览」下载订阅密钥（sk-sp- 开头）。
           保存后所有百炼调用自动使用该密钥；清除后回退到命令行 bl auth login 的登录态。
         </Typography.Paragraph>
+        <div style={{ marginTop: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            工作空间 ID（可选 · <Typography.Text code>o1_</Typography.Text> 工作空间密钥必填，控制台「命令行接入」里可查；普通 sk- 密钥留空）
+          </Typography.Text>
+          <Space.Compact style={{ width: '100%', maxWidth: 640, marginTop: 6 }}>
+            <Input
+              value={wsInput}
+              onChange={(e) => setWsInput(e.target.value)}
+              placeholder="例：llm-xxxxxxxx"
+              onPressEnter={() => void saveWorkspace()}
+            />
+            <Button onClick={() => void saveWorkspace()}>保存</Button>
+          </Space.Compact>
+        </div>
       </Card>
 
       <Card title="模型服务" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>

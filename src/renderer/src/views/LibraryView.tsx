@@ -163,7 +163,7 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
         >
           {opts.c.img ? (
             <div className="lib-card-imgwrap">
-              <img loading="lazy" src={opts.url} alt={opts.c.title} />
+              <img loading="lazy" src={`${opts.url}?w=336`} alt={opts.c.title} />
               {chip && <span className={`lib-card-chip${opts.c.featured ? ' featured' : ''}`}>{chip}</span>}
               {heartBtn(opts.favKey, opts.favBase)}
             </div>

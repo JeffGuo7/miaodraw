@@ -1,10 +1,10 @@
-import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog, safeStorage, type IpcMainInvokeEvent } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, protocol, net, dialog, safeStorage, nativeImage, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
+import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, setBailianWorkspace, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
 import { httpGenerate } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
@@ -43,9 +43,31 @@ function resolveMediaHost(bucket: string): string | null {
   return null
 }
 
-/** media://local/<bucket>/<相对路径> → 绝对路径（含目录逃逸校验），失败返回 null */
-function parseMediaUrl(url: string): string | null {
+// ---------- 缩略图缓存（media:// ?w= 降采样） ----------
+const thumbCache = new Map<string, Buffer>()
+async function thumbnail(abs: string, w: number): Promise<Buffer | null> {
+  const key = `${abs}@${w}`
+  const hit = thumbCache.get(key)
+  if (hit) return hit
   try {
+    const img = nativeImage.createFromPath(abs)
+    if (img.isEmpty()) return null
+    const { width } = img.getSize()
+    const scaled = width > w ? img.resize({ width: w }) : img
+    const buf = scaled.toPNG()
+    if (thumbCache.size >= 100) {
+      const oldest = thumbCache.keys().next().value
+      if (oldest !== undefined) thumbCache.delete(oldest)
+    }
+    thumbCache.set(key, buf)
+    return buf
+  } catch {
+    return null
+  }
+}
+
+/** media://local/<bucket>/<相对路径> → 绝对路径（含目录逃逸校验），失败返回 null */
+function parseMediaUrl(url: string): string | null {  try {
     const u = new URL(url)
     if (u.protocol !== 'media:') return null
     const segs = decodeURIComponent(u.pathname).split('/').filter(Boolean)
@@ -87,6 +109,8 @@ interface Settings {
   /** 百炼密钥密文（safeStorage 加密后 base64；不支持加密的平台退化为 base64 并提示） */
   bailianKeyEnc?: string
   bailianKeyPlain?: boolean
+  /** 百炼工作空间 ID（非机密；o1_ 工作空间密钥需注入 BAILIAN_WORKSPACE_ID） */
+  bailianWorkspace?: string
 }
 function readSettings(): Settings {
   try {
@@ -138,15 +162,16 @@ function decryptKey(s: Settings): string {
     return ''
   }
 }
-function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-plan' | 'ordinary' | 'unknown'; plainFallback: boolean } {
+function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-plan' | 'ordinary' | 'workspace' | 'unknown'; plainFallback: boolean } {
   const key = decryptKey(readSettings())
   if (!key) return { configured: false, masked: '', plan: 'unknown', plainFallback: false }
-  const plan = key.startsWith('sk-sp-') ? 'token-plan' : key.startsWith('sk-') ? 'ordinary' : 'unknown'
+  const plan = key.startsWith('sk-sp-') ? 'token-plan' : key.startsWith('o1_') ? 'workspace' : key.startsWith('sk-') ? 'ordinary' : 'unknown'
   const masked = key.length <= 8 ? '••••' : `${key.slice(0, 6)}••••${key.slice(-4)}`
   return { configured: true, masked, plan, plainFallback: !!readSettings().bailianKeyPlain }
 }
 function initBailianKey(): void {
   setBailianKey(decryptKey(readSettings()))
+  setBailianWorkspace(readSettings().bailianWorkspace ?? '')
 }
 
 // ---------- 第三方服务商密钥（safeStorage 加密，与百炼密钥同权；明文不落盘、不回显） ----------
@@ -632,6 +657,12 @@ function registerIpc(): void {
   })
 
   // ---------- 第三方服务商密钥管理 ----------
+  handle('bailian-ws:set', (_e, ws: string) => {
+    const v = String(ws || '').trim()
+    writeSettings({ bailianWorkspace: v })
+    setBailianWorkspace(v) // 热生效，无需重启
+    return { ok: true as const }
+  })
   handle('provider-key:get', () => providerKeysInfo())
   handle('provider-key:set', (_e, provider: string, key: string) => {
     if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
@@ -829,11 +860,39 @@ app.whenReady().then(() => {
   log('info', `app ready version=${app.getVersion()} packaged=${isPackaged} bundledCli=${usingBundledCli()}`)
   initBailianKey()
   migrateLegacyProviderKeys()
-  protocol.handle('media', (req) => {
+  protocol.handle('media', async (req) => {
     const abs = parseMediaUrl(req.url)
     if (!abs) return new Response('not found', { status: 404 })
+    // ?w=64..2048：列表/封面缩略图按需降采样（nativeImage 缩放 + 小容量缓存），避免整屏原图解码
+    let w = 0
+    try {
+      w = Number(new URL(req.url).searchParams.get('w')) || 0
+    } catch {
+      w = 0
+    }
+    if (w >= 64 && w <= 2048) {
+      const buf = await thumbnail(abs, w)
+      if (buf) return new Response(new Uint8Array(buf), { headers: { 'content-type': 'image/png' } })
+    }
     return net.fetch(pathToFileURL(abs).toString())
   })
+
+  // 清扫崩溃残留的私有生成目录（.gen-*，超过 1 天的）
+  void fsp
+    .readdir(OUT_DIR)
+    .then((names) => {
+      for (const n of names) {
+        if (!n.startsWith('.gen-')) continue
+        const p = path.join(OUT_DIR, n)
+        void fsp
+          .stat(p)
+          .then((st) => {
+            if (Date.now() - st.mtimeMs > 86400000) void fsp.rm(p, { recursive: true, force: true }).catch(() => {})
+          })
+          .catch(() => {})
+      }
+    })
+    .catch(() => {})
 
   registerIpc()
   createWindow()

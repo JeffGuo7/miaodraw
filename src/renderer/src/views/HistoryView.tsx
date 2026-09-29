@@ -100,7 +100,7 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
               styles={{ body: { padding: 8 } }}
               cover={
                 <div className="hist-cover">
-                  <Image src={it.url} alt={it.name} />
+                  <Image src={`${it.url}?w=340`} preview={{ src: it.url }} loading="lazy" alt={it.name} />
                 </div>
               }
             >

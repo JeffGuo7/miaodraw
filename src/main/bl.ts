@@ -57,12 +57,17 @@ export function blEntry(): string {
 // ---------- 应用内置密钥（免 bl auth login） ----------
 // CLI 鉴权链为 --api-key > DASHSCOPE_API_KEY > 登录态；这里注入 env 级密钥，
 // 不落 ~/.bailian 配置，与用户命令行登录态互相隔离、应用内优先生效。
+// 新式工作空间密钥（o1_ 前缀）还需 BAILIAN_WORKSPACE_ID（CLI 配置契约：workspace_id.env）。
 let bailianKey = ''
 export function setBailianKey(key: string): void {
   bailianKey = (key || '').trim()
 }
 export function hasBailianKey(): boolean {
   return bailianKey.length > 0
+}
+let bailianWorkspace = ''
+export function setBailianWorkspace(ws: string): void {
+  bailianWorkspace = (ws || '').trim()
 }
 
 function spawnBl(args: string[]): ChildProcess {
@@ -72,6 +77,7 @@ function spawnBl(args: string[]): ChildProcess {
   }
   const env: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
   if (bailianKey) env['DASHSCOPE_API_KEY'] = bailianKey
+  if (bailianWorkspace) env['BAILIAN_WORKSPACE_ID'] = bailianWorkspace
   return spawn(process.execPath, [entry, ...args], { env })
 }
 
@@ -278,6 +284,9 @@ function tail(s: string, n = 600): string {
 export async function generate(opts: GenOpts, outputsDir: string): Promise<GenResult> {
   const t0 = Date.now()
   await fsp.mkdir(outputsDir, { recursive: true })
+  // 私有输出目录：本次产物只会落在这里，彻底消除并发时"全目录 mtime 扫描"互相认领的串图问题
+  const runDir = path.join(outputsDir, `.gen-${t0}-${Math.random().toString(36).slice(2, 8)}`)
+  await fsp.mkdir(runDir, { recursive: true })
   // 种子恒定化：不传就随机一个并回传，保证每张图都可复现
   const usedSeed = opts.seed && opts.seed > 0 ? opts.seed : Math.floor(Math.random() * 2147483647)
   opts.onProgress?.('prepare', '参数就绪')
@@ -298,7 +307,7 @@ export async function generate(opts: GenOpts, outputsDir: string): Promise<GenRe
     '--model', opts.model,
     '--prompt', opts.prompt,
     '--size', `${opts.w}*${opts.h}`,
-    '--out-dir', outputsDir,
+    '--out-dir', runDir,
     '--watermark', 'false',
     '--timeout', '600'
   )
@@ -310,8 +319,15 @@ export async function generate(opts: GenOpts, outputsDir: string): Promise<GenRe
     const r = await runBl(args, 620000, opts.runId)
     if (r.code !== 0) throw new Error(tail(r.stdout + r.stderr))
     opts.onProgress?.('save', '保存结果')
-    let file = await newestImage(outputsDir, t0 - 5000)
-    if (!file) {
+    let file = await newestImage(runDir, t0 - 1000)
+    if (file) {
+      // 移入作品根目录；同名冲突时加时间戳后缀
+      if (fs.existsSync(path.join(outputsDir, file))) {
+        const ext = path.extname(file)
+        file = `${path.basename(file, ext)}_${t0}${ext}`
+      }
+      await fsp.rename(path.join(runDir, file), path.join(outputsDir, file))
+    } else {
       const m = r.stdout.match(/https?:\/\/\S+/)
       if (!m) throw new Error(tail('生成结束但没有找到输出文件。' + r.stdout + r.stderr))
       file = `image_${t0}.png`
@@ -332,6 +348,7 @@ export async function generate(opts: GenOpts, outputsDir: string): Promise<GenRe
     return { file, url: mediaOut(file), elapsed: Date.now() - t0, seed: usedSeed, model: opts.model, parent: opts.parent }
   } finally {
     if (tmpRef) fsp.unlink(tmpRef).catch(() => {})
+    fsp.rm(runDir, { recursive: true, force: true }).catch(() => {})
   }
 }
 

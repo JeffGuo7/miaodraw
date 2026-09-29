@@ -309,6 +309,7 @@ export default function ComposeView({ visible }: Props): JSX.Element {
   const [pickPoints, setPickPoints] = useState<Array<{ x: number; y: number }>>([])
   const [segMaskUrl, setSegMaskUrl] = useState<string | null>(null)
   const [segBusy, setSegBusy] = useState(false)
+  const segSeqRef = useRef(0) // 乱序防护：SAM 慢时后发先至，只有最新一次点击的结果生效
   const pickTarget = pickMode && selectedLayer?.type === 'image' ? selectedLayer : null
 
   // 掩码图载入缓存供 Konva 渲染
@@ -681,11 +682,19 @@ export default function ComposeView({ visible }: Props): JSX.Element {
                   const pts = [...pickPoints, { x: localX, y: localY }]
                   setPickPoints(pts)
                   setSegBusy(true)
+                  const seq = ++segSeqRef.current
                   void window.api
                     .segmentMask(pickTarget.src, pts)
-                    .then((r) => setSegMaskUrl(r.maskUrl))
-                    .catch((er) => message.error(`分割失败：${er.message ?? er}`))
-                    .finally(() => setSegBusy(false))
+                    .then((r) => {
+                      if (seq !== segSeqRef.current) return // 已有更新的点击，丢弃过期掩码
+                      setSegMaskUrl(r.maskUrl)
+                    })
+                    .catch((er) => {
+                      if (seq === segSeqRef.current) message.error(`分割失败：${er.message ?? er}`)
+                    })
+                    .finally(() => {
+                      if (seq === segSeqRef.current) setSegBusy(false)
+                    })
                   return
                 }
                 if (e.target === stage) setSelected(null)
