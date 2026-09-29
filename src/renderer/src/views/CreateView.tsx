@@ -35,7 +35,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig } from '../types'
-import { byCap, modelKey, providerDef, providerLabel, resolveDefaults, resolveModels } from '../models'
+import { byCap, modelKey, providerDef, providerLabel, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
 import { touchActiveModel } from './StatusBar'
 import { mediaUrlData, mediaUrlToFile } from '../utils'

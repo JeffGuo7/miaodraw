@@ -197,7 +197,7 @@ function isProviderId(v: string): v is ProviderId {
 }
 
 function getProviderKey(provider: string): string {
-  if (!isProviderId(provider)) return ''
+  if (!provider) return ''
   const rec = readSettings().providerKeysEnc?.[provider]
   if (!rec?.enc) return ''
   return decryptSecret(rec.enc, rec.plainFallback)
@@ -250,6 +250,20 @@ function providerKeysInfo(): Record<string, { configured: boolean; masked: strin
       configured: k.length > 0,
       masked: k.length <= 8 ? '••••' : `${k.slice(0, 4)}••••${k.slice(-4)}`,
       plainFallback: !!rec.plainFallback
+    }
+  }
+  // 自定义供应商的密钥状态一并回显（掩码）
+  for (const c of getModelConfig().customProviders ?? []) {
+    const rec = s.providerKeysEnc?.[c.id]
+    if (rec?.enc) {
+      const k = decryptSecret(rec.enc, rec.plainFallback)
+      out[c.id] = {
+        configured: k.length > 0,
+        masked: k.length <= 8 ? '••••' : `${k.slice(0, 4)}••••${k.slice(-4)}`,
+        plainFallback: !!rec.plainFallback
+      }
+    } else {
+      out[c.id] = { configured: false, masked: '', plainFallback: false }
     }
   }
   return out
@@ -740,9 +754,10 @@ function registerIpc(): void {
     return { ok: true as const, info: providerKeysInfo(), plainFallback }
   })
   handle('provider-key:clear', (_e, provider: string) => {
-    if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
+    const id = String(provider || '').trim()
+    if (!id) return { ok: false as const, err: '服务商不能为空' }
     const next = { ...readSettings().providerKeysEnc }
-    delete next[provider]
+    delete next[id]
     writeSettings({ providerKeysEnc: next })
     return { ok: true as const, info: providerKeysInfo() }
   })
