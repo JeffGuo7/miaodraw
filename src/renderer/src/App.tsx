@@ -189,7 +189,7 @@ export default function App(): JSX.Element {
             <span className="header-sub">{SUBTITLES[view]}</span>
           </div>
           <div className="header-right">
-            <Tooltip title={health ? `百炼 CLI ${health.version || '未检测到'} · 点击刷新` : '点击刷新'}>
+            <Tooltip title={health ? `模型服务 ${health.version || '未检测到'} · 点击刷新` : '点击刷新'}>
               <Badge
                 status={health ? (health.ok ? 'success' : 'error') : 'default'}
                 text={
@@ -199,7 +199,7 @@ export default function App(): JSX.Element {
                     className="status-text"
                     onClick={refreshHealth}
                   >
-                    {health ? (health.ok ? `引擎在线 · ${health.version}` : '引擎离线') : '检测引擎…'}
+                    {health ? (health.ok ? `服务在线 · ${health.version}` : '服务未连接') : '检测服务…'}
                   </Button>
                 }
               />

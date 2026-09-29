@@ -53,7 +53,7 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
       </div>
       <Steps
         current={step}
-        items={[{ title: '了解' }, { title: '检测引擎' }, { title: '就绪' }]}
+        items={[{ title: '了解' }, { title: '检测服务' }, { title: '就绪' }]}
         style={{ margin: '22px 0 18px' }}
         size="small"
       />

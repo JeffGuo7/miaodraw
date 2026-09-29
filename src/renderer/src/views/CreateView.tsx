@@ -128,7 +128,9 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           setActive({ provider: 'bailian', model: s.model })
         }
         const pk = (s.providerKeys ?? {}) as Record<string, { configured?: boolean }>
-        setProviderKeys({ siliconflow: pk.siliconflow?.configured ?? false, openai: pk.openai?.configured ?? false })
+        const flags: Record<string, boolean> = {}
+        for (const [k, v] of Object.entries(pk)) flags[k] = !!v?.configured
+        setProviderKeys(flags)
       })
       .catch(() => undefined)
   }, [])
