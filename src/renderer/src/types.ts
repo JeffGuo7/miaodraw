@@ -56,6 +56,8 @@ export interface ModelConfig {
   extraModels?: Record<string, UserModelEntry[]>
   customProviders?: CustomProvider[]
   defaults?: ModelDefaults
+  /** 从服务端 /models 拉取的模型 ID 目录（按供应商缓存） */
+  fetchedModels?: Record<string, string[]>
 }
 
 export interface GenParams {
@@ -191,9 +193,9 @@ export interface Api {
   imageRead(url: string): Promise<Uint8Array>
   favorites(): Promise<FavItem[]>
   toggleFavorite(item: Omit<FavItem, 'savedAt'>): Promise<FavItem[]>
-  blUpdate(): Promise<{ ok: boolean; out: string }>
   openPath(kind: string): Promise<{ ok: boolean }>
   testProvider(provider: string): Promise<{ ok: boolean; out: string }>
+  fetchModels(provider: string): Promise<{ ok: boolean; total?: number; models?: number; out?: string }>
   bailianKeyGet(): Promise<BailianKeyInfo>
   bailianKeySet(
     key: string
@@ -227,6 +229,7 @@ export interface Api {
     goal: string
     baseName?: string
     model?: string
+    provider?: string
   }): Promise<AgentRunResult>
   imageChain(name: string): Promise<ChainItem[]>
   onGenProgress(cb: (e: GenProgress) => void): () => void

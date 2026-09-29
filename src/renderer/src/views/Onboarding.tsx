@@ -74,20 +74,19 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
         {step === 1 && (
           <div className="ob-engine">
             {checking ? (
-              <Typography.Text type="secondary">正在检测百炼 CLI…</Typography.Text>
+              <Typography.Text type="secondary">正在检测模型服务…</Typography.Text>
             ) : health?.ok ? (
               <Space direction="vertical" size={4} align="center" style={{ width: '100%' }}>
-                <Badge status="success" text={<span style={{ fontSize: 16 }}>引擎在线 · bl {health.version}</span>} />
+                <Badge status="success" text={<span style={{ fontSize: 16 }}>服务在线 · {health.version}</span>} />
                 <Typography.Text type="secondary">
-                  若尚未登录百炼，到「设置 → 百炼密钥」粘贴 API Key 即可直接创作
+                  HTTP 直连已就绪；如需更换模型或供应商，到「设置 → 模型服务」配置
                 </Typography.Text>
               </Space>
             ) : (
               <Space direction="vertical" size={4} align="center" style={{ width: '100%' }}>
-                <Badge status="error" text={<span style={{ fontSize: 15 }}>未检测到百炼引擎</span>} />
+                <Badge status="error" text={<span style={{ fontSize: 15 }}>模型服务未就绪</span>} />
                 <Typography.Text type="secondary">
-                  最简单：到「设置 → 百炼密钥」粘贴百炼 / Token Plan 密钥，保存即用；
-                  也可安装命令行版：npm i -g bailian-cli && bl auth login
+                  到「设置 → 模型服务」粘贴百炼 API Key（sk- / sk-ws- 均可），保存即可开始创作
                 </Typography.Text>
               </Space>
             )}

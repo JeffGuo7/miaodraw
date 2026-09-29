@@ -27,10 +27,11 @@ const api = {
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   favorites: (): Promise<unknown> => ipcRenderer.invoke('favorites:list'),
   toggleFavorite: (item: unknown): Promise<unknown> => ipcRenderer.invoke('favorites:toggle', item),
-  blUpdate: (): Promise<{ ok: boolean; out: string }> => ipcRenderer.invoke('bl:update'),
   openPath: (kind: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('open:path', kind),
   testProvider: (provider: string): Promise<{ ok: boolean; out: string }> =>
     ipcRenderer.invoke('test:provider', provider),
+  fetchModels: (provider: string): Promise<{ ok: boolean; total?: number; models?: number; out?: string }> =>
+    ipcRenderer.invoke('models:fetch', provider),
   bailianKeyGet: (): Promise<{
     configured: boolean
     masked: string
@@ -76,6 +77,7 @@ const api = {
     goal: string
     baseName?: string
     model?: string
+    provider?: string
   }): Promise<unknown> => ipcRenderer.invoke('agent:run', payload),
   imageChain: (name: string): Promise<unknown> => ipcRenderer.invoke('image:chain', name),
   onGenProgress: (cb: (e: { runId: string; stage: string; detail?: string }) => void): (() => void) => {

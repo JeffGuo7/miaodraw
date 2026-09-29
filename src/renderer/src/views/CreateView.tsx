@@ -47,9 +47,6 @@ const MODELS_LEGACY: Record<string, boolean> = {
   'wanx2.0-t2i-turbo': true
 }
 
-/** 百炼兜底模型：唯一事实源是 models.ts，避免散落的硬编码与清单漂移 */
-const BAILIAN_FALLBACK_MODEL = providerDef('bailian')?.models[0].model ?? 'qwen-image-3.0-pro'
-
 const SIZES = [
   { value: '1024x1024', label: '方图 1:1 · 1024' },
   { value: '896x1152', label: '竖图 3:4 · 896×1152' },
@@ -178,7 +175,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   }
 
   const provider = active.provider
-  const needKey = provider !== 'bailian' && !providerKeys[provider]
+  const needKey = !providerKeys[provider]
   const i2iUnsupported = mode === 'i2i' && !(providerDef(provider)?.i2i ?? false)
 
   /** seedOverride：0 = 让主进程随机种子；不传 = 沿用当前种子输入 */
@@ -263,10 +260,9 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           setAgentSteps((old) => old.map((s) => ({ ...s, done: true })))
         }
       })
-      const defaultModel = provider === 'bailian' ? active.model : BAILIAN_FALLBACK_MODEL
-      const r = await window.api.agentRun({ runId, goal, baseName: result?.file, model: defaultModel })
+      const r = await window.api.agentRun({ runId, goal, baseName: result?.file, model: active.model, provider })
       if (r.last) {
-        setResult({ file: r.last.file, url: r.last.url, elapsed: 0, seed: 0, model: defaultModel })
+        setResult({ file: r.last.file, url: r.last.url, elapsed: 0, seed: 0, model: active.model })
         void window.api
           .imageChain(r.last.file)
           .then((items) => setChain({ items, idx: items.length - 1 }))
@@ -346,7 +342,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
               action={
                 <Button
                   size="small"
-                  onClick={() => setActive({ provider: 'bailian', model: BAILIAN_FALLBACK_MODEL })}
+                  onClick={() => setActive({ provider: 'bailian', model: providerDef('bailian')?.models[0]?.model ?? 'wan2.7-image' })}
                 >
                   切回百炼
                 </Button>

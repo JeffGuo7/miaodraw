@@ -14,16 +14,16 @@ export interface ProviderDef {
   models: ModelDef[]
 }
 
-/** 内置供应商模板（协议固定：bailian=CLI；其余 OpenAI 兼容）。模型条目可被用户配置扩展 */
+/** 内置供应商模板（协议统一：全部纯 HTTP 直连；bailian 另支持 DashScope 原生生图/改图）。模型条目可被用户配置扩展 */
 export const PROVIDERS: ProviderDef[] = [
   {
     id: 'bailian',
     label: '阿里云百炼',
-    note: 'bl CLI 直连 · 文生图 + 改图全支持',
+    note: 'HTTP 直连 · 生图 / 改图 / 文本 / 视觉全覆盖',
     i2i: true,
     models: [
-      { model: 'qwen-image-3.0-pro', label: 'Qwen-Image 3.0 Pro 旗舰', price: '¥0.27' },
-      { model: 'wan2.7-image', label: 'Wan 2.7 Image', price: '¥0.2' },
+      { model: 'wan2.7-image', label: 'Wan 2.7 Image（推荐·已验证）', price: '¥0.2' },
+      { model: 'wan2.7-image-pro', label: 'Wan 2.7 Image Pro（4K 文生图）', price: '按量' },
       { model: 'qwen3.8-flash', label: 'Qwen3.8 Flash（文本·Agent 规划）', price: '按量' },
       { model: 'qwen3-vl-plus', label: 'Qwen3-VL Plus（视觉·反推）', price: '按量' }
     ]
@@ -73,15 +73,35 @@ export const parseModelKey = (key: string): { provider: string; model: string } 
   return p && m ? { provider: p, model: m } : null
 }
 
+/** 自动拉取目录的噪音过滤（与主进程 http.ts 同规则）：与创作无关的模型不进下拉 */
+const NOISE_RE = /(asr|tts|embedding|rerank|realtime|livetranslate|-s2s|ocr|omni|deep-research|deep-search|qvq|qwen-vl-ocr|qwen-audio|qwen-mt|gui-|for-status|auto-handle)/i
+
+/** 按模型 ID 推断能力标签：vl→视觉，image/wan/z-image/flux 等→生图，其余→文本 */
+function deriveCaps(id: string): ModelCap[] {
+  if (/vl|vision/i.test(id)) return ['vision', 'text']
+  if (/image|wan\d|z-image|flux|kolors|dall|stable|sd3|diffusion/i.test(id)) return ['image']
+  return ['text']
+}
+
 /** 合并内置模板与用户配置，产出全部可用模型（供下拉/默认值/设置页使用） */
 export function resolveModels(cfg: ModelConfig | undefined): ResolvedModel[] {
   const out: ResolvedModel[] = []
+  const seen = new Set<string>()
   for (const p of PROVIDERS) {
     for (const m of p.models) {
+      seen.add(modelKey(p.id, m.model))
       out.push({ provider: p.id, model: m.model, label: m.label, price: m.price, caps: [p.id === 'bailian' && m.model.startsWith('qwen3-vl') ? 'vision' : m.model.startsWith('qwen3.8') ? 'text' : 'image'], i2i: p.i2i, custom: false })
     }
     for (const m of cfg?.extraModels?.[p.id] ?? []) {
+      seen.add(modelKey(p.id, m.id))
       out.push({ provider: p.id, model: m.id, label: m.name || m.id, price: '按量', caps: m.caps, i2i: m.caps.includes('image') && p.i2i, custom: true })
+    }
+    // 服务端 /models 自动拉取的目录（Cherry Studio 式自动发现），去重后并入
+    for (const id of cfg?.fetchedModels?.[p.id] ?? []) {
+      if (seen.has(modelKey(p.id, id)) || NOISE_RE.test(id)) continue
+      seen.add(modelKey(p.id, id))
+      const caps = deriveCaps(id)
+      out.push({ provider: p.id, model: id, label: id, price: '按量', caps, i2i: caps.includes('image') && p.i2i, custom: false })
     }
   }
   for (const c of cfg?.customProviders ?? []) {

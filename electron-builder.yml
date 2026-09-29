@@ -22,8 +22,6 @@ extraResources:
   - from: library
     to: library
     filter: ['**/*']
-  - from: vendor/bailian-cli.zip
-    to: vendor/bailian-cli.zip
   - from: build/icon.png
     to: icon.png
 win:

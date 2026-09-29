@@ -40,7 +40,7 @@ export default function StatusBar({
         status={health ? (health.ok ? 'success' : 'error') : 'default'}
         text={
           <span className="sb-text">
-            {health ? (health.ok ? `百炼 CLI ${health.version}` : '引擎离线') : '检测引擎…'}
+            {health ? (health.ok ? `模型服务 ${health.version}` : '服务未连接') : '检测服务…'}
           </span>
         }
       />

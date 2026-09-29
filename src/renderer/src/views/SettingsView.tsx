@@ -15,15 +15,16 @@ import {
   Space,
   Switch,
   Tag,
+  Tooltip,
   Typography
 } from 'antd'
 import {
   DeleteOutlined,
-  DownloadOutlined,
   FolderOpenOutlined,
   KeyOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  CloudDownloadOutlined
 } from '@ant-design/icons'
 import type { BailianKeyInfo, HealthInfo, ModelCap, ModelConfig, ProviderKeyInfo } from '../types'
 import { byCap, modelKey, PROVIDERS, resolveModels } from '../models'
@@ -32,7 +33,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   const { message } = AntdApp.useApp()
   const [health, setHealth] = useState<HealthInfo | null>(null)
   const [info, setInfo] = useState<{ version: string; name: string; libraryRoot: string; outputsDir: string } | null>(null)
-  const [updating, setUpdating] = useState(false)
+  const [fetching, setFetching] = useState<string | null>(null)
   const [pkInfo, setPkInfo] = useState<Record<string, ProviderKeyInfo>>({})
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<string | null>(null)
@@ -150,7 +151,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
       message.warning('请填写模型 ID')
       return
     }
-    const providers = { ...(mc.extraModels ?? {}) }
+    const providers = { ...mc.extraModels }
     const list = [...(providers[providerId] ?? [])]
     if (list.some((m) => m.id === d.id.trim())) {
       message.warning('该模型 ID 已存在')
@@ -164,7 +165,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   }
 
   async function removeExtraModel(providerId: string, modelId: string): Promise<void> {
-    const providers = { ...(mc.extraModels ?? {}) }
+    const providers = { ...mc.extraModels }
     providers[providerId] = (providers[providerId] ?? []).filter((m) => m.id !== modelId)
     await saveConfig({ ...mc, extraModels: providers })
   }
@@ -226,7 +227,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   }
 
   async function setDefault(kind: 'image' | 'text' | 'vision', key: string): Promise<void> {
-    await saveConfig({ ...mc, defaults: { ...(mc.defaults ?? {}), [kind]: key } })
+    await saveConfig({ ...mc, defaults: { ...mc.defaults, [kind]: key } })
     message.success('默认模型已更新')
   }
 
@@ -238,6 +239,22 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
       else message.error(`测试失败：${r.out}`)
     } finally {
       setTesting(null)
+    }
+  }
+
+  /** 从服务端 /models 拉取模型目录并入库（Cherry Studio 式自动发现） */
+  async function fetchModelList(provider: string): Promise<void> {
+    setFetching(provider)
+    try {
+      const r = await window.api.fetchModels(provider)
+      if (r.ok) {
+        message.success(`已拉取 ${r.models} 个模型（服务端共 ${r.total} 个，已过滤语音/向量等无关模型）`)
+        void window.api.modelConfigGet().then((cfg) => setMc(cfg))
+      } else {
+        message.error(`拉取失败：${r.out}`)
+      }
+    } finally {
+      setFetching(null)
     }
   }
 
@@ -258,10 +275,10 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
         styles={{ body: { padding: 16 } }}
       >
         <Typography.Paragraph type="secondary" style={{ marginTop: 0, fontSize: 13 }}>
-          填入密钥后，妙绘会自动带着它调用百炼生图 / 改图 / 提示词反推，<strong>无需在命令行安装登录后运行 bl auth login</strong>。
-          支持百炼控制台下载的普通 API Key（<Typography.Text code>sk-</Typography.Text> 开头）与
-          Token Plan 订阅密钥（<Typography.Text code>sk-sp-</Typography.Text> 开头，自动识别并路由订阅端点）。
-          密钥在本机加密保存，不会上传任何第三方。
+          填入密钥后，妙绘通过 <strong>HTTP 直连</strong>调用百炼生图 / 改图 / 提示词反推，无需安装任何命令行工具。
+          支持普通 API Key（<Typography.Text code>sk-</Typography.Text> 开头）、工作空间密钥（
+          <Typography.Text code>sk-ws-</Typography.Text> 开头，需在下方填写专属接入点）与
+          Token Plan 订阅密钥（<Typography.Text code>sk-sp-</Typography.Text> 开头）。密钥在本机加密保存，不会上传任何第三方。
         </Typography.Paragraph>
         {bk?.configured ? (
           <Space direction="vertical" size={10} style={{ width: '100%' }}>
@@ -281,7 +298,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
               <Button icon={<ReloadOutlined />} loading={bkTesting} onClick={() => void testBailianKey()}>
                 测试连通
               </Button>
-              <Popconfirm title="清除后创作将回退到命令行登录态（如有）。确认清除？" okText="清除" onConfirm={() => void clearBailianKey()}>
+              <Popconfirm title="清除后生图 / 改图 / 反推将不可用。确认清除？" okText="清除" onConfirm={() => void clearBailianKey()}>
                 <Button danger icon={<DeleteOutlined />}>
                   清除密钥
                 </Button>
@@ -306,8 +323,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
           </Space.Compact>
         )}
         <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
-          密钥获取：登录百炼控制台，在「API-KEY 管理」下载普通密钥，或在「Token Plan · 订阅总览」下载订阅密钥（sk-sp- 开头）。
-          保存后所有百炼调用自动使用该密钥；清除后回退到命令行 bl auth login 的登录态。
+          密钥获取：登录百炼控制台，在「API-KEY 管理」下载普通密钥，或在业务空间详情页创建工作空间密钥（sk-ws-）。
+          保存后所有百炼调用自动使用该密钥；清除后生图与反推将提示补全密钥。
         </Typography.Paragraph>
         <div style={{ marginTop: 12 }}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -339,22 +356,21 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
 
       <Card title="模型服务" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>
         <Typography.Paragraph type="secondary" style={{ marginTop: 0, fontSize: 13 }}>
-          Cherry Studio 式通用配置：供应商 → 模型条目（带能力标签）→ 按能力设默认。百炼由 bl CLI 管理；其余供应商为
-          OpenAI 兼容端点，填 Key 即可启用，也可添加自己的网关。密钥一律本机加密，只显示掩码。
+          Cherry Studio 式通用配置：供应商 → 模型条目（带能力标签）→ 按能力设默认。全部供应商均为
+          HTTP 直连（百炼走官方 DashScope/OpenAI 兼容协议，其余为 OpenAI 兼容端点），填 Key 即可启用，也可添加自己的网关。
+          「拉取模型」会从服务端自动发现模型目录。密钥一律本机加密，只显示掩码。
         </Typography.Paragraph>
         {PROVIDERS.map((p) => {
           const info = pkInfo[p.id]
           const configured = !!info?.configured
           const extras = mc.extraModels?.[p.id] ?? []
+          const fetched = mc.fetchedModels?.[p.id] ?? []
           const d = extraDraft[p.id] ?? { id: '', name: '', caps: ['image' as ModelCap] }
           return (
             <div key={p.id} className="provider-row" style={{ marginBottom: 14 }}>
               <div className="provider-head">
-                <Badge
-                  status={p.id === 'bailian' ? 'success' : configured ? 'success' : 'default'}
-                  text={<Typography.Text strong>{p.label}</Typography.Text>}
-                />
-                {p.id !== 'bailian' && configured && (
+                <Badge status={configured ? 'success' : 'default'} text={<Typography.Text strong>{p.label}</Typography.Text>} />
+                {configured && info.masked && (
                   <Typography.Text code style={{ fontSize: 12 }}>
                     {info.masked}
                   </Typography.Text>
@@ -362,6 +378,15 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
                 <Typography.Text type="secondary" className="provider-note">
                   {p.note}
                 </Typography.Text>
+                <Button
+                  size="small"
+                  icon={<CloudDownloadOutlined />}
+                  loading={fetching === p.id}
+                  disabled={!configured}
+                  onClick={() => void fetchModelList(p.id)}
+                >
+                  拉取模型
+                </Button>
               </div>
               {p.id !== 'bailian' && (
                 <Space.Compact style={{ width: '100%', maxWidth: 560, marginBottom: 8 }}>
@@ -398,6 +423,17 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
                     {m.label}
                   </Tag>
                 ))}
+                {fetched.length > 0 && (
+                  <Tooltip title="来自服务端 /models 自动发现；再次「拉取模型」会刷新">
+                    <span>
+                      {fetched.map((id) => (
+                        <Tag key={`f-${id}`} color="default" style={{ marginInlineEnd: 6, borderStyle: 'dashed' }}>
+                          {id}
+                        </Tag>
+                      ))}
+                    </span>
+                  </Tooltip>
+                )}
               </div>
               <Space.Compact style={{ width: '100%', maxWidth: 640 }}>
                 <Input
@@ -582,61 +618,42 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
         </Space>
       </Modal>
 
-      <Card title="创作引擎（百炼 CLI）" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>
+      <Card title="服务状态（HTTP 直连引擎）" styles={{ body: { padding: 16 } }} style={{ marginTop: 16 }}>
         <Descriptions column={1} size="small">
           <Descriptions.Item label="状态">
             <Badge
               status={health ? (health.ok ? 'success' : 'error') : 'default'}
-              text={health ? (health.ok ? '在线' : '离线') : '检测中…'}
+              text={health ? (health.ok ? `在线 · ${health.version}` : '离线（检查密钥与接入点）') : '检测中…'}
             />
           </Descriptions.Item>
-          <Descriptions.Item label="鉴权来源">
+          <Descriptions.Item label="鉴权">
             {bk?.configured ? (
-              <Tag color="success">{bk.plan === 'token-plan' ? '应用内 Token Plan 密钥' : '应用内百炼密钥'}</Tag>
+              <Tag color="success">应用内百炼密钥（{bk.plan === 'workspace' ? '工作空间' : bk.plan === 'token-plan' ? 'Token Plan' : '普通'}）</Tag>
             ) : (
-              <Tag>命令行 bl 登录态</Tag>
+              <Tag color="warning">未配置密钥</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="版本">{health?.version || '—'}</Descriptions.Item>
-          <Descriptions.Item label="安装形态">
-            {health?.bundled ? (
-              <Tag color="green">随应用内置 · 用户免装环境</Tag>
-            ) : health ? (
-              <Tag>本机全局安装</Tag>
-            ) : (
-              '—'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="CLI 路径">
+          <Descriptions.Item label="接入点">
             <Typography.Text copyable style={{ fontSize: 12 }}>
               {health?.entry || '—'}
             </Typography.Text>
           </Descriptions.Item>
         </Descriptions>
-        <Popconfirm
-          title="运行 bl update 更新百炼 CLI？"
-          okText="更新"
-          cancelText="取消"
-          onConfirm={async () => {
-            setUpdating(true)
-            try {
-              const r = await window.api.blUpdate()
-              if (r.ok) message.success('百炼 CLI 已更新，重启应用后生效')
-              else message.warning(`更新未完成：${r.out.slice(0, 200)}`)
-              refresh()
-            } catch (e) {
-              message.error(e instanceof Error ? e.message : String(e))
-            } finally {
-              setUpdating(false)
-            }
-          }}
-        >
-          <Button icon={<DownloadOutlined />} loading={updating} style={{ marginTop: 12 }}>
-            检查并更新百炼 CLI
+        <Space style={{ marginTop: 12 }}>
+          <Button icon={<ReloadOutlined />} loading={bkTesting} onClick={() => void testBailianKey()}>
+            测试连通
           </Button>
-        </Popconfirm>
-        <Typography.Paragraph type="secondary" className="tip-text">
-          更新由百炼官方通道完成，更新后重启妙绘即可生效
+          <Button
+            icon={<CloudDownloadOutlined />}
+            loading={fetching === 'bailian'}
+            disabled={!bk?.configured}
+            onClick={() => void fetchModelList('bailian')}
+          >
+            拉取百炼模型目录
+          </Button>
+        </Space>
+        <Typography.Paragraph type="secondary" className="tip-text" style={{ marginBottom: 0 }}>
+          纯 HTTP 直连，无外部进程依赖；接入点与密钥保存后即时生效，无需重启
         </Typography.Paragraph>
       </Card>
 

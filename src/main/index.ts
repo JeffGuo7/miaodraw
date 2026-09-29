@@ -3,9 +3,20 @@ import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import { spawnSync } from 'node:child_process'
-import { blCancel, blHealth, blKillAll, generate, distill, runBl, setBailianKey, setBailianBaseUrl, setBailianWorkspace, hasBailianKey, bailianAuthTest, setBlVendorEntry, usingBundledCli, type GenOpts } from './bl'
-import { httpGenerate } from './providers'
+import {
+  httpChat,
+  httpModels,
+  httpBailianImage,
+  persistImage,
+  cancelHttp,
+  cancelAllHttp,
+  compatBase,
+  originOf,
+  MODEL_NOISE_RE,
+  DASHSCOPE_ORIGIN,
+  type ModelConn
+} from './http'
+import { httpGenerate, PROVIDER_BASE_URLS } from './providers'
 import { runAgent } from './agent'
 import { createSegmentService } from './segment'
 import { loadLibrary, libraryRoot } from './library'
@@ -154,10 +165,8 @@ function decryptSecret(enc: string, plainFallback?: boolean): string {
   }
 }
 
-// ---------- 百炼密钥（应用内配置，免 bl auth login） ----------
-function encryptKey(plain: string): { enc: string; plainFallback: boolean } {
-  return encryptSecret(plain)
-}
+// ---------- 百炼密钥（应用内配置，纯 HTTP 直连，与命令行登录态彻底解耦） ----------
+/** 旧版 bailianKeyEnc 字段解密（迁移前兜底） */
 function decryptKey(s: Settings): string {
   if (!s.bailianKeyEnc) return ''
   try {
@@ -169,8 +178,18 @@ function decryptKey(s: Settings): string {
     return ''
   }
 }
+/** 百炼密钥统一从 providerKeysEnc.bailian 读取；旧版 bailianKeyEnc 字段仅在迁移前兜底 */
+function bailianApiKey(): string {
+  const s = readSettings()
+  const rec = s.providerKeysEnc?.['bailian']
+  if (rec?.enc) return decryptSecret(rec.enc, rec.plainFallback)
+  return decryptKey(s)
+}
+function bailianOrigin(): string {
+  return originOf(readSettings().bailianBaseUrl ?? '')
+}
 function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-plan' | 'ordinary' | 'workspace' | 'unknown'; plainFallback: boolean } {
-  const key = decryptKey(readSettings())
+  const key = bailianApiKey()
   if (!key) return { configured: false, masked: '', plan: 'unknown', plainFallback: false }
   const plan = key.startsWith('sk-sp-')
     ? 'token-plan'
@@ -180,16 +199,23 @@ function bailianKeyInfo(): { configured: boolean; masked: string; plan: 'token-p
         ? 'ordinary'
         : 'unknown'
   const masked = key.length <= 8 ? '••••' : `${key.slice(0, 6)}••••${key.slice(-4)}`
-  return { configured: true, masked, plan, plainFallback: !!readSettings().bailianKeyPlain }
+  const rec = readSettings().providerKeysEnc?.['bailian']
+  return { configured: true, masked, plan, plainFallback: rec ? !!rec.plainFallback : !!readSettings().bailianKeyPlain }
 }
-function initBailianKey(): void {
-  setBailianKey(decryptKey(readSettings()))
-  setBailianWorkspace(readSettings().bailianWorkspace ?? '')
-  setBailianBaseUrl(readSettings().bailianBaseUrl ?? '')
+
+/** 任意供应商（含 bailian）的调用连接描述；密钥/接入点每次实时读设置，保存即热生效 */
+function connFor(provider: string, model: string): ModelConn {
+  if (provider === 'bailian') {
+    return { provider, model, kind: 'bailian', origin: bailianOrigin(), apiKey: bailianApiKey() }
+  }
+  const custom = getModelConfig().customProviders?.find((c) => c.id === provider)
+  const apiBase = (custom?.baseUrl || PROVIDER_BASE_URLS[provider] || '').replace(/\/+$/, '')
+  return { provider, model, kind: 'openai', apiBase, apiKey: getProviderKey(provider) }
 }
 
 // ---------- 第三方服务商密钥（safeStorage 加密，与百炼密钥同权；明文不落盘、不回显） ----------
-const PROVIDER_IDS = ['siliconflow', 'openai'] as const
+// bailian 纳入统一存储：providerKeysEnc.bailian 即百炼密钥（HTTP 直连唯一鉴权来源）
+const PROVIDER_IDS = ['bailian', 'siliconflow', 'openai'] as const
 type ProviderId = (typeof PROVIDER_IDS)[number]
 
 function isProviderId(v: string): v is ProviderId {
@@ -220,6 +246,8 @@ interface ModelConfig {
   extraModels?: Record<string, UserModelEntry[]>
   customProviders?: CustomProvider[]
   defaults?: { image?: string; text?: string; vision?: string }
+  /** 从服务端 /models 拉取的模型 ID 目录（按供应商缓存，Cherry Studio 式自动发现） */
+  fetchedModels?: Record<string, string[]>
 }
 
 function getModelConfig(): ModelConfig {
@@ -395,7 +423,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `window.api.generate({
         prompt: '一只橘猫趴在旧书堆上打盹，温暖台灯光，水彩插画风格',
-        model: 'wanx2.0-t2i-turbo', w: 1024, h: 1024
+        model: 'wan2.7-image', provider: 'bailian', w: 1024, h: 1024
       }).then(x => 'OK:' + x.file).catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] generate:', r)
@@ -542,14 +570,37 @@ function registerIpc(): void {
       return (fn as (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown)(e, ...args)
     })
   }
+  // ---------- 引擎健康（HTTP 直连：密钥就绪 + 接入点可达，带缓存避免轮询打爆） ----------
+  let probeCache: { at: number; ok: boolean } | null = null
   handle('health', async () => {
-    const bl = await blHealth()
+    const key = bailianApiKey()
+    const origin = bailianOrigin()
+    let ok = false
+    if (key) {
+      if (!probeCache || Date.now() - probeCache.at > (probeCache.ok ? 5 * 60 * 1000 : 60 * 1000)) {
+        try {
+          await httpModels(compatBase(origin), key, 8000)
+          ok = true
+        } catch {
+          ok = false
+        }
+        probeCache = { at: Date.now(), ok }
+      } else {
+        ok = probeCache.ok
+      }
+    }
+    let host = origin
+    try {
+      host = new URL(origin).host
+    } catch {
+      /* 保持原样 */
+    }
     return {
-      ok: bl.ok,
-      version: bl.version,
-      entry: bl.entry,
-      bundled: bl.bundled,
-      hasKey: hasBailianKey(),
+      ok,
+      version: host,
+      entry: origin,
+      bundled: false,
+      hasKey: !!key,
       libraryReady: fs.existsSync(LIB_ROOT),
       outputsDir: OUT_DIR
     }
@@ -606,16 +657,61 @@ function registerIpc(): void {
     return { ok: true }
   })
 
-  handle('generate', async (_e, raw: GenOpts & { provider?: string; runId?: string }) => {
-    const opts = raw as GenOpts & { provider?: string; runId?: string }
+  // 生成入参（渲染层 GenOpts 与 provider/runId 扩展）
+  interface GenIpcOpts {
+    prompt: string
+    negative?: string
+    w: number
+    h: number
+    seed?: number
+    model: string
+    provider?: string
+    runId?: string
+    parent?: string
+    ref?: { name: string; data: ArrayBuffer }
+  }
+
+  handle('generate', async (_e, raw: GenIpcOpts) => {
+    const opts = raw
     if (!opts || !opts.prompt || !opts.prompt.trim()) throw new Error('提示词不能为空')
     const provider = opts.provider || 'bailian'
     const onProgress = (stage: string, detail?: string): void => {
       win?.webContents.send('gen-progress', { runId: opts.runId, stage, detail })
     }
     if (provider === 'bailian') {
+      const key = bailianApiKey()
+      if (!key) throw new Error('未配置百炼 API Key，请到「设置 → 模型服务」粘贴密钥并保存')
+      const t0 = Date.now()
+      onProgress('prepare', '参数就绪')
+      // 种子恒定化：不传就随机一个并回传，保证每张图都可复现
+      const usedSeed = opts.seed && opts.seed > 0 ? opts.seed : Math.floor(Math.random() * 2147483647)
       try {
-        return await generate({ ...opts, onProgress }, OUT_DIR)
+        const r = await httpBailianImage({
+          origin: bailianOrigin(),
+          apiKey: key,
+          model: opts.model,
+          prompt: opts.prompt,
+          negative: opts.negative,
+          w: opts.w,
+          h: opts.h,
+          seed: usedSeed,
+          ref: opts.ref,
+          runId: opts.runId,
+          onProgress
+        })
+        onProgress('save', '保存结果')
+        const { file, url } = await persistImage(r.buffer, OUT_DIR, {
+          prompt: opts.prompt,
+          negative: opts.negative,
+          w: opts.w,
+          h: opts.h,
+          seed: usedSeed,
+          model: opts.model,
+          provider: 'bailian',
+          parent: opts.parent
+        })
+        log('info', `generate done file=${file} in ${Date.now() - t0}ms`)
+        return { file, url, elapsed: Date.now() - t0, seed: usedSeed, model: opts.model, parent: opts.parent }
       } catch (e) {
         log('error', `generate failed: ${e instanceof Error ? e.message : String(e)}`)
         throw e
@@ -662,44 +758,63 @@ function registerIpc(): void {
     }
   })
 
-  handle('gen:cancel', (_e, runId: string) => ({ ok: blCancel(String(runId || '')) }))
+  handle('gen:cancel', (_e, runId: string) => ({ ok: cancelHttp(String(runId || '')) }))
+
+  /** 连通检查（Cherry Studio 式）：拉一次 /models，免费且即时 */
   handle('test:provider', async (_e, provider: string) => {
-    const apiKey = getProviderKey(provider)
-    if (!apiKey) return { ok: false, out: '请先填写 API Key 并保存' }
+    const conn = connFor(String(provider || ''), '')
+    if (!conn.apiKey) return { ok: false, out: '请先填写 API Key 并保存' }
+    if (conn.kind === 'openai' && !conn.apiBase) return { ok: false, out: '该供应商缺少 API 地址' }
     try {
-      if (provider === 'siliconflow') {
-        await httpGenerate({
-          provider: 'siliconflow',
-          apiKey,
-          prompt: 'a red apple on a white table, product photo',
-          w: 512,
-          h: 512,
-          model: 'black-forest-labs/FLUX.1-schnell',
-          outputsDir: OUT_DIR
-        })
-      } else if (provider === 'openai') {
-        await httpGenerate({
-          provider: 'openai',
-          apiKey,
-          prompt: 'a red apple on a white table, product photo',
-          w: 1024,
-          h: 1024,
-          model: 'gpt-image-1',
-          outputsDir: OUT_DIR
-        })
-      } else {
-        return { ok: true, out: '百炼由 bl CLI 管理，无需测试' }
-      }
-      return { ok: true, out: '连接成功，测试图已存入作品目录' }
+      const ids = await httpModels(conn.kind === 'bailian' ? compatBase(conn.origin || DASHSCOPE_ORIGIN) : conn.apiBase!, conn.apiKey, 15000)
+      return { ok: true, out: `连接成功 · 服务端返回 ${ids.length} 个模型` }
     } catch (e) {
       return { ok: false, out: e instanceof Error ? e.message : String(e) }
     }
   })
 
-  handle('distill', (_e, payload: { data: ArrayBuffer; name: string }) => {
+  /** 自动发现模型目录：/models → 去噪后入库到 modelConfig.fetchedModels */
+  handle('models:fetch', async (_e, provider: string) => {
+    const conn = connFor(String(provider || ''), '')
+    if (!conn.apiKey) return { ok: false as const, out: '请先填写该供应商的 API Key' }
+    if (conn.kind === 'openai' && !conn.apiBase) return { ok: false as const, out: '该供应商缺少 API 地址' }
+    try {
+      const all = await httpModels(conn.kind === 'bailian' ? compatBase(conn.origin || DASHSCOPE_ORIGIN) : conn.apiBase!, conn.apiKey, 20000)
+      const models = all.filter((id) => !MODEL_NOISE_RE.test(id))
+      const mc = getModelConfig()
+      const next: ModelConfig = { ...mc, fetchedModels: { ...mc.fetchedModels, [provider]: models } }
+      writeSettings({ modelConfig: next })
+      return { ok: true as const, total: all.length, models: models.length }
+    } catch (e) {
+      return { ok: false as const, out: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
+  const DISTILL_PROMPT = [
+    '你是文生图提示词反推专家。从这张图反推一段可直接喂给任意文生图产品（Midjourney/即梦/SD等）的提示词：',
+    '一个完整段落（80~150词），覆盖主体内容、风格媒介、构图视角、光线、色调、质感与画质关键词；',
+    '图中若有文字，原样描述内容与位置。可在末尾附一行适合该图的风格参数或 negative prompt。',
+    '只输出提示词本身，不要任何解释，不要用"图中""这是"等措辞，直接描述画面。'
+  ].join('')
+
+  handle('distill', async (_e, payload: { data: ArrayBuffer; name: string }) => {
     if (!payload?.data) throw new Error('没收到图片')
-    const visionModel = resolveDefault('vision', { provider: 'bailian', model: 'qwen3-vl-plus' }).model
-    return distill(payload.data, payload.name || 'image.png', visionModel)
+    const t0 = Date.now()
+    const def = resolveDefault('vision', { provider: 'bailian', model: 'qwen3-vl-plus' })
+    const conn = connFor(def.provider, def.model)
+    if (!conn.apiKey) throw new Error('未配置模型密钥，请到「设置 → 模型服务」填写')
+    const prompt = await httpChat({
+      apiBase: conn.kind === 'bailian' ? compatBase(conn.origin || DASHSCOPE_ORIGIN) : conn.apiBase || '',
+      apiKey: conn.apiKey,
+      model: conn.model,
+      message: DISTILL_PROMPT,
+      images: [{ name: payload.name || 'image.png', data: payload.data }],
+      temperature: 0.3,
+      timeoutMs: 180000,
+      runId: 'distill-' + t0,
+      disableThinking: conn.kind === 'bailian'
+    })
+    return { prompt, elapsed: Date.now() - t0 }
   })
 
   // ---------- 通用模型配置 ----------
@@ -736,9 +851,7 @@ function registerIpc(): void {
     const patch: Settings = {}
     if (ws) patch.bailianWorkspace = ws
     if (baseUrl) patch.bailianBaseUrl = baseUrl
-    writeSettings(patch)
-    setBailianWorkspace(ws) // 热生效，无需重启
-    setBailianBaseUrl(baseUrl)
+    writeSettings(patch) // HTTP 直连每次实时读设置，保存即热生效
     return { ok: true as const }
   })
   handle('provider-key:get', () => providerKeysInfo())
@@ -770,20 +883,37 @@ function registerIpc(): void {
     if (/\s/.test(plain)) {
       return { ok: false as const, err: '密钥中间包含空格或换行，请重新完整复制粘贴' }
     }
-    // 不强制 sk- 前缀：密钥格式以百炼官方签发为准，有效性交给「测试连通」验证
-    const { enc, plainFallback } = encryptKey(plain)
-    writeSettings({ bailianKeyEnc: enc, bailianKeyPlain: plainFallback })
-    setBailianKey(plain)
-    return { ok: true as const, info: bailianKeyInfo(), plainFallback }
+    // 不强制前缀：sk- / sk-ws- / sk-sp- 均可，有效性交给「测试连通」验证
+    const next = { ...readSettings().providerKeysEnc }
+    next['bailian'] = encryptSecret(plain)
+    writeSettings({ providerKeysEnc: next, bailianKeyEnc: undefined, bailianKeyPlain: undefined })
+    return { ok: true as const, info: bailianKeyInfo(), plainFallback: next['bailian'].plainFallback }
   })
   handle('bailian-key:clear', () => {
-    writeSettings({ bailianKeyEnc: undefined, bailianKeyPlain: undefined })
-    setBailianKey('')
+    const next = { ...readSettings().providerKeysEnc }
+    delete next['bailian']
+    writeSettings({ providerKeysEnc: next, bailianKeyEnc: undefined, bailianKeyPlain: undefined })
     return bailianKeyInfo()
   })
   handle('bailian-key:test', async () => {
-    if (!hasBailianKey()) return { ok: false, out: '尚未配置百炼密钥，请先填写并保存' }
-    return bailianAuthTest()
+    const key = bailianApiKey()
+    if (!key) return { ok: false, out: '尚未配置百炼密钥，请先填写并保存' }
+    try {
+      const t0 = Date.now()
+      const textModel = resolveDefault('text', { provider: 'bailian', model: 'qwen3.8-flash' }).model
+      const out = await httpChat({
+        apiBase: compatBase(bailianOrigin()),
+        apiKey: key,
+        model: textModel,
+        message: '只回复两个字：成功',
+        temperature: 0.1,
+        timeoutMs: 30000,
+        disableThinking: true
+      })
+      return { ok: true, out: `密钥可用（${Date.now() - t0}ms）· ${textModel} 响应：${out.slice(0, 60)}` }
+    } catch (e) {
+      return { ok: false, out: e instanceof Error ? e.message : String(e) }
+    }
   })
 
   handle('favorites:list', () => readFavorites().sort((a, b) => b.savedAt - a.savedAt))
@@ -796,22 +926,23 @@ function registerIpc(): void {
     return list.sort((a, b) => b.savedAt - a.savedAt)
   })
 
-  handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string }) => {
+  handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string; provider?: string }) => {
     if (!payload?.goal?.trim()) throw new Error('请输入指令')
     if (payload.baseName && !resolveOutputPath(payload.baseName)) throw new Error('底图文件不合法')
-    // 模型默认值来自通用配置：文本模型驱动 Agent 规划，生图默认驱动 generate 步骤
-    const textModel = resolveDefault('text', { provider: 'bailian', model: 'qwen3.8-flash' }).model
-    const imageModel = resolveDefault('image', { provider: 'bailian', model: 'qwen-image-3.0-pro' }).model
-    const runOpts = {
+    // 模型默认值来自通用配置：文本模型驱动 Agent 规划，生图默认驱动出图步骤
+    const textDef = resolveDefault('text', { provider: 'bailian', model: 'qwen3.8-flash' })
+    const imageDef = resolveDefault('image', { provider: 'bailian', model: 'wan2.7-image' })
+    const imageConn = connFor(payload.provider || imageDef.provider, payload.model || imageDef.model)
+    if (!imageConn.apiKey) throw new Error('未配置生图模型密钥，请到「设置 → 模型服务」填写')
+    return runAgent({
       runId: payload.runId,
       goal: payload.goal.trim(),
       baseImage: payload.baseName,
-      defaultModel: payload.model || imageModel,
-      textModel,
+      textConn: connFor(textDef.provider, textDef.model),
+      imageConn,
       outputsDir: OUT_DIR,
       onEvent: (e: unknown) => win?.webContents.send('agent-progress', e)
-    }
-    return runAgent(runOpts)
+    })
   })
 
   handle('image:chain', async (_e, name: string) => {
@@ -833,11 +964,6 @@ function registerIpc(): void {
       }
     }
     return chain
-  })
-
-  handle('bl:update', async () => {
-    const r = await runBl(['update'], 300000)
-    return { ok: r.code === 0, out: (r.stdout + '\n' + r.stderr).trim().slice(-800) }
   })
 
   handle('segment:mask', async (_e, src: string, points: Array<{ x: number; y: number }>) => {
@@ -909,39 +1035,10 @@ function registerIpc(): void {
   })
 }
 
-// ---------- 内置百炼 CLI（方案B） ----------
-// 打包态：resources/vendor/bailian-cli.zip 首启解包到 userData/cli（zip 整包绕开
-// electron-builder 对 node_modules 的全局排除）；开发态：直接用 vendor/bailian-cli 目录。
-const SYSTEM_TAR = process.env.SystemRoot
-  ? path.join(process.env.SystemRoot, 'System32', 'tar.exe')
-  : 'tar'
-
-function ensureBundledCli(): string {
-  if (!isPackaged) {
-    const p = path.join(APP_ROOT, 'vendor', 'bailian-cli', 'dist', 'bailian.mjs')
-    return fs.existsSync(p) ? p : ''
-  }
-  const zip = path.join(process.resourcesPath, 'vendor', 'bailian-cli.zip')
-  if (!fs.existsSync(zip)) return ''
-  const target = path.join(app.getPath('userData'), 'cli')
-  const entry = path.join(target, 'bailian-cli', 'dist', 'bailian.mjs')
-  if (fs.existsSync(entry)) return entry
-  try {
-    fs.mkdirSync(target, { recursive: true })
-    const r = spawnSync(SYSTEM_TAR, ['-xf', zip, '-C', target], { windowsHide: true, timeout: 120000 })
-    return r.status === 0 && fs.existsSync(entry) ? entry : ''
-  } catch {
-    return ''
-  }
-}
-
 // ---------- 生命周期 ----------
 app.whenReady().then(() => {
   initLogger(path.join(app.getPath('userData'), 'logs'))
-  // 方案B：内置百炼 CLI（zip 随包分发、首启解包）；缺失时自动回退全局安装
-  setBlVendorEntry(ensureBundledCli())
-  log('info', `app ready version=${app.getVersion()} packaged=${isPackaged} bundledCli=${usingBundledCli()}`)
-  initBailianKey()
+  log('info', `app ready version=${app.getVersion()} packaged=${isPackaged} engine=http-direct`)
   migrateLegacyProviderKeys()
   protocol.handle('media', async (req) => {
     const abs = parseMediaUrl(req.url)
@@ -1000,7 +1097,7 @@ app.on('window-all-closed', () => {
   app.quit()
 })
 
-// 退出前终止所有存活 CLI 子进程，避免后台继续消耗额度
+// 退出前中断所有在途 HTTP 生成请求，避免后台继续消耗额度
 app.on('before-quit', () => {
-  blKillAll()
+  cancelAllHttp()
 })
