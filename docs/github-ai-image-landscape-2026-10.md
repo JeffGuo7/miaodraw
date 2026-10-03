@@ -113,7 +113,8 @@ LibreChat · NextChat · Toonflow-app · openpencil · JarvisHub · InvokeAI · 
 **只可读思路，代码不可复制（AGPL / GPL / 自定义）**
 Cherry Studio(AGPL) · Chatbox(GPL) · ComfyUI(GPL) · A1111(AGPL) · Fooocus(GPL) · Upscayl(AGPL) · chaiNNer(GPL) · Allusion(GPL) · NanoBananaEditor(AGPL) · jaaz/RedInk/lobehub(tldraw) 等 NOASSERTION → **必须逐字读 LICENSE 才能用**
 
-> 妙绘目前未开源（`private: true`）。若未来不开源：上述 AGPL/GPL 项目只能"参考交互与架构思路"，不能复制代码；若未来开源且选 AGPL 兼容许可，则可放宽。
+> **妙绘自身的许可状态（2026-10-03）**：仓库已在 GitHub 公开（`JeffGuo7/miaodraw`），LICENSE 文件已补 **MIT**，`package.json` 亦声明 `license: MIT`。
+> **注意：开源 ≠ 可以并入 copyleft 代码。** MIT 与 GPL/AGPL 是单向兼容的——把 GPL/AGPL 代码合进 MIT 项目，会导致整个项目必须按 GPL/AGPL 分发。因此上表第二类项目**在妙绘保持 MIT 的前提下，永远只能参考交互与架构，不能复制代码**；第一类（MIT/Apache-2.0/BSD/CC0）才可以真正借鉴甚至集成。
 
 ---
 
