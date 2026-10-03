@@ -22,8 +22,10 @@ export const PROVIDERS: ProviderDef[] = [
     note: 'HTTP 直连 · 生图 / 改图 / 文本 / 视觉全覆盖',
     i2i: true,
     models: [
-      { model: 'wan2.7-image', label: 'Wan 2.7 Image（推荐·已验证）', price: '¥0.2' },
-      { model: 'wan2.7-image-pro', label: 'Wan 2.7 Image Pro（4K 文生图）', price: '按量' },
+      { model: 'wan2.7-image', label: 'Wan 2.7 Image（推荐 · 可融合 9 张素材）', price: '¥0.2' },
+      { model: 'wan2.7-image-pro', label: 'Wan 2.7 Image Pro（4K 文生图 · 9 张素材）', price: '按量' },
+      { model: 'qwen-image-3.0', label: 'Qwen-Image 3.0（可融合 3 张素材）', price: '按量' },
+      { model: 'qwen-image-3.0-pro', label: 'Qwen-Image 3.0 Pro（3 张素材 · 高质量）', price: '按量' },
       { model: 'qwen3.8-flash', label: 'Qwen3.8 Flash（文本·Agent 规划）', price: '按量' },
       { model: 'qwen3-vl-plus', label: 'Qwen3-VL Plus（视觉·反推）', price: '按量' }
     ]
@@ -83,11 +85,26 @@ function deriveCaps(id: string): ModelCap[] {
   return ['text']
 }
 
+/**
+ * 生图模型的素材融合上限（参考图张数）。
+ * 官方文档：wan2.7-image 系列最多 9 张；qwen-image-3.x 最多 3 张。
+ * ⚠️ 与主进程 http.ts 的 imageCapability 同规则，改一处要同步另一处。
+ */
+export function refLimit(model: string): number {
+  const m = (model || '').toLowerCase()
+  if (m.startsWith('wan2.')) return 9
+  if (m.startsWith('qwen-image-3')) return 3
+  if (m.startsWith('qwen-image')) return 3
+  return 1
+}
+
 /** 合并内置模板与用户配置，产出全部可用模型（供下拉/默认值/设置页使用） */
 export function resolveModels(cfg: ModelConfig | undefined): ResolvedModel[] {
   const out: ResolvedModel[] = []
   const seen = new Set<string>()
+  const disabled = new Set(cfg?.disabledProviders ?? [])
   for (const p of PROVIDERS) {
+    if (disabled.has(p.id)) continue
     for (const m of p.models) {
       seen.add(modelKey(p.id, m.model))
       out.push({ provider: p.id, model: m.model, label: m.label, price: m.price, caps: [p.id === 'bailian' && m.model.startsWith('qwen3-vl') ? 'vision' : m.model.startsWith('qwen3.8') ? 'text' : 'image'], i2i: p.i2i, custom: false })
@@ -105,7 +122,7 @@ export function resolveModels(cfg: ModelConfig | undefined): ResolvedModel[] {
     }
   }
   for (const c of cfg?.customProviders ?? []) {
-    if (!c.enabled) continue
+    if (!c.enabled || disabled.has(c.id)) continue
     for (const m of c.models) {
       out.push({ provider: c.id, model: m.id, label: `${c.name} · ${m.name || m.id}`, price: '按量', caps: m.caps, i2i: m.caps.includes('image'), custom: true })
     }

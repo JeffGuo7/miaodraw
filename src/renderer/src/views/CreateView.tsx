@@ -27,6 +27,7 @@ import {
   FolderOpenOutlined,
   LeftOutlined,
   PictureOutlined,
+  PlusOutlined,
   ReloadOutlined,
   RetweetOutlined,
   RightOutlined,
@@ -34,8 +35,8 @@ import {
   SendOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
-import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig } from '../types'
-import { byCap, modelKey, providerDef, providerLabel, resolveModels } from '../models'
+import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig, RefImage, RefRole } from '../types'
+import { byCap, modelKey, providerDef, providerLabel, refLimit, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
 import { touchActiveModel } from './StatusBar'
 import { mediaUrlData, mediaUrlToFile } from '../utils'
@@ -46,6 +47,34 @@ const MODELS_LEGACY: Record<string, boolean> = {
   'z-image-turbo': true,
   'wanx2.0-t2i-turbo': true
 }
+
+/** 素材托盘条目：数组顺序即提示词里的「图1/图2/图3」 */
+interface RefItem {
+  id: string
+  file: File
+  preview: string
+  role: RefRole
+  source: NonNullable<RefImage['source']>
+}
+
+const ROLE_OPTS: Array<{ value: RefRole; label: string }> = [
+  { value: 'ref', label: '参考' },
+  { value: 'subject', label: '主体' },
+  { value: 'style', label: '风格' },
+  { value: 'background', label: '背景' },
+  { value: 'pose', label: '姿势' },
+  { value: 'outfit', label: '服装' },
+  { value: 'sketch', label: '线稿' }
+]
+
+/** 融合提示词模板：点一下即填，可再编辑；引用序号与素材顺序一致 */
+const FUSION_TEMPLATES: Array<{ label: string; text: string }> = [
+  { label: '换风格', text: '保持图1的主体与构图不变，用图2的风格、色彩与笔触重绘整幅画面' },
+  { label: '换背景', text: '把图1的主体放进图2的场景中，光影与透视自然融合，边缘过渡真实' },
+  { label: '换服装', text: '让图1的人物穿上图2中的服装，保持人物面部特征与姿势不变' },
+  { label: '风格迁移', text: '参考图2的配色与光影氛围，重绘图1的内容，保持画面主体一致' },
+  { label: '多图组图', text: '参考图1的角色与图2的场景，生成一组同一角色的连续画面，风格统一' }
+]
 
 const SIZES = [
   { value: '1024x1024', label: '方图 1:1 · 1024' },
@@ -59,7 +88,7 @@ interface Props {
   seed: {
     ts: number
     prompt?: string
-    mode?: 't2i' | 'i2i'
+    mode?: 't2i' | 'fusion'
     refFile?: File
     negative?: string
     size?: string
@@ -74,7 +103,7 @@ interface Props {
 
 export default function CreateView({ seed, onDistill, onHealthStale, onGenerated, onOpenSettings }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
-  const [mode, setMode] = useState<'t2i' | 'i2i'>('t2i')
+  const [mode, setMode] = useState<'t2i' | 'fusion'>('t2i')
   const [prompt, setPrompt] = useState('')
   const [negative, setNegative] = useState('')
   const [active, setActive] = useState<ActiveModel>(() => {
@@ -83,8 +112,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   })
   const [size, setSize] = useState(SIZES[0].value)
   const [seedNum, setSeedNum] = useState<number | null>(null)
-  const [refFile, setRefFile] = useState<File | null>(null)
-  const [refPreview, setRefPreview] = useState('')
+  const [refItems, setRefItems] = useState<RefItem[]>([])
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [providerKeys, setProviderKeys] = useState<Record<string, boolean>>({})
   // 通用模型配置：内置模板 + 用户追加模型 + 自定义供应商，统一解析为可用模型目录
   const [mc, setMc] = useState<ModelConfig | undefined>()
@@ -161,12 +190,54 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     return () => window.clearInterval(t)
   }, [busy])
 
-  function applyRef(f: File): void {
-    setRefFile(f)
-    setRefPreview((old) => {
-      if (old) URL.revokeObjectURL(old)
-      return URL.createObjectURL(f)
+  /** 多素材融合：素材上限由所选模型能力决定（wan2.7=9 / qwen-image-3.x=3 / 其他=1） */
+  const maxRefs = refLimit(active.model)
+
+  function addRef(f: File, source: RefItem['source'] = 'upload'): void {
+    setRefItems((old) => {
+      if (old.length >= maxRefs) {
+        message.warning(`当前模型最多支持 ${maxRefs} 张素材，请换用支持更多素材的模型`)
+        return old
+      }
+      return [...old, { id: crypto.randomUUID(), file: f, preview: URL.createObjectURL(f), role: 'ref', source }]
     })
+  }
+
+  function removeRef(id: string): void {
+    setRefItems((old) => {
+      const hit = old.find((r) => r.id === id)
+      if (hit) URL.revokeObjectURL(hit.preview)
+      return old.filter((r) => r.id !== id)
+    })
+  }
+
+  /** 拖拽排序：数组顺序就是「图1/图2/图3」，提示词里的引用跟着变 */
+  function moveRef(from: number, to: number): void {
+    setRefItems((old) => {
+      if (from === to || from < 0 || to < 0 || from >= old.length || to >= old.length) return old
+      const next = [...old]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function setRefRole(id: string, role: RefRole): void {
+    setRefItems((old) => old.map((r) => (r.id === id ? { ...r, role } : r)))
+  }
+
+  /** 把「图N」引用插进提示词（主进程按数组顺序对应，无需额外协议） */
+  function insertRefToken(order: number): void {
+    setPrompt((p) => {
+      const token = `图${order}`
+      if (!p) return token
+      return /\s$/.test(p) ? p + token : `${p} ${token}`
+    })
+  }
+
+  /** 兼容旧入口：灵感库/历史带过来的底图直接进素材托盘 */
+  function applyRef(f: File): void {
+    addRef(f, 'history')
   }
 
   function saveSettings(provider: string, model: string, size: string): void {
@@ -178,7 +249,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
 
   const provider = active.provider
   const needKey = !providerKeys[provider]
-  const i2iUnsupported = mode === 'i2i' && !(providerDef(provider)?.i2i ?? false)
+  // 素材融合目前仅百炼侧支持（DashScope 原生 / OpenAI 兼容两条协议都已接入多图）
+  const i2iUnsupported = mode === 'fusion' && provider !== 'bailian'
 
   /** seedOverride：0 = 让主进程随机种子；不传 = 沿用当前种子输入 */
   async function doGenerate(seedOverride?: number): Promise<void> {
@@ -188,8 +260,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
       message.warning('请先输入画面描述')
       return
     }
-    if (mode === 'i2i' && !refFile) {
-      message.warning('图生图模式：请先上传参考图')
+    if (mode === 'fusion' && refItems.length === 0) {
+      message.warning('素材融合模式：请先添加至少一张素材')
       return
     }
     setBusy(true)
@@ -199,6 +271,17 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     setStages([])
     try {
       const [w, h] = size.split('x').map(Number)
+      const refs: RefImage[] =
+        mode === 'fusion'
+          ? await Promise.all(
+              refItems.map(async (r) => ({
+                name: r.file.name,
+                data: (await r.file.arrayBuffer()) as ArrayBuffer,
+                role: r.role,
+                source: r.source
+              }))
+            )
+          : []
       const opts: GenOpts = {
         prompt: p,
         negative: negative.trim() || undefined,
@@ -208,11 +291,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         model: active.model,
         provider,
         runId,
-        parent: mode === 'i2i' ? parentName : undefined,
-        ref:
-          mode === 'i2i' && refFile
-            ? { name: refFile.name, data: await refFile.arrayBuffer() }
-            : undefined
+        parent: mode === 'fusion' ? parentName : undefined,
+        refs: refs.length ? refs : undefined
       }
       lastOpts.current = opts
       const res = await window.api.generate(opts)
@@ -285,10 +365,10 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     if (!result) return
     try {
       const f = await mediaUrlToFile(result.url, result.file)
-      setMode('i2i')
+      setMode('fusion')
       setParentName(result.file)
       applyRef(f)
-      message.success('已作为参考图，描述要怎么改它')
+      message.success('已加入素材托盘，描述要怎么融合')
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e))
     }
@@ -313,10 +393,10 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             <Segmented
               block
               value={mode}
-              onChange={(v) => setMode(v as 't2i' | 'i2i')}
+              onChange={(v) => setMode(v as 't2i' | 'fusion')}
               options={[
                 { value: 't2i', label: '文生图' },
-                { value: 'i2i', label: '图生图' }
+                { value: 'fusion', label: '素材融合' }
               ]}
             />
           }
@@ -351,47 +431,106 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
               }
             />
           )}
-          {mode === 'i2i' && (
-            <Upload.Dragger
-              accept="image/*"
-              maxCount={1}
-              showUploadList={false}
-              disabled={busy}
-              beforeUpload={(f) => {
-                applyRef(f)
-                return false
-              }}
-              className="ref-dragger"
-            >
-              {refPreview ? (
-                <div className="ref-preview" onClick={(e) => e.stopPropagation()}>
-                  <img src={refPreview} alt="参考图" />
-                  <Button
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => {
-                      setRefFile(null)
-                      setRefPreview('')
+          {mode === 'fusion' && (
+            <div className="ref-tray">
+              <div className="ref-tray-head">
+                <Typography.Text className="field-label" style={{ margin: 0 }}>
+                  融合素材
+                </Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  拖拽排序即「图1/图2」· 当前模型最多 {maxRefs} 张 · 已用 {refItems.length}
+                </Typography.Text>
+              </div>
+              <div className="ref-tray-list">
+                {refItems.map((r, i) => (
+                  <div
+                    key={r.id}
+                    className={`ref-item${dragIdx === i ? ' dragging' : ''}`}
+                    draggable={!busy}
+                    onDragStart={() => setDragIdx(i)}
+                    onDragEnd={() => setDragIdx(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (dragIdx !== null) moveRef(dragIdx, i)
+                      setDragIdx(null)
                     }}
                   >
-                    移除
-                  </Button>
-                </div>
-              ) : (
-                <div className="ref-empty">
-                  <PictureOutlined style={{ fontSize: 30, color: '#5b8cff' }} />
-                  <div>点击或拖入参考图</div>
-                  <Typography.Text type="secondary">保留画面主体，按描述修改</Typography.Text>
-                </div>
-              )}
-            </Upload.Dragger>
+                    <span className="ref-order">图{i + 1}</span>
+                    <img src={r.preview} alt={`素材${i + 1}`} />
+                    <div className="ref-item-bar">
+                      <Select
+                        size="small"
+                        variant="borderless"
+                        value={r.role}
+                        onChange={(v) => setRefRole(r.id, v as RefRole)}
+                        options={ROLE_OPTS}
+                        popupMatchSelectWidth={90}
+                      />
+                      <Tooltip title="删除">
+                        <Button
+                          type="text"
+                          size="small"
+                          className="ref-del"
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeRef(r.id)}
+                        />
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+                {refItems.length < maxRefs && (
+                  <Upload
+                    accept="image/*"
+                    multiple
+                    showUploadList={false}
+                    disabled={busy}
+                    beforeUpload={(f) => {
+                      addRef(f, 'upload')
+                      return false
+                    }}
+                  >
+                    <div className="ref-add">
+                      <PlusOutlined style={{ fontSize: 20 }} />
+                      <span>添加素材</span>
+                    </div>
+                  </Upload>
+                )}
+              </div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                可在提示词里用「图1/图2」指代素材；素材会随作品留档，历史记录一键复现
+              </Typography.Text>
+            </div>
           )}
 
-          <Typography.Text className="field-label">画面描述</Typography.Text>
+          <Typography.Text className="field-label">
+            画面描述
+            {mode === 'fusion' && refItems.length > 0 && (
+              <span className="ref-tokens">
+                {refItems.map((r, i) => (
+                  <Tag key={r.id} className="ref-token" onClick={() => insertRefToken(i + 1)}>
+                    图{i + 1}
+                  </Tag>
+                ))}
+              </span>
+            )}
+          </Typography.Text>
+          {mode === 'fusion' && (
+            <div className="ref-templates">
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                融合模板：
+              </Typography.Text>
+              {FUSION_TEMPLATES.map((t) => (
+                <Tag key={t.label} className="ref-template" onClick={() => setPrompt(t.text)}>
+                  {t.label}
+                </Tag>
+              ))}
+            </div>
+          )}
           <Input.TextArea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder={mode === 'i2i' ? '例：保持人物长相，改成坐在咖啡店里，窗外下雨' : '描述想要的画面，中英文均可，越具体越好'}
+            placeholder={mode === 'fusion' ? '例：把图2的涂鸦喷绘在图1的汽车上，保持图1的光影' : '描述想要的画面，中英文均可，越具体越好'}
             autoSize={{ minRows: 5, maxRows: 12 }}
             maxLength={4000}
             showCount

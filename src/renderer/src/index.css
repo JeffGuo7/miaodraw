@@ -196,6 +196,150 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
+/* ---------- 多素材融合：素材托盘（顺序即「图1/图2」，拖拽可排序） ---------- */
+.ref-tray {
+  margin-bottom: 14px;
+}
+
+.ref-tray-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ref-tray-head .field-label {
+  margin: 0 !important;
+}
+
+.ref-tray-list {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+}
+
+.ref-item {
+  position: relative;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 116px;
+  border-radius: 12px;
+  background: #fafafc;
+  border: 1px solid #e8e8ed;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+}
+
+.ref-item:hover {
+  border-color: #d2d2d7;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.ref-item.dragging {
+  opacity: 0.55;
+  transform: scale(0.97);
+}
+
+.ref-item img {
+  width: 100%;
+  height: 78px;
+  object-fit: cover;
+  display: block;
+}
+
+.ref-order {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.ref-item-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 0 4px;
+}
+
+.ref-item-bar .ant-select {
+  font-size: 12px;
+}
+
+.ref-item-bar .ant-select-selector {
+  padding-inline: 4px !important;
+}
+
+.ref-del {
+  color: #86868b;
+}
+
+.ref-del:hover {
+  color: #ff3b30;
+}
+
+.ref-add {
+  width: 96px;
+  height: 116px;
+  border-radius: 12px;
+  border: 1px dashed #d2d2d7;
+  background: #fafafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #86868b;
+  font-size: 12px;
+  transition: border-color 0.16s, color 0.16s, background 0.16s;
+}
+
+.ref-add:hover {
+  border-color: #0071e3;
+  color: #0071e3;
+  background: #f5f9ff;
+}
+
+.ref-tokens {
+  margin-left: 8px;
+}
+
+.ref-token {
+  cursor: pointer;
+  border-radius: 999px;
+  background: #f0f6ff;
+  border-color: #cfe3ff;
+  color: #0071e3;
+}
+
+.ref-templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.ref-template {
+  cursor: pointer;
+  border-radius: 999px;
+  background: #fafafc;
+  color: #1d1d1f;
+}
+
+.ref-template:hover {
+  border-color: #0071e3;
+  color: #0071e3;
+}
+
 .create-main {
   min-width: 0;
 }
@@ -583,9 +727,7 @@ body {
 }
 
 /* ---------- 设置页 ---------- */
-.settings-wrap {
-  max-width: 760px;
-}
+/* 设置页样式已迁至 views/settings/settings.css（Cherry Studio 式两栏主从） */
 
 /* ---------- 首次引导 ---------- */
 .ob-features {
@@ -668,27 +810,6 @@ body {
   width: 1px;
   height: 12px;
   background: #e0e0e5;
-}
-
-/* ---------- 设置页：服务商 ---------- */
-.provider-row {
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f2;
-}
-
-.provider-row:last-child {
-  border-bottom: none;
-}
-
-.provider-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.provider-note {
-  font-size: 12px;
 }
 
 /* ---------- 版本链 / 对比滑杆 / 阶段 ---------- */
@@ -1058,11 +1179,6 @@ body {
 
 .pal-menu .ant-menu-item-selected {
   background: linear-gradient(90deg, var(--brand-soft), rgba(139, 92, 246, 0.07));
-}
-
-/* ---------- 设置页节奏 ---------- */
-.settings-wrap > .ant-card:hover {
-  box-shadow: var(--shadow-md), var(--shadow-sm);
 }
 
 /* ---------- 合成画布工作区 ---------- */

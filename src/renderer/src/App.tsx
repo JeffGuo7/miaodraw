@@ -24,7 +24,7 @@ import type { GenParams, HealthInfo } from './types'
 interface CreateSeed {
   ts: number
   prompt?: string
-  mode?: 't2i' | 'i2i'
+  mode?: 't2i' | 'fusion'
   refFile?: File
   negative?: string
   size?: string
@@ -220,7 +220,7 @@ export default function App(): JSX.Element {
             <ComposeView visible={view === 'compose'} />
           </div>
           <div style={{ display: view === 'library' ? 'block' : 'none' }}>
-            <LibraryView visible={view === 'library'} onUsePrompt={onUsePrompt} onUseRef={(f) => goCreate({ mode: 'i2i', refFile: f })} onDistill={goDistill} />
+            <LibraryView visible={view === 'library'} onUsePrompt={onUsePrompt} onUseRef={(f) => goCreate({ mode: 'fusion', refFile: f })} onDistill={goDistill} />
           </div>
           <div style={{ display: view === 'distill' ? 'block' : 'none' }}>
             <DistillView seed={distillSeed} onUsePrompt={onUsePrompt} />
@@ -229,7 +229,7 @@ export default function App(): JSX.Element {
             <HistoryView
               visible={view === 'history'}
               version={historyVersion}
-              onUseRef={(f) => goCreate({ mode: 'i2i', refFile: f })}
+              onUseRef={(f) => goCreate({ mode: 'fusion', refFile: f })}
               onDistill={goDistill}
               onReproduce={onReproduce}
             />

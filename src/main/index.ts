@@ -3,10 +3,14 @@ import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
+import { createHash } from 'node:crypto'
 import {
   httpChat,
   httpModels,
   httpBailianImage,
+  httpOpenAIImages,
+  imageCapability,
+  clampRefs,
   persistImage,
   cancelHttp,
   cancelAllHttp,
@@ -14,7 +18,8 @@ import {
   originOf,
   MODEL_NOISE_RE,
   DASHSCOPE_ORIGIN,
-  type ModelConn
+  type ModelConn,
+  type RefImage
 } from './http'
 import { httpGenerate, PROVIDER_BASE_URLS } from './providers'
 import { runAgent } from './agent'
@@ -433,6 +438,33 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     await new Promise((r) => setTimeout(r, 4000))
   }
+  // 多素材融合冒烟：从案例库取两张图作为素材，走 generate 的多图链路并校验 sidecar 记录
+  if (process.env.SHOT_FUSE === '1') {
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        try {
+          const a = await window.api.imageRead('media://local/lib-a/ad-creative_case174/output.jpg')
+          const b = await window.api.imageRead('media://local/lib-a/ad-creative_case175/output.jpg')
+          const ab = (u) => u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength)
+          const x = await window.api.generate({
+            prompt: '把图2的排版与配色风格用到图1的内容上，融合成一张广告海报',
+            model: 'wan2.7-image', provider: 'bailian', w: 1024, h: 1024,
+            refs: [
+              { name: 'case174.jpg', data: ab(a), role: 'subject', source: 'library' },
+              { name: 'case175.jpg', data: ab(b), role: 'style', source: 'library' }
+            ]
+          })
+          return 'OK:' + x.file
+        } catch (e) { return 'ERR:' + e.message }
+      })()`
+    )
+    console.log('[shot] fuse:', r)
+    check('fuse', r)
+    await w.webContents.executeJavaScript(
+      `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.history}].click()`
+    )
+    await new Promise((r) => setTimeout(r, 3000))
+  }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
       `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.library}].click()`
@@ -668,7 +700,37 @@ function registerIpc(): void {
     provider?: string
     runId?: string
     parent?: string
+    /** 单素材旧字段（等价 refs[0]） */
     ref?: { name: string; data: ArrayBuffer }
+    /** 多素材融合：顺序即图1/图2/图3 */
+    refs?: RefImage[]
+  }
+
+  /**
+   * 融合素材留档：内容寻址写入 userData/refs/<sha1>.<ext>（同图天然去重）。
+   * sidecar 只记 hash，历史「复现」不依赖原文件是否还在。
+   */
+  async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; role?: string; hash: string; name: string; source?: string }>> {
+    const dir = path.join(app.getPath('userData'), 'refs')
+    await fsp.mkdir(dir, { recursive: true })
+    const out: Array<{ order: number; role?: string; hash: string; name: string; source?: string }> = []
+    for (let i = 0; i < refs.length; i++) {
+      const r = refs[i]
+      const buf = Buffer.from(r.data)
+      const hash = createHash('sha1').update(buf).digest('hex')
+      const ext = (path.extname(r.name) || '.png').toLowerCase().replace(/[^a-z0-9.]/g, '') || '.png'
+      const abs = path.join(dir, `${hash}${ext}`)
+      if (!fs.existsSync(abs)) await fsp.writeFile(abs, buf)
+      out.push({ order: i + 1, role: r.role, hash, name: r.name, source: r.source })
+    }
+    return out
+  }
+
+  /** 归一化素材入参：ref（旧字段）与 refs 合并，并按模型能力截断 */
+  function normalizeRefs(opts: GenIpcOpts): { refs: RefImage[]; dropped: number } {
+    const list: RefImage[] = opts.refs?.length ? opts.refs : opts.ref ? [opts.ref] : []
+    const { refs, dropped } = clampRefs(list, opts.model)
+    return { refs, dropped }
   }
 
   handle('generate', async (_e, raw: GenIpcOpts) => {
@@ -678,6 +740,12 @@ function registerIpc(): void {
     const onProgress = (stage: string, detail?: string): void => {
       win?.webContents.send('gen-progress', { runId: opts.runId, stage, detail })
     }
+    const normalized = normalizeRefs(opts)
+    const { refs } = normalized
+    if (normalized.dropped > 0) {
+      log('warn', `refs clamped: model=${opts.model} dropped=${normalized.dropped}`)
+    }
+    const sidecarRefs = refs.length ? await archiveRefs(refs) : []
     if (provider === 'bailian') {
       const key = bailianApiKey()
       if (!key) throw new Error('未配置百炼 API Key，请到「设置 → 模型服务」粘贴密钥并保存')
@@ -685,20 +753,37 @@ function registerIpc(): void {
       onProgress('prepare', '参数就绪')
       // 种子恒定化：不传就随机一个并回传，保证每张图都可复现
       const usedSeed = opts.seed && opts.seed > 0 ? opts.seed : Math.floor(Math.random() * 2147483647)
+      const cap = imageCapability(opts.model)
       try {
-        const r = await httpBailianImage({
-          origin: bailianOrigin(),
-          apiKey: key,
-          model: opts.model,
-          prompt: opts.prompt,
-          negative: opts.negative,
-          w: opts.w,
-          h: opts.h,
-          seed: usedSeed,
-          ref: opts.ref,
-          runId: opts.runId,
-          onProgress
-        })
+        // 协议按模型能力分发：wan2.7 系走 DashScope 原生，qwen-image-3.x 走 OpenAI 兼容
+        const r =
+          cap.protocol === 'openai-images'
+            ? await httpOpenAIImages({
+                apiBase: compatBase(bailianOrigin()),
+                apiKey: key,
+                model: opts.model,
+                prompt: opts.prompt,
+                negative: opts.negative,
+                refs,
+                w: opts.w,
+                h: opts.h,
+                seed: usedSeed,
+                runId: opts.runId,
+                onProgress
+              })
+            : await httpBailianImage({
+                origin: bailianOrigin(),
+                apiKey: key,
+                model: opts.model,
+                prompt: opts.prompt,
+                negative: opts.negative,
+                w: opts.w,
+                h: opts.h,
+                seed: usedSeed,
+                refs,
+                runId: opts.runId,
+                onProgress
+              })
         onProgress('save', '保存结果')
         const { file, url } = await persistImage(r.buffer, OUT_DIR, {
           prompt: opts.prompt,
@@ -708,9 +793,10 @@ function registerIpc(): void {
           seed: usedSeed,
           model: opts.model,
           provider: 'bailian',
-          parent: opts.parent
+          parent: opts.parent,
+          refs: sidecarRefs
         })
-        log('info', `generate done file=${file} in ${Date.now() - t0}ms`)
+        log('info', `generate done file=${file} refs=${refs.length} in ${Date.now() - t0}ms`)
         return { file, url, elapsed: Date.now() - t0, seed: usedSeed, model: opts.model, parent: opts.parent }
       } catch (e) {
         log('error', `generate failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -718,7 +804,7 @@ function registerIpc(): void {
       }
     }
     // HTTP 多服务商：OpenAI 兼容（内置模板 + 自定义供应商），目前仅文生图
-    if (opts.ref) throw new Error('当前服务商暂不支持图生图，请切换回百炼模型使用改图')
+    if (refs.length) throw new Error('当前服务商暂不支持素材融合，请切换回百炼模型使用')
     const apiKey = getProviderKey(provider)
     if (!apiKey) {
       const label = provider === 'siliconflow' ? '硅基流动' : provider === 'openai' ? 'OpenAI' : provider

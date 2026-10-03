@@ -58,6 +58,8 @@ export interface ModelConfig {
   defaults?: ModelDefaults
   /** 从服务端 /models 拉取的模型 ID 目录（按供应商缓存） */
   fetchedModels?: Record<string, string[]>
+  /** 被用户停用的供应商：创作页目录与默认值里都不再出现 */
+  disabledProviders?: string[]
 }
 
 export interface GenParams {
@@ -110,6 +112,18 @@ export interface HistoryItem {
   params?: GenParams
 }
 
+/** 素材角色：融合时告诉模型"这张图是干什么的"（可空，仅按序号引用） */
+export type RefRole = 'subject' | 'style' | 'background' | 'pose' | 'outfit' | 'sketch' | 'ref'
+
+/** 融合素材（多素材融合用；数组顺序即提示词里的"图1/图2/图3"） */
+export interface RefImage {
+  name: string
+  data: ArrayBuffer
+  role?: RefRole
+  /** 来源：本地上传 / 作品历史 / 灵感库 / 合成画布 / 剪贴板 */
+  source?: 'upload' | 'history' | 'library' | 'compose' | 'clipboard'
+}
+
 export interface GenOpts {
   prompt: string
   negative?: string
@@ -120,7 +134,10 @@ export interface GenOpts {
   provider?: string
   runId?: string
   parent?: string
+  /** 单素材（旧字段，等价于 refs[0]） */
   ref?: { name: string; data: ArrayBuffer }
+  /** 多素材融合：顺序即图1/图2/图3，上限由所选模型能力决定 */
+  refs?: RefImage[]
 }
 
 export interface GenProgress {

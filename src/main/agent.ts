@@ -56,7 +56,7 @@ async function genImage(
       w: p.w,
       h: p.h,
       seed: usedSeed,
-      ref: p.ref,
+      refs: p.ref ? [p.ref] : undefined,
       runId: p.runId,
       onProgress
     })
