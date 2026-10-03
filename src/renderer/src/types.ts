@@ -149,6 +149,10 @@ export interface GenOpts {
   ref?: { name: string; data: ArrayBuffer }
   /** 多素材融合：顺序即图1/图2/图3，上限由所选模型能力决定 */
   refs?: RefImage[]
+  /** 出图张数（组图模式为最大张数） */
+  n?: number
+  /** 组图模式：一次产出同角色的连续画面（wan2.7 enable_sequential） */
+  sequential?: boolean
 }
 
 export interface GenProgress {
@@ -183,6 +187,8 @@ export interface GenResult {
   elapsed: number
   seed: number
   model: string
+  /** 组图/多图输出：全部产物（第一张即 file/url） */
+  files?: Array<{ file: string; url: string }>
 }
 
 export interface DistillResult {
@@ -260,6 +266,8 @@ export interface Api {
     baseName?: string
     model?: string
     provider?: string
+    /** 创作页素材托盘：Agent 可用 images 参数按序号引用 */
+    refs?: RefImage[]
   }): Promise<AgentRunResult>
   imageChain(name: string): Promise<ChainItem[]>
   onGenProgress(cb: (e: GenProgress) => void): () => void

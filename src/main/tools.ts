@@ -23,16 +23,18 @@ export const TOOLS: ToolSpec[] = [
     params: [
       { name: 'prompt', type: 'string', required: true, description: '画面描述，写清主体、风格、构图、光线' },
       { name: 'negative', type: 'string', description: '不想出现的元素' },
-      { name: 'size', type: 'string', description: '尺寸，如 1024x1024 或 896x1152，默认 1024x1024' }
+      { name: 'size', type: 'string', description: '尺寸，如 1024x1024 或 896x1152，默认 1024x1024' },
+      { name: 'images', type: 'string', description: '可选：引用素材托盘里的素材序号，如 "1" 或 "1,2"（对应图1/图2）；不填为纯文生图' }
     ]
   },
   {
     name: 'edit_image',
-    label: '改图',
-    description: '基于上一步产出的图片按描述修改画面，会尽量保持原图主体',
+    label: '改图/融合',
+    description: '基于上一步产出的图片或素材托盘里的素材，按描述修改或融合画面，会尽量保持原图主体',
     params: [
-      { name: 'prompt', type: 'string', required: true, description: '修改要求，例：把背景换成海滩；提高整体亮度' },
-      { name: 'size', type: 'string', description: '输出尺寸，默认沿用当前图片尺寸' }
+      { name: 'prompt', type: 'string', required: true, description: '修改要求，例：把背景换成海滩；把图2的涂鸦喷到图1的车上' },
+      { name: 'size', type: 'string', description: '输出尺寸，默认沿用当前图片尺寸' },
+      { name: 'images', type: 'string', description: '可选：引用素材托盘里的素材序号，如 "1,2"；不填则基于上一步产出' }
     ]
   }
 ]
@@ -53,6 +55,7 @@ ${toolLines}
 - 只能使用以上工具；最多 6 步。
 - 用户请求里有先后两个动作时（如「先…再…」「…然后…」），必须拆成多步：先生成用 generate_image，对生成结果再做修改用 edit_image。
 - edit_image 作用于上一步的产出；没有上一步产出时不要调用 edit_image。
+- 画布信息里若提到「素材托盘」，用户说到「图1/图2」时就给对应工具传 images（如 "1,2"）；没提到托盘就不要传 images。
 - 参数缺失时用画布信息与常识补齐，不要反问用户。
 - 与创作无关、或工具确实做不到的请求，steps 留空并在 reply 里用一句中文说明。
 - 不要输出解释或工具名之外的内容。

@@ -1,7 +1,7 @@
 import path from 'node:path'
 import fsp from 'node:fs/promises'
 import { extractJson, plannerSystem, validatePlan, type PlanStep } from './tools'
-import { httpChat, httpBailianImage, persistImage, writeImageSidecar, DASHSCOPE_ORIGIN, type ModelConn } from './http'
+import { httpChat, httpBailianImage, persistImage, writeImageSidecar, clampRefs, DASHSCOPE_ORIGIN, type ModelConn, type RefImage } from './http'
 import { httpGenerate } from './providers'
 
 export interface AgentEvent {
@@ -28,6 +28,8 @@ interface RunOpts {
   textConn: ModelConn
   /** 出图步骤连接：来自通用配置 defaults.image（或用户在创作页选择的模型） */
   imageConn: ModelConn
+  /** 创作页素材托盘的素材（1-based 序号即"图1/图2"），供 edit_image/generate_image 的 images 参数引用 */
+  materialPool?: RefImage[]
   outputsDir: string
   onEvent: (e: AgentEvent) => void
 }
@@ -38,14 +40,28 @@ function parseSize(v: unknown, fallbackW: number, fallbackH: number): { w: numbe
   return { w: Number(m[1]), h: Number(m[2]) }
 }
 
-/** 单步出图：bailian 走 DashScope 原生（支持改图），其余走 OpenAI 兼容文生图 */
+/** 解析模型给的素材引用参数："1,2" / "1 3" / "图1、图2" → 1-based 序号数组 */
+function parseImageRefs(v: unknown): number[] {
+  if (typeof v === 'number') return [v]
+  if (typeof v !== 'string') return []
+  return [
+    ...new Set(
+      (v.match(/\d+/g) ?? [])
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    )
+  ]
+}
+
+/** 单步出图：bailian 走 DashScope 原生（支持多素材/改图），其余走 OpenAI 兼容文生图 */
 async function genImage(
   conn: ModelConn,
-  p: { prompt: string; negative?: string; w: number; h: number; parent?: string; ref?: { name: string; data: ArrayBuffer }; runId?: string },
+  p: { prompt: string; negative?: string; w: number; h: number; parent?: string; refs?: RefImage[]; runId?: string },
   outputsDir: string,
   onProgress?: (stage: string, detail?: string) => void
 ): Promise<{ file: string; url: string; seed: number }> {
   const usedSeed = Math.floor(Math.random() * 2147483647)
+  const refs = p.refs ?? []
   if (conn.kind === 'bailian') {
     const r = await httpBailianImage({
       origin: conn.origin || DASHSCOPE_ORIGIN,
@@ -56,7 +72,7 @@ async function genImage(
       w: p.w,
       h: p.h,
       seed: usedSeed,
-      refs: p.ref ? [p.ref] : undefined,
+      refs,
       runId: p.runId,
       onProgress
     })
@@ -72,7 +88,7 @@ async function genImage(
     })
     return { file, url, seed: usedSeed }
   }
-  if (p.ref) throw new Error('当前生图服务商暂不支持改图，请把「生图默认」切换为百炼模型后再用 AI 助手改图')
+  if (refs.length) throw new Error('当前生图服务商暂不支持改图/素材融合，请把「生图默认」切换为百炼模型后再用 AI 助手')
   const r = await httpGenerate({
     provider: conn.provider,
     apiBase: conn.apiBase,
@@ -101,10 +117,12 @@ async function genImage(
 
 export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
   const { runId, goal, outputsDir } = opts
+  const pool = opts.materialPool ?? []
   const hasBase = !!opts.baseImage
-  const context = hasBase
-    ? `已有图片 1 张（文件 ${opts.baseImage}），edit_image 可直接基于它修改。`
-    : '画布为空，只能使用 generate_image。'
+  const poolDesc = pool.length
+    ? `创作页素材托盘已有 ${pool.length} 张素材（${pool.map((r, idx) => `图${idx + 1}${r.role && r.role !== 'ref' ? `=${r.role}` : ''}`).join('、')}），可让工具用 images 参数引用（如 "1,2"）。`
+    : '创作页素材托盘为空。'
+  const context = `${poolDesc}${hasBase ? `画布上已有图片 1 张（文件 ${opts.baseImage}），edit_image 不传 images 时默认基于它修改。` : '画布为空，纯文生图请用 generate_image。'}`
 
   // ---- 规划（文本模型来自通用配置 defaults.text） ----
   opts.onEvent({ runId, stage: 'plan', label: 'AI 规划步骤中' })
@@ -149,9 +167,22 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
       label: `${specLabel}：${String(step.params.prompt ?? '').slice(0, 30)}`
     })
     const size = parseSize(step.params.size, 1024, 1024)
-    if (step.tool === 'edit_image' && !currentAbs) {
+    if (step.tool === 'edit_image' && !currentAbs && !opts.materialPool?.length) {
       throw new Error('没有可修改的图片，无法执行 edit_image')
     }
+    // 素材引用优先：模型给出 images=[1,2] 时用托盘里的图1/图2；否则沿用上一步产出
+    const picked = parseImageRefs(step.params.images)
+      .map((n) => pool[n - 1])
+      .filter((r): r is RefImage => !!r)
+    let stepRefs: RefImage[] = []
+    if (picked.length) {
+      stepRefs = picked
+    } else if (currentAbs) {
+      stepRefs = [
+        { name: path.basename(currentAbs), data: new Uint8Array(await fsp.readFile(currentAbs)).buffer as ArrayBuffer }
+      ]
+    }
+    stepRefs = clampRefs(stepRefs, opts.imageConn.model).refs
     const res = await genImage(
       opts.imageConn,
       {
@@ -160,9 +191,7 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
         w: size.w,
         h: size.h,
         parent: currentName,
-        ref: currentAbs
-          ? { name: path.basename(currentAbs), data: new Uint8Array(await fsp.readFile(currentAbs)).buffer as ArrayBuffer }
-          : undefined,
+        refs: stepRefs.length ? stepRefs : undefined,
         runId: `${opts.runId}-s${i}`
       },
       outputsDir

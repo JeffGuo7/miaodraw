@@ -79,6 +79,7 @@ const api = {
     baseName?: string
     model?: string
     provider?: string
+    refs?: unknown[]
   }): Promise<unknown> => ipcRenderer.invoke('agent:run', payload),
   imageChain: (name: string): Promise<unknown> => ipcRenderer.invoke('image:chain', name),
   onGenProgress: (cb: (e: { runId: string; stage: string; detail?: string }) => void): (() => void) => {

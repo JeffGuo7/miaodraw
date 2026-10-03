@@ -340,6 +340,44 @@ body {
   color: #0071e3;
 }
 
+/* ---------- 组图：批次缩略图条 + 开关行 ---------- */
+.batch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fafafc;
+}
+
+.batch-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 2px 0;
+}
+
+.batch-thumb {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.16s, transform 0.16s;
+}
+
+.batch-thumb:hover {
+  transform: translateY(-1px);
+}
+
+.batch-thumb.active {
+  border-color: #0071e3;
+}
+
 .create-main {
   min-width: 0;
 }

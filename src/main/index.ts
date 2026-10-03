@@ -481,6 +481,19 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] repro:', clicked, 'tray items:', tray)
     check('repro', clicked === 'clicked' && Number(tray) > 0 ? `OK:${tray}个素材已还原` : 'ERR:素材托盘未还原')
   }
+  // 组图冒烟：enable_sequential 一次多张，校验 files 数组与全部落盘
+  if (process.env.SHOT_BATCH === '1') {
+    const batched = await w.webContents.executeJavaScript(
+      `window.api.generate({
+        prompt: '水彩插画风，一只橘猫在窗台上打盹。第一张：清晨；第二张：黄昏',
+        model: 'wan2.7-image', provider: 'bailian', w: 1024, h: 1024,
+        n: 2, sequential: true
+      }).then(x => 'OK:' + (x.files ? x.files.length : 1) + '张 ' + x.file).catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] batch:', batched)
+    const n = Number(String(batched).match(/OK:(\d+)张/)?.[1] ?? 0)
+    check('batch', n > 1 ? `OK:组图 ${n} 张` : `ERR:组图未返回多张 (${batched})`)
+  }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
       `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.library}].click()`
@@ -740,9 +753,12 @@ function registerIpc(): void {
     ref?: { name: string; data: ArrayBuffer }
     /** 多素材融合：顺序即图1/图2/图3 */
     refs?: RefImage[]
+    /** 出图张数（组图模式为最大张数） */
+    n?: number
+    /** 组图模式（wan2.7 enable_sequential） */
+    sequential?: boolean
   }
 
-  /**
   /** 归一化素材入参：ref（旧字段）与 refs 合并，并按模型能力截断 */
   function normalizeRefs(opts: GenIpcOpts): { refs: RefImage[]; dropped: number } {
     const list: RefImage[] = opts.refs?.length ? opts.refs : opts.ref ? [opts.ref] : []
@@ -771,6 +787,10 @@ function registerIpc(): void {
       // 种子恒定化：不传就随机一个并回传，保证每张图都可复现
       const usedSeed = opts.seed && opts.seed > 0 ? opts.seed : Math.floor(Math.random() * 2147483647)
       const cap = imageCapability(opts.model)
+      // 出图张数：组图（wan2.7 enable_sequential）上限 12，普通模式 4，qwen-image 系 6
+      const seq = !!opts.sequential && cap.protocol === 'dashscope-multimodal'
+      const maxN = seq ? 12 : cap.protocol === 'dashscope-multimodal' ? 4 : 6
+      const wantN = Math.min(Math.max(1, Math.round(opts.n || 1)), maxN)
       try {
         // 协议按模型能力分发：wan2.7 系走 DashScope 原生，qwen-image-3.x 走 OpenAI 兼容
         const r =
@@ -784,6 +804,7 @@ function registerIpc(): void {
                 refs,
                 w: opts.w,
                 h: opts.h,
+                n: wantN,
                 seed: usedSeed,
                 runId: opts.runId,
                 onProgress
@@ -798,23 +819,39 @@ function registerIpc(): void {
                 h: opts.h,
                 seed: usedSeed,
                 refs,
+                n: wantN,
+                sequential: seq,
                 runId: opts.runId,
                 onProgress
               })
         onProgress('save', '保存结果')
-        const { file, url } = await persistImage(r.buffer, OUT_DIR, {
-          prompt: opts.prompt,
-          negative: opts.negative,
-          w: opts.w,
-          h: opts.h,
+        const persisted: Array<{ file: string; url: string }> = []
+        for (const buf of r.buffers) {
+          persisted.push(
+            await persistImage(buf, OUT_DIR, {
+              prompt: opts.prompt,
+              negative: opts.negative,
+              w: opts.w,
+              h: opts.h,
+              seed: usedSeed,
+              model: opts.model,
+              provider: 'bailian',
+              parent: opts.parent,
+              refs: sidecarRefs
+            })
+          )
+        }
+        const first = persisted[0]
+        log('info', `generate done files=${persisted.length} refs=${refs.length} seq=${seq} in ${Date.now() - t0}ms`)
+        return {
+          file: first.file,
+          url: first.url,
+          elapsed: Date.now() - t0,
           seed: usedSeed,
           model: opts.model,
-          provider: 'bailian',
           parent: opts.parent,
-          refs: sidecarRefs
-        })
-        log('info', `generate done file=${file} refs=${refs.length} in ${Date.now() - t0}ms`)
-        return { file, url, elapsed: Date.now() - t0, seed: usedSeed, model: opts.model, parent: opts.parent }
+          files: persisted.length > 1 ? persisted : undefined
+        }
       } catch (e) {
         log('error', `generate failed: ${e instanceof Error ? e.message : String(e)}`)
         throw e
@@ -1029,7 +1066,7 @@ function registerIpc(): void {
     return list.sort((a, b) => b.savedAt - a.savedAt)
   })
 
-  handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string; provider?: string }) => {
+  handle('agent:run', async (_e, payload: { runId: string; goal: string; baseName?: string; model?: string; provider?: string; refs?: RefImage[] }) => {
     if (!payload?.goal?.trim()) throw new Error('请输入指令')
     if (payload.baseName && !resolveOutputPath(payload.baseName)) throw new Error('底图文件不合法')
     // 模型默认值来自通用配置：文本模型驱动 Agent 规划，生图默认驱动出图步骤
@@ -1037,12 +1074,15 @@ function registerIpc(): void {
     const imageDef = resolveDefault('image', { provider: 'bailian', model: 'wan2.7-image' })
     const imageConn = connFor(payload.provider || imageDef.provider, payload.model || imageDef.model)
     if (!imageConn.apiKey) throw new Error('未配置生图模型密钥，请到「设置 → 模型服务」填写')
+    // 创作页素材托盘：Agent 可用 images 参数按序号引用（1-based 即"图1/图2"）
+    const materialPool = (payload.refs ?? []).slice(0, imageCapability(imageConn.model).maxRefs)
     return runAgent({
       runId: payload.runId,
       goal: payload.goal.trim(),
       baseImage: payload.baseName,
       textConn: connFor(textDef.provider, textDef.model),
       imageConn,
+      materialPool,
       outputsDir: OUT_DIR,
       onEvent: (e: unknown) => win?.webContents.send('agent-progress', e)
     })

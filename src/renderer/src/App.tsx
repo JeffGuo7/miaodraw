@@ -243,7 +243,14 @@ export default function App(): JSX.Element {
             />
           </div>
           <div style={{ display: view === 'compose' ? 'block' : 'none' }}>
-            <ComposeView visible={view === 'compose'} />
+            <ComposeView
+              visible={view === 'compose'}
+              onSendToCreate={(f) => {
+                // 合成画布产物 → 创作页素材托盘（精修合成路径：先摆版式，再让模型统一风格）
+                goCreate({ mode: 'fusion', refs: [{ file: f, role: 'ref', source: 'compose' }] })
+                message.success('已把合成图送进创作页素材托盘')
+              }}
+            />
           </div>
           <div style={{ display: view === 'library' ? 'block' : 'none' }}>
             <LibraryView visible={view === 'library'} onUsePrompt={onUsePrompt} onUseRef={(f) => goCreate({ mode: 'fusion', refFile: f })} onDistill={goDistill} />

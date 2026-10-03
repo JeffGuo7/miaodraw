@@ -244,13 +244,21 @@ export interface HttpImageOpts {
   seed?: number
   /** 融合素材：数组顺序即"图1/图2/图3"，wan2.7 系列最多 9 张 */
   refs?: RefImage[]
+  /** 出图张数（wan2.7 组图模式为最大张数，1-12；普通模式 1-4） */
+  n?: number
+  /** 组图模式（wan2.7 enable_sequential）：一次产出同角色的连续画面 */
+  sequential?: boolean
   runId?: string
   onProgress?: (stage: string, detail?: string) => void
 }
 
 export interface HttpImageResult {
+  /** 第一张（兼容单图调用方） */
   buffer: Buffer
   remoteUrl: string
+  /** 全部产物（组图/多图输出时长度 > 1） */
+  buffers: Buffer[]
+  remoteUrls: string[]
   actualSize?: string
 }
 
@@ -295,8 +303,9 @@ export async function httpBailianImage(o: HttpImageOpts): Promise<HttpImageResul
       input: { messages: [{ role: 'user', content }] },
       parameters: {
         size: `${w}*${h}`,
-        n: 1,
+        n: o.n && o.n > 0 ? o.n : 1,
         watermark: false,
+        ...(o.sequential ? { enable_sequential: true } : {}),
         ...(o.seed && o.seed > 0 ? { seed: o.seed } : {})
       }
     }
@@ -317,18 +326,24 @@ export async function httpBailianImage(o: HttpImageOpts): Promise<HttpImageResul
       | { choices?: Array<{ message?: { content?: Array<{ type?: string; image?: string; text?: string }> } }> }
       | undefined
     const parts = output?.choices?.[0]?.message?.content ?? []
-    const imageUrl = parts.find((p) => p.type === 'image' && p.image)?.image
-    if (!imageUrl) {
+    const imageUrls = parts.filter((p) => p.type === 'image' && p.image).map((p) => String(p.image))
+    if (!imageUrls.length) {
       const t = parts.find((p) => p.type === 'text' && p.text)?.text
       throw new Error(t ? `模型未返回图片：${t.slice(0, 200)}` : '服务商未返回图片')
     }
-    o.onProgress?.('save', '下载生成结果')
-    const resp = await fetch(imageUrl)
-    if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
-    const buffer = Buffer.from(await resp.arrayBuffer())
+    o.onProgress?.('save', imageUrls.length > 1 ? `下载 ${imageUrls.length} 张结果` : '下载生成结果')
+    const buffers: Buffer[] = []
+    for (const u of imageUrls) {
+      const resp = await fetch(u)
+      if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
+      buffers.push(Buffer.from(await resp.arrayBuffer()))
+    }
     const usage = json['usage'] as { size?: string } | undefined
-    log('info', `httpBailianImage model=${o.model} ${w}x${h} in ${Date.now() - t0}ms bytes=${buffer.length}`)
-    return { buffer, remoteUrl: imageUrl, actualSize: usage?.size }
+    log(
+      'info',
+      `httpBailianImage model=${o.model} ${w}x${h} n=${imageUrls.length} sequential=${!!o.sequential} in ${Date.now() - t0}ms bytes=${buffers.reduce((s, b) => s + b.length, 0)}`
+    )
+    return { buffer: buffers[0], remoteUrl: imageUrls[0], buffers, remoteUrls: imageUrls, actualSize: usage?.size }
   } finally {
     releaseImageSlot()
   }
@@ -382,21 +397,27 @@ export async function httpOpenAIImages(o: HttpOpenAIImageOpts): Promise<HttpImag
       throw new Error(err?.message || msg || `HTTP ${status}`)
     }
     const data = json['data'] as Array<{ url?: string; b64_json?: string }> | undefined
-    const first = data?.[0]
-    if (!first) throw new Error('服务商未返回图片')
-    let buffer: Buffer
-    if (first.b64_json) {
-      buffer = Buffer.from(first.b64_json, 'base64')
-    } else if (first.url) {
-      o.onProgress?.('save', '下载生成结果')
-      const resp = await fetch(first.url)
-      if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
-      buffer = Buffer.from(await resp.arrayBuffer())
-    } else {
-      throw new Error('服务商未返回图片')
+    if (!data?.length) throw new Error('服务商未返回图片')
+    const buffers: Buffer[] = []
+    const remoteUrls: string[] = []
+    for (const item of data) {
+      if (item.b64_json) {
+        buffers.push(Buffer.from(item.b64_json, 'base64'))
+        remoteUrls.push(item.url ?? '')
+      } else if (item.url) {
+        o.onProgress?.('save', data.length > 1 ? `下载 ${data.length} 张结果` : '下载生成结果')
+        const resp = await fetch(item.url)
+        if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
+        buffers.push(Buffer.from(await resp.arrayBuffer()))
+        remoteUrls.push(item.url)
+      }
     }
-    log('info', `httpOpenAIImages model=${o.model} ${o.w}x${o.h} refs=${refs.length} in ${Date.now() - t0}ms bytes=${buffer.length}`)
-    return { buffer, remoteUrl: first.url ?? '' }
+    if (!buffers.length) throw new Error('服务商未返回图片')
+    log(
+      'info',
+      `httpOpenAIImages model=${o.model} ${o.w}x${o.h} refs=${refs.length} n=${buffers.length} in ${Date.now() - t0}ms bytes=${buffers.reduce((s, b) => s + b.length, 0)}`
+    )
+    return { buffer: buffers[0], remoteUrl: remoteUrls[0] ?? '', buffers, remoteUrls }
   } finally {
     releaseImageSlot()
   }

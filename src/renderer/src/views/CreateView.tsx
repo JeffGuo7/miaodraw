@@ -15,6 +15,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   Tag,
   Tooltip,
   Typography,
@@ -116,6 +117,9 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [seedNum, setSeedNum] = useState<number | null>(null)
   const [refItems, setRefItems] = useState<RefItem[]>([])
   const [dragIdx, setDragIdx] = useState<number | null>(null)
+  /** 组图模式（wan2.7 enable_sequential） */
+  const [batchOn, setBatchOn] = useState(false)
+  const [batchN, setBatchN] = useState(4)
   const [providerKeys, setProviderKeys] = useState<Record<string, boolean>>({})
   // 通用模型配置：内置模板 + 用户追加模型 + 自定义供应商，统一解析为可用模型目录
   const [mc, setMc] = useState<ModelConfig | undefined>()
@@ -268,6 +272,16 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const needKey = !providerKeys[provider]
   // 素材融合目前仅百炼侧支持（DashScope 原生 / OpenAI 兼容两条协议都已接入多图）
   const i2iUnsupported = mode === 'fusion' && provider !== 'bailian'
+  /** 组图能力：wan2.7 系支持 enable_sequential（与主进程 imageCapability 的协议判定一致） */
+  const canBatch = provider === 'bailian' && active.model.toLowerCase().startsWith('wan2.')
+  /** 成本预估：取模型目录里的单价（形如 ¥0.2 / $0.04），组图按最大张数计 */
+  const estimate = (() => {
+    const price = imageModels.find((m) => m.model === active.model)?.price ?? ''
+    const hit = price.match(/([¥$])\s*([\d.]+)/)
+    if (!hit) return ''
+    const qty = batchOn ? batchN : 1
+    return `约 ${hit[1]}${(Number(hit[2]) * qty).toFixed(2)}${batchOn ? `（最多 ${qty} 张）` : ''}`
+  })()
 
   /** seedOverride：0 = 让主进程随机种子；不传 = 沿用当前种子输入 */
   async function doGenerate(seedOverride?: number): Promise<void> {
@@ -309,7 +323,10 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         provider,
         runId,
         parent: mode === 'fusion' ? parentName : undefined,
-        refs: refs.length ? refs : undefined
+        refs: refs.length ? refs : undefined,
+        // 组图：仅 wan2.7 系支持；n 为最大张数
+        n: batchOn ? batchN : undefined,
+        sequential: batchOn || undefined
       }
       lastOpts.current = opts
       const res = await window.api.generate(opts)
@@ -359,7 +376,23 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           setAgentSteps((old) => old.map((s) => ({ ...s, done: true })))
         }
       })
-      const r = await window.api.agentRun({ runId, goal, baseName: result?.file, model: active.model, provider })
+      const r = await window.api.agentRun({
+        runId,
+        goal,
+        baseName: result?.file,
+        model: active.model,
+        provider,
+        // 素材托盘交给 Agent：它可以用 images=[1,2] 引用图1/图2
+        refs: refItems.length
+          ? await Promise.all(
+              refItems.map(async (it) => ({
+                name: it.file.name,
+                data: (await it.file.arrayBuffer()) as ArrayBuffer,
+                role: it.role
+              }))
+            )
+          : undefined
+      })
       if (r.last) {
         setResult({ file: r.last.file, url: r.last.url, elapsed: 0, seed: 0, model: active.model })
         void window.api
@@ -619,6 +652,29 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             </Tooltip>
           </Space.Compact>
 
+          {/* 组图：wan2.7 系支持 enable_sequential，一次产出同角色的连续画面 */}
+          {canBatch && (
+            <div className="batch-row">
+              <Space size={8}>
+                <Switch size="small" checked={batchOn} onChange={setBatchOn} disabled={busy} />
+                <Typography.Text style={{ fontSize: 13 }}>组图模式</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  一次产出同一角色的连续画面
+                </Typography.Text>
+              </Space>
+              {batchOn && (
+                <Select
+                  size="small"
+                  value={batchN}
+                  onChange={setBatchN}
+                  disabled={busy}
+                  style={{ width: 96 }}
+                  options={[2, 4, 6, 8, 12].map((v) => ({ value: v, label: `最多 ${v} 张` }))}
+                />
+              )}
+            </div>
+          )}
+
           <Button
             type="primary"
             icon={<SendOutlined />}
@@ -629,7 +685,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             onClick={() => void doGenerate()}
             className="gen-btn"
           >
-            {busy ? `生成中… ${elapsed}s` : '生成'}
+            {busy ? `生成中… ${elapsed}s` : batchOn ? `生成组图（最多 ${batchN} 张）` : '生成'}
           </Button>
           {busy && (
             <Button
@@ -641,7 +697,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             </Button>
           )}
           <Typography.Text type="secondary" className="tip-text">
-            Ctrl + Enter 快速生成 · 出图约 30~60 秒
+            Ctrl + Enter 快速生成 · 出图约 30~60 秒{estimate ? ` · 预估 ${estimate}` : ''}
           </Typography.Text>
         </Card>
       </Col>
@@ -691,6 +747,29 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                   />
                 )}
               </div>
+              {result.files && result.files.length > 1 && (
+                <div className="batch-strip">
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    组图共 {result.files.length} 张（已全部存入历史）：
+                  </Typography.Text>
+                  {result.files.map((f, idx) => (
+                    <Tooltip key={f.file} title="查看这一张">
+                      <img
+                        src={`${f.url}?w=160`}
+                        alt={`第${idx + 1}张`}
+                        className={`batch-thumb${f.file === result.file ? ' active' : ''}`}
+                        onClick={() => {
+                          setResult({ ...result, file: f.file, url: f.url })
+                          void window.api
+                            .imageChain(f.file)
+                            .then((items) => setChain({ items, idx: items.length - 1 }))
+                            .catch(() => undefined)
+                        }}
+                      />
+                    </Tooltip>
+                  ))}
+                </div>
+              )}
               <div className="result-meta">
                 <Space size={6} wrap>
                   {chain && chain.items.length > 1 && (
@@ -721,8 +800,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                   <Tag>{size.replace('x', '×')}</Tag>
                   {result.seed > 0 && <Tag>种子 {result.seed}</Tag>}
                   <Tag>{(result.elapsed / 1000).toFixed(0)}s</Tag>
-                </Space>
-                <Space size={4} wrap>
+                </Space>                <Space size={4} wrap>
                   <Tooltip title="保存到本地">
                     <Button
                       size="small"

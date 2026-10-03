@@ -14,6 +14,7 @@ import {
   FileImageOutlined,
   RedoOutlined,
   ScanOutlined,
+  SendOutlined,
   UndoOutlined,
   ZoomInOutlined,
   ZoomOutOutlined
@@ -43,6 +44,8 @@ interface Snapshot {
 
 interface Props {
   visible: boolean
+  /** 把画布产物直接送去创作页当融合素材（不落作品目录，走内存） */
+  onSendToCreate?: (file: File) => void
 }
 
 const CANVAS_PRESETS = [
@@ -77,7 +80,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-export default function ComposeView({ visible }: Props): JSX.Element {
+export default function ComposeView({ visible, onSendToCreate }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [canvasSize, setCanvasSize] = useState(CANVAS_PRESETS[0])
   const [layers, setLayers] = useState<CompLayer[]>([])
@@ -401,6 +404,42 @@ export default function ComposeView({ visible }: Props): JSX.Element {
     tr.getLayer()?.batchDraw()
   }, [selected, layers])
 
+  /** 画布内容按原生分辨率导出为 PNG File（走内存送去创作页，不写作品目录） */
+  async function canvasFile(): Promise<File | null> {
+    const stage = stageRef.current
+    if (!stage) return null
+    setSelected(null)
+    await new Promise((r) => setTimeout(r, 60))
+    const dataUrl = stage.toDataURL({
+      x: view.x,
+      y: view.y,
+      width: canvasSize.w * view.scale,
+      height: canvasSize.h * view.scale,
+      pixelRatio: 1 / view.scale
+    })
+    const blob = await (await fetch(dataUrl)).blob()
+    return new File([blob], `compose_${Date.now()}.png`, { type: 'image/png' })
+  }
+
+  /** 送到创作页当融合素材：版式先在画布上摆好，再交给模型统一风格/精修 */
+  async function sendToCreate(): Promise<void> {
+    if (layers.length === 0) {
+      message.warning('画布是空的，先添加图片或文字')
+      return
+    }
+    if (!onSendToCreate) return
+    setBusy(true)
+    try {
+      const file = await canvasFile()
+      if (!file) return
+      onSendToCreate(file)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // ---------- 导出 ----------
   async function exportPng(): Promise<void> {
     const stage = stageRef.current
@@ -640,6 +679,13 @@ export default function ComposeView({ visible }: Props): JSX.Element {
             <Button type="primary" size="small" icon={<DownloadOutlined />} loading={busy} onClick={exportPng}>
               导出 PNG
             </Button>
+            {onSendToCreate && (
+              <Tooltip title="把这幅合成图作为素材送去创作页，用 AI 统一风格或继续精修">
+                <Button size="small" icon={<SendOutlined />} loading={busy} onClick={() => void sendToCreate()}>
+                  送去创作
+                </Button>
+              </Tooltip>
+            )}
           </div>
           <div className="compose-stage-wrap" ref={wrapRef}>
             <Stage
