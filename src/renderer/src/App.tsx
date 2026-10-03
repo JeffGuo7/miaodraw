@@ -19,13 +19,15 @@ import SettingsView from './views/SettingsView'
 import Onboarding from './views/Onboarding'
 import StatusBar from './views/StatusBar'
 import logoUrl from './assets/logo-64.png'
-import type { GenParams, HealthInfo } from './types'
+import type { GenParams, HealthInfo, RefImage, RefRole } from './types'
 
 interface CreateSeed {
   ts: number
   prompt?: string
   mode?: 't2i' | 'fusion'
   refFile?: File
+  /** 多素材（历史复现时从素材留档还原） */
+  refs?: Array<{ file: File; role?: RefRole; source?: RefImage['source'] }>
   negative?: string
   size?: string
   model?: string
@@ -143,16 +145,40 @@ export default function App(): JSX.Element {
   )
 
   const onReproduce = useCallback(
-    (p: GenParams): void => {
+    async (p: GenParams): Promise<void> => {
+      // 多素材融合产物：从内容寻址留档还原素材托盘，否则只能还原出一半参数
+      let restored: Array<{ file: File; role?: RefRole; source?: RefImage['source'] }> | undefined
+      const withHash = (p.refs ?? []).flatMap((r) => (r.hash ? [{ hash: r.hash, name: r.name, order: r.order, role: r.role }] : []))
+      if (withHash.length) {
+        try {
+          const items = await Promise.all(
+            withHash.map(async (r) => {
+              const ext = (r.name?.match(/\.[a-z0-9]+$/i)?.[0] ?? '.png').toLowerCase()
+              const buf = await window.api.refsRead(r.hash, ext)
+              const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+              const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+              return {
+                file: new File([ab], r.name || `素材${r.order}${ext}`, { type: mime }),
+                role: (r.role as RefRole) || 'ref',
+                source: 'history' as const
+              }
+            })
+          )
+          if (items.length) restored = items
+        } catch {
+          message.warning('部分素材留档已不在本机，已尽量还原其余素材')
+        }
+      }
       goCreate({
         prompt: p.prompt,
         negative: p.negative,
-        mode: 't2i',
+        mode: restored?.length ? 'fusion' : 't2i',
+        refs: restored,
         size: `${p.w}x${p.h}`,
         model: p.model,
         seed: p.seed
       })
-      message.success('参数已填入创作台，点生成即可复现')
+      message.success(restored?.length ? `已还原 ${restored.length} 张素材，点生成即可复现` : '参数已填入创作台，点生成即可复现')
     },
     [goCreate, message]
   )

@@ -33,6 +33,8 @@ const isPackaged = app.isPackaged
 const LIB_ROOT = libraryRoot(isPackaged, APP_ROOT, process.resourcesPath)
 const OUT_DIR = isPackaged ? path.join(app.getPath('userData'), 'outputs') : path.join(APP_ROOT, 'outputs')
 const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json')
+/** 素材留档允许的扩展名（refs:read 白名单，防路径构造） */
+const REF_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'])
 
 // ---------- 单实例 ----------
 // 验收截图模式使用独立 userData，避免与正在运行的正式实例抢单实例锁
@@ -440,7 +442,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
   }
   // 多素材融合冒烟：从案例库取两张图作为素材，走 generate 的多图链路并校验 sidecar 记录
   if (process.env.SHOT_FUSE === '1') {
-    const r = await w.webContents.executeJavaScript(
+    const fused = await w.webContents.executeJavaScript(
       `(async () => {
         try {
           const a = await window.api.imageRead('media://local/lib-a/ad-creative_case174/output.jpg')
@@ -458,12 +460,26 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         } catch (e) { return 'ERR:' + e.message }
       })()`
     )
-    console.log('[shot] fuse:', r)
-    check('fuse', r)
+    console.log('[shot] fuse:', fused)
+    check('fuse', fused)
     await w.webContents.executeJavaScript(
       `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.history}].click()`
     )
     await new Promise((r) => setTimeout(r, 3000))
+  }
+  // 复现冒烟：点历史最新一条的「复现」，验证多素材能从内容寻址留档还原创作者素材托盘
+  if (process.env.SHOT_REPRO === '1') {
+    await w.webContents.executeJavaScript(
+      `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.history}].click()`
+    )
+    await new Promise((r) => setTimeout(r, 2500))
+    const clicked = await w.webContents.executeJavaScript(
+      `(() => { const b = document.querySelector('.repro-btn'); if (!b) return 'ERR:no-repro-button'; b.click(); return 'clicked' })()`
+    )
+    await new Promise((r) => setTimeout(r, 3500))
+    const tray = await w.webContents.executeJavaScript(`document.querySelectorAll('.ref-item').length`)
+    console.log('[shot] repro:', clicked, 'tray items:', tray)
+    check('repro', clicked === 'clicked' && Number(tray) > 0 ? `OK:${tray}个素材已还原` : 'ERR:素材托盘未还原')
   }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
@@ -591,6 +607,26 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
 }
 
 // ---------- IPC ----------
+/**
+ * 融合素材留档：内容寻址写入 userData/refs/<sha1>.<ext>（同图天然去重）。
+ * sidecar 只记 hash，历史「复现」不依赖原文件是否还在。
+ */
+async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; role?: string; hash: string; name: string; source?: string }>> {
+  const dir = path.join(app.getPath('userData'), 'refs')
+  await fsp.mkdir(dir, { recursive: true })
+  const out: Array<{ order: number; role?: string; hash: string; name: string; source?: string }> = []
+  for (let i = 0; i < refs.length; i++) {
+    const r = refs[i]
+    const buf = Buffer.from(r.data)
+    const hash = createHash('sha1').update(buf).digest('hex')
+    const ext = (path.extname(r.name) || '.png').toLowerCase().replace(/[^a-z0-9.]/g, '') || '.png'
+    const abs = path.join(dir, `${hash}${ext}`)
+    if (!fs.existsSync(abs)) await fsp.writeFile(abs, buf)
+    out.push({ order: i + 1, role: r.role, hash, name: r.name, source: r.source })
+  }
+  return out
+}
+
 function registerIpc(): void {
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {
@@ -707,25 +743,6 @@ function registerIpc(): void {
   }
 
   /**
-   * 融合素材留档：内容寻址写入 userData/refs/<sha1>.<ext>（同图天然去重）。
-   * sidecar 只记 hash，历史「复现」不依赖原文件是否还在。
-   */
-  async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; role?: string; hash: string; name: string; source?: string }>> {
-    const dir = path.join(app.getPath('userData'), 'refs')
-    await fsp.mkdir(dir, { recursive: true })
-    const out: Array<{ order: number; role?: string; hash: string; name: string; source?: string }> = []
-    for (let i = 0; i < refs.length; i++) {
-      const r = refs[i]
-      const buf = Buffer.from(r.data)
-      const hash = createHash('sha1').update(buf).digest('hex')
-      const ext = (path.extname(r.name) || '.png').toLowerCase().replace(/[^a-z0-9.]/g, '') || '.png'
-      const abs = path.join(dir, `${hash}${ext}`)
-      if (!fs.existsSync(abs)) await fsp.writeFile(abs, buf)
-      out.push({ order: i + 1, role: r.role, hash, name: r.name, source: r.source })
-    }
-    return out
-  }
-
   /** 归一化素材入参：ref（旧字段）与 refs 合并，并按模型能力截断 */
   function normalizeRefs(opts: GenIpcOpts): { refs: RefImage[]; dropped: number } {
     const list: RefImage[] = opts.refs?.length ? opts.refs : opts.ref ? [opts.ref] : []
@@ -1098,6 +1115,17 @@ function registerIpc(): void {
   handle('image:read', (_e, url: string) => {
     const abs = parseMediaUrl(url)
     if (!abs) throw new Error('找不到文件')
+    return fsp.readFile(abs)
+  })
+
+  /** 读取素材留档（内容寻址 userData/refs/<sha1><ext>）：历史「复现」还原素材托盘 */
+  handle('refs:read', (_e, hash: string, ext: string) => {
+    const h = String(hash || '').toLowerCase()
+    const x = String(ext || '').toLowerCase()
+    if (!/^[a-f0-9]{40}$/.test(h)) throw new Error('素材标识不合法')
+    if (!/^\.[a-z0-9]{2,5}$/.test(x) || !REF_EXTS.has(x)) throw new Error('素材格式不合法')
+    const abs = path.join(app.getPath('userData'), 'refs', `${h}${x}`)
+    if (!fs.existsSync(abs)) throw new Error('素材留档已不在本机（可能被清理）')
     return fsp.readFile(abs)
   })
 

@@ -90,6 +90,8 @@ interface Props {
     prompt?: string
     mode?: 't2i' | 'fusion'
     refFile?: File
+    /** 多素材（历史复现时从素材留档还原） */
+    refs?: Array<{ file: File; role?: RefRole; source?: RefImage['source'] }>
     negative?: string
     size?: string
     model?: string
@@ -169,7 +171,22 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     if (!seed.ts) return
     if (seed.prompt !== undefined) setPrompt(seed.prompt)
     if (seed.mode) setMode(seed.mode)
-    if (seed.refFile) applyRef(seed.refFile)
+    const seedRefs = seed.refs
+    if (seedRefs?.length) {
+      // 复现：整盘替换素材（先释放旧缩略图的 objectURL，避免内存泄漏）
+      setRefItems((old) => {
+        for (const r of old) URL.revokeObjectURL(r.preview)
+        return seedRefs.map((r) => ({
+          id: crypto.randomUUID(),
+          file: r.file,
+          preview: URL.createObjectURL(r.file),
+          role: r.role ?? 'ref',
+          source: r.source ?? ('history' as const)
+        }))
+      })
+    } else if (seed.refFile) {
+      applyRef(seed.refFile)
+    }
     if (seed.negative !== undefined) setNegative(seed.negative)
     if (seed.size && SIZES.some((s) => s.value === seed.size)) setSize(seed.size)
     if (seed.seed !== undefined) setSeedNum(seed.seed)

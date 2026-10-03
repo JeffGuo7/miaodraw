@@ -123,6 +123,7 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
                     <Button
                       type="text"
                       size="small"
+                      className="repro-btn"
                       icon={<ControlOutlined />}
                       onClick={() => onReproduce(it.params as GenParams)}
                     />

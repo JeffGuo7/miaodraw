@@ -62,6 +62,15 @@ export interface ModelConfig {
   disabledProviders?: string[]
 }
 
+/** sidecar 里的素材条目（内容寻址：hash 指向 userData/refs/<hash><ext>） */
+export interface SidecarRefInfo {
+  order: number
+  role?: string
+  hash?: string
+  name?: string
+  source?: string
+}
+
 export interface GenParams {
   prompt: string
   negative?: string
@@ -69,6 +78,8 @@ export interface GenParams {
   h: number
   seed: number
   model: string
+  /** 多素材融合产物：复现时据此还原素材托盘 */
+  refs?: SidecarRefInfo[]
 }
 
 export interface LibCase {
@@ -208,6 +219,8 @@ export interface Api {
   saveImage(url: string): Promise<{ ok: boolean; path?: string; err?: string }>
   revealImage(url: string): Promise<{ ok: boolean }>
   imageRead(url: string): Promise<Uint8Array>
+  /** 读取素材留档（内容寻址）；历史「复现」还原素材托盘用 */
+  refsRead(hash: string, ext: string): Promise<Uint8Array>
   favorites(): Promise<FavItem[]>
   toggleFavorite(item: Omit<FavItem, 'savedAt'>): Promise<FavItem[]>
   openPath(kind: string): Promise<{ ok: boolean }>
