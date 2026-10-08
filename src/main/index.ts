@@ -30,6 +30,7 @@ import { createSegmentService } from './segment'
 import { loadLibrary, libraryRoot } from './library'
 import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
+import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -580,6 +581,21 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] update2:', r)
     check('update-download', String(r).startsWith('OK:') ? r : `ERR:下载链路失败 ${r}`)
+  }
+  // 本地反推冒烟：下载模型（首次）→ 本地出英文描述 → 文本模型改写中文
+  if (process.env.SHOT_LOCAL === '1') {
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        try {
+          const buf = await window.api.imageRead('media://local/lib-a/ad-creative_case174/output.jpg')
+          const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+          const x = await window.api.distillLocal({ data: ab, name: 'case174.jpg', rewrite: true })
+          return 'OK:' + String(x.prompt || '').slice(0, 80) + ' || raw=' + String(x.raw || '').slice(0, 60) + ' || rewritten=' + x.rewritten
+        } catch (e) { return 'ERR:' + e.message }
+      })()`
+    )
+    console.log('[shot] localDistill:', r)
+    check('local-distill', String(r).startsWith('OK:') ? r : `ERR:本地反推失败 ${r}`)
   }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
@@ -1157,6 +1173,46 @@ function registerIpc(): void {
       return { ok: false, out: e instanceof Error ? e.message : String(e) }
     }
   })
+
+  // ---------- 本地反推（离线；本地小模型出英文描述，再用文本模型改写成中文提示词） ----------
+  handle('distill:local', async (_e, payload: { data: ArrayBuffer; name?: string; rewrite?: boolean }) => {
+    if (!payload?.data) throw new Error('没收到图片')
+    const onProgress = (p: CaptionProgress): void => win?.webContents.send('local-caption-progress', p)
+    const r = await localCaption(payload.data, payload.name || 'image.png', onProgress)
+    let prompt = r.text
+    let rewritten = false
+    if (payload.rewrite !== false) {
+      const def = resolveDefault('text', { provider: 'bailian', model: 'qwen3.8-flash' })
+      const conn = connFor(def.provider, def.model)
+      if (conn.apiKey) {
+        try {
+          const zh = await httpChat({
+            apiBase: conn.kind === 'bailian' ? compatBase(conn.origin || DASHSCOPE_ORIGIN) : conn.apiBase || '',
+            apiKey: conn.apiKey,
+            model: conn.model,
+            system:
+              '你是文生图提示词专家。把给定的英文画面描述改写成一段可直接用于文生图的中文提示词（80~150 字），' +
+              '覆盖主体内容、风格媒介、构图视角、光线、色调与质感；只输出提示词本身，不要解释。',
+            message: r.text,
+            temperature: 0.5,
+            timeoutMs: 60000,
+            disableThinking: conn.kind === 'bailian'
+          })
+          if (zh.trim()) {
+            prompt = zh.trim()
+            rewritten = true
+          }
+        } catch (e) {
+          log('warn', `local distill rewrite failed: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+    }
+    return { prompt, raw: r.text, model: r.model, elapsed: r.elapsed, rewritten }
+  })
+  handle('distill:local-prefetch', async () =>
+    prefetchCaptionModel((p) => win?.webContents.send('local-caption-progress', p))
+  )
+  handle('caption:model', () => ({ model: captionModelId() }))
 
   handle('favorites:list', () => readFavorites().sort((a, b) => b.savedAt - a.savedAt))
   handle('favorites:toggle', (_e, item: Omit<FavItem, 'savedAt'>) => {

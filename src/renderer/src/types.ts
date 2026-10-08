@@ -216,6 +216,17 @@ export interface GenResult {
 export interface DistillResult {
   prompt: string
   elapsed: number
+  /** 本地反推：原始英文描述 / 使用的模型 / 是否已用文本模型改写为中文 */
+  raw?: string
+  model?: string
+  rewritten?: boolean
+}
+
+/** 本地模型下载/推理进度 */
+export interface CaptionProgress {
+  stage: 'download' | 'infer'
+  file?: string
+  percent?: number
 }
 
 /** 应用内更新：检查结果 */
@@ -267,6 +278,11 @@ export interface Api {
   historyDelete(name: string): Promise<{ ok: boolean }>
   generate(opts: GenOpts): Promise<GenResult>
   distill(payload: { data: ArrayBuffer; name: string }): Promise<DistillResult>
+  /** 本地反推（离线）：本地模型出描述，可选再用文本模型改写成中文 */
+  distillLocal(payload: { data: ArrayBuffer; name?: string; rewrite?: boolean }): Promise<DistillResult>
+  distillLocalPrefetch(): Promise<{ ok: boolean; model: string; out?: string }>
+  captionModel(): Promise<{ model: string }>
+  onLocalCaptionProgress(cb: (p: CaptionProgress) => void): () => void
   getSettings(): Promise<SettingsShape>
   setSettings(patch: SettingsShape): Promise<unknown>
   appInfo(): Promise<AppInfo>

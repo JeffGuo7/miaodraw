@@ -18,6 +18,16 @@ const api = {
   generate: (opts: unknown): Promise<unknown> => ipcRenderer.invoke('generate', opts),
   distill: (payload: { data: ArrayBuffer; name: string }): Promise<unknown> =>
     ipcRenderer.invoke('distill', payload),
+  /** 本地反推（离线）：本地模型出描述 + 可选文本模型改写中文 */
+  distillLocal: (payload: { data: ArrayBuffer; name?: string; rewrite?: boolean }): Promise<unknown> =>
+    ipcRenderer.invoke('distill:local', payload),
+  distillLocalPrefetch: (): Promise<unknown> => ipcRenderer.invoke('distill:local-prefetch'),
+  captionModel: (): Promise<{ model: string }> => ipcRenderer.invoke('caption:model'),
+  onLocalCaptionProgress: (cb: (p: unknown) => void): (() => void) => {
+    const h = (_e: unknown, data: unknown): void => cb(data)
+    ipcRenderer.on('local-caption-progress', h)
+    return () => ipcRenderer.removeListener('local-caption-progress', h)
+  },
   getSettings: (): Promise<Record<string, string>> => ipcRenderer.invoke('settings:get'),
   setSettings: (patch: Record<string, string>): Promise<unknown> =>
     ipcRenderer.invoke('settings:set', patch),
