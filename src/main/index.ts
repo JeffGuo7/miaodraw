@@ -29,6 +29,7 @@ import { runAgent } from './agent'
 import { createSegmentService } from './segment'
 import { loadLibrary, libraryRoot } from './library'
 import { initLogger, log } from './logger'
+import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -137,6 +138,8 @@ interface Settings {
   bailianWorkspace?: string
   /** 工作空间专属接入点（sk-ws- 子密钥需注入 BAILIAN_BASE_URL） */
   bailianBaseUrl?: string
+  /** 自定义更新源（返回 {version,url,notes} 的 JSON；留空则用 GitHub Releases） */
+  updateFeed?: string
 }
 function readSettings(): Settings {
   try {
@@ -544,6 +547,39 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] styles cards:', cards)
     const n = Number(String(count).match(/OK:(\d+)条/)?.[1] ?? 0)
     check('styles', n > 100 && Number(cards) > 0 ? `OK:${n}条 · 抽屉渲染${cards}张卡片` : `ERR:风格库未就绪 (${count} / cards=${cards})`)
+  }
+  // 更新冒烟：校验更新检查链路（无 Release 时应返回「还没有发布」而不是报错），并打开「关于」页截图
+  if (process.env.SHOT_UPDATE === '1') {
+    const u = await w.webContents.executeJavaScript(
+      `window.api.updateCheck().then(r => 'OK:' + JSON.stringify({ ok: r.ok, current: r.current, hasUpdate: r.hasUpdate || false, latest: r.latest || '', out: r.out || '' })).catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] update:', u)
+    check('update', String(u).startsWith('OK:') ? u : `ERR:更新检查失败 ${u}`)
+    await w.webContents.executeJavaScript(
+      `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.settings}].click()`
+    )
+    await new Promise((r) => setTimeout(r, 1200))
+    const clicked = await w.webContents.executeJavaScript(
+      `(() => { const items=[...document.querySelectorAll('.sn-item')]; const about=items.find(i => /关于/.test(i.textContent || '')); if (about) about.click(); return !!about })()`
+    )
+    console.log('[shot] update about nav:', clicked)
+    await new Promise((r) => setTimeout(r, 900))
+  }
+  // 更新下载冒烟（配合本地假更新源）：check → download，校验文件真的落盘且大小正确
+  if (process.env.SHOT_UPDATE2 === '1') {
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        try {
+          const info = await window.api.updateCheck()
+          if (!info.ok) return 'ERR:check ' + (info.out || '')
+          if (!info.hasUpdate) return 'ERR: 未识别到新版本 (' + info.current + ' vs ' + (info.latest || '-') + ')'
+          const d = await window.api.updateDownload({ url: info.assetUrl, name: info.assetName, size: info.assetSize })
+          return d.ok ? 'OK:' + info.latest + ' → ' + d.file : 'ERR:download ' + (d.out || '')
+        } catch (e) { return 'ERR:' + e.message }
+      })()`
+    )
+    console.log('[shot] update2:', r)
+    check('update-download', String(r).startsWith('OK:') ? r : `ERR:下载链路失败 ${r}`)
   }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
@@ -1330,6 +1366,21 @@ function registerIpc(): void {
     if (!p || !fs.existsSync(p)) return { ok: false }
     void shell.openPath(p)
     return { ok: true }
+  })
+
+  // ---------- 应用内更新（自研，见 updater.ts 的说明） ----------
+  handle('update:check', () => checkUpdate(readSettings().updateFeed))
+  handle('update:download', async (_e, payload: { url: string; name: string; size?: number }) => {
+    if (!payload?.url) throw new Error('缺少下载地址')
+    return downloadUpdate(payload.url, payload.name, (p) => win?.webContents.send('update-progress', p), payload.size)
+  })
+  handle('update:cancel', () => ({ ok: cancelUpdateDownload() }))
+  handle('update:install', async (_e, file: string) => {
+    // 只允许安装 userData/updates 下、由本应用下载的 .exe，杜绝渲染层传入任意路径
+    const abs = path.resolve(String(file || ''))
+    const dir = path.resolve(app.getPath('userData'), 'updates')
+    if (!abs.startsWith(dir + path.sep) || !/\.exe$/i.test(abs)) throw new Error('安装包路径不合法')
+    return installUpdate(abs)
   })
 
   handle('app:info', () => ({

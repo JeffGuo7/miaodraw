@@ -218,6 +218,28 @@ export interface DistillResult {
   elapsed: number
 }
 
+/** 应用内更新：检查结果 */
+export interface UpdateInfo {
+  ok: boolean
+  current: string
+  latest?: string
+  hasUpdate?: boolean
+  notes?: string
+  assetName?: string
+  assetUrl?: string
+  assetSize?: number
+  source?: 'feed' | 'github'
+  out?: string
+}
+
+export interface UpdateProgress {
+  stage: 'checking' | 'download' | 'done' | 'error'
+  percent?: number
+  received?: number
+  total?: number
+  detail?: string
+}
+
 export interface AppInfo {
   version: string
   name: string
@@ -229,6 +251,8 @@ export interface SettingsShape {
   model?: string
   size?: string
   onboarded?: string
+  /** 自定义更新源（返回 {version,url,notes} 的 JSON） */
+  updateFeed?: string
   /** 服务商密钥只以掩码状态下发（configured/masked），明文与密文永不出主进程 */
   providerKeys?: Record<string, ProviderKeyInfo>
   activeModel?: ActiveModel
@@ -246,6 +270,12 @@ export interface Api {
   getSettings(): Promise<SettingsShape>
   setSettings(patch: SettingsShape): Promise<unknown>
   appInfo(): Promise<AppInfo>
+  /** 检查更新（自研更新器：GitHub Releases 或自定义更新源） */
+  updateCheck(): Promise<UpdateInfo>
+  updateDownload(payload: { url: string; name: string; size?: number }): Promise<{ ok: boolean; file?: string; out?: string }>
+  updateCancel(): Promise<{ ok: boolean }>
+  updateInstall(file: string): Promise<{ ok: boolean; out?: string }>
+  onUpdateProgress(cb: (p: UpdateProgress) => void): () => void
   saveImage(url: string): Promise<{ ok: boolean; path?: string; err?: string }>
   revealImage(url: string): Promise<{ ok: boolean }>
   imageRead(url: string): Promise<Uint8Array>

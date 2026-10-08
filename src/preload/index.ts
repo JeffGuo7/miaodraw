@@ -22,6 +22,16 @@ const api = {
   setSettings: (patch: Record<string, string>): Promise<unknown> =>
     ipcRenderer.invoke('settings:set', patch),
   appInfo: (): Promise<unknown> => ipcRenderer.invoke('app:info'),
+  updateCheck: (): Promise<unknown> => ipcRenderer.invoke('update:check'),
+  updateDownload: (payload: { url: string; name: string; size?: number }): Promise<unknown> =>
+    ipcRenderer.invoke('update:download', payload),
+  updateCancel: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('update:cancel'),
+  updateInstall: (file: string): Promise<{ ok: boolean; out?: string }> => ipcRenderer.invoke('update:install', file),
+  onUpdateProgress: (cb: (p: unknown) => void): (() => void) => {
+    const h = (_e: unknown, data: unknown): void => cb(data)
+    ipcRenderer.on('update-progress', h)
+    return () => ipcRenderer.removeListener('update-progress', h)
+  },
   saveImage: (url: string): Promise<{ ok: boolean; path?: string; err?: string }> =>
     ipcRenderer.invoke('image:save', url),
   revealImage: (url: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('image:reveal', url),
