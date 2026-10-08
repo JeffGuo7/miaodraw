@@ -1,0 +1,4137 @@
+{
+ "version": 1,
+ "generatedAt": "2026-10-08T03:35:59.836Z",
+ "groups": [
+  {
+   "id": "handdraw",
+   "title": "手绘风格 · 261 套",
+   "note": "社论漫画、幽默手绘、绘本插图等，按风格族分组"
+  },
+  {
+   "id": "gptimage2",
+   "title": "商业设计模板 · 22 套",
+   "note": "UI/信息图/海报/电商/品牌/3D 等版式与视觉方向"
+  },
+  {
+   "id": "nanobanana",
+   "title": "实战提示词 · 精选",
+   "note": "来自 Nano Banana Pro 社区的完整提示词（CC BY 4.0）"
+  }
+ ],
+ "sources": [
+  {
+   "name": "handdraw-style-prompter",
+   "license": "本机 skill 资产（风格描述为匿名化改写）"
+  },
+  {
+   "name": "gpt-image-2-style-library",
+   "license": "本机 skill 资产"
+  },
+  {
+   "name": "ZeroLu/awesome-nanobanana-pro",
+   "license": "CC BY 4.0",
+   "url": "https://github.com/ZeroLu/awesome-nanobanana-pro"
+  }
+ ],
+ "count": 336,
+ "styles": [
+  {
+   "id": "hd-001",
+   "title": "Playful Deadpan Doodle",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "松散黑线、怪萌人物、少量点色、白底、日常吐槽与尴尬幽默；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Playful Deadpan Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-002",
+   "title": "Conceptual Continuous-Line Editorial",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简线描、连续线、概念隐喻、人与空间一体化、智性幽默。\n\n（画风方向：Conceptual Continuous-Line Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-003",
+   "title": "Fine-Line Urban Miniature",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极细钢笔线、小人物大空间、大量留白、温柔法式都市幽默。\n\n（画风方向：Fine-Line Urban Miniature；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-004",
+   "title": "Awkward Minimal Ink Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "故意笨拙的极简线条、比例失衡、几笔成形、冷幽默。\n\n（画风方向：Awkward Minimal Ink Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-005",
+   "title": "Childlike Free-Line Humor",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简黑线、儿童式自由造型、荒诞动作、低细节。\n\n（画风方向：Childlike Free-Line Humor；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-006",
+   "title": "Victorian Crosshatch Gothic Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑白钢笔、密集排线、维多利亚气息、古怪冷峻黑色幽默。\n\n（画风方向：Victorian Crosshatch Gothic Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-007",
+   "title": "Frenetic Scratch-Ink Caricature",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "狂躁钢笔、断裂墨线、细长人体、尖锐夸张、动态极强。\n\n（画风方向：Frenetic Scratch-Ink Caricature；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-008",
+   "title": "Nervous Urban Notebook Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "神经质手绘、歪斜线条、手写文字、都市焦虑式喜剧；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Nervous Urban Notebook Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-009",
+   "title": "Raw Zine Diary Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗糙手帐、Zine 感、手写字、原始情绪、反精致；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；保留纸纹、颗粒、套印或手工媒介的不完美，强化独立出版物的触感。\n\n（画风方向：Raw Zine Diary Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-010",
+   "title": "Geometric Literary Deadpan",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极小几何人物、极简场景、文学/科技梗、冷面幽默；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Geometric Literary Deadpan；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-011",
+   "title": "Deliberately Bad Absurd Doodle",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "故意画坏、粗糙黑线、幼稚造型、荒诞文字、强 meme 感；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Deliberately Bad Absurd Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-012",
+   "title": "Minimal Visual-Pun Editorial",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简概念设计、物体重解释、视觉双关、脑洞型构图；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Minimal Visual-Pun Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-013",
+   "title": "Bold Flat Everyday Satire",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗黑轮廓、扁平色块、现代人物、互联网生活讽刺；以醒目外轮廓和大形组织人物，五官少而有力，动作通过肩胯与手脚方向直接传达；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Bold Flat Everyday Satire；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-014",
+   "title": "Handwritten British Anti-Inspiration Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "随手钢笔、手写字、恶趣味、英式反鸡汤幽默；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Handwritten British Anti-Inspiration Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-015",
+   "title": "Soft Relationship Editorial Line Art",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简人物线稿、人与关系、柔和色块、生活型社论；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Soft Relationship Editorial Line Art；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-016",
+   "title": "Raw Emotional Internet Doodle",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗糙黑线、极简人体、心理情绪、自嘲式互联网漫画；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；保留纸纹、颗粒、套印或手工媒介的不完美，强化独立出版物的触感。\n\n（画风方向：Raw Emotional Internet Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-017",
+   "title": "Black-and-White Reaction Diary Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑白简线、圆眼反应表情、松散黑发、日常衣着；人物常与小动物或生活物件并置，依靠简单轮廓和大面积留白塑造轻松的生活漫画感。\n\n（画风方向：Black-and-White Reaction Diary Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-018",
+   "title": "Minimal Deadpan Dialogue Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简圆头人物、面无表情、简单动物、灰蓝与米色小色块；人物和动物以干净轮廓置于白底中，靠冷淡姿态和微小关系制造荒诞幽默。\n\n（画风方向：Minimal Deadpan Dialogue Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-019",
+   "title": "Explosive Webcomic Exaggeration",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗黑线、夸张圆眼、张大嘴、头发和四肢大幅甩动；人物常与动物同框，以强烈动作、巨大表情和少量灰黑色块形成爆发式网络漫画效果。\n\n（画风方向：Explosive Webcomic Exaggeration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-020",
+   "title": "Low-Fi Frenzy Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗糙鼠绘感、黑色乱发、极端大眼大嘴、粉色大色块、单人失控动作；保留低保真数字涂画的不规整轮廓和直接粗粝的互联网幽默。\n\n（画风方向：Low-Fi Frenzy Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-021",
+   "title": "Watercolor Handwritten Life Notes",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简女性人物、细黑线、细长四肢、柔和水彩点染；以红色心形等单一物件承载生活情绪，画面保持白底、留白和轻微纸张质感。\n\n（画风方向：Watercolor Handwritten Life Notes；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-022",
+   "title": "Flat Everyday Women Lifestyle",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "日常女性人物、蓬松手绘线稿、低饱和外套与围巾、旁边的小鸟；姿态自然站立，服装和动物用清楚色块区分，整体保留生活速写的轻松感。\n\n（画风方向：Flat Everyday Women Lifestyle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-023",
+   "title": "Warm Minimal Female Line Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑色简线、黑色长发女性、坐姿、白上衣与蓝色牛仔裤；以少量暖色腮红和红色鞋带点亮画面，背景保持干净，气质亲密而松弛。\n\n（画风方向：Warm Minimal Female Line Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-024",
+   "title": "Geometric Fashion Deadpan",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "夸张大头、松散黑色短线、冷面人物、横条纹上衣、灰黑与浅色块；人物比例故意不协调，依靠简化脸部和粗略纹理形成时尚而疏离的幽默感。\n\n（画风方向：Geometric Fashion Deadpan；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-025",
+   "title": "One-Panel Absurd Social Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "单格漫画、极简黑线、细长人物与动物并置、荒诞社会情境；人物和动物以克制的姿态和少量灰绿色块呈现一本正经的反逻辑幽默。\n\n（画风方向：One-Panel Absurd Social Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-026",
+   "title": "Dense Silent Physical Comedy",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "密集小动物和小人物、粗黑线、夸张鼻子与张嘴大笑、四肢向外伸展；画面充满无字肢体喜剧和拥挤的动作信息。\n\n（画风方向：Dense Silent Physical Comedy；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-027",
+   "title": "Underground Crosshatched Grotesque Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑色密排线、粗重轮廓、坐姿人物、夸张而不修饰的人体比例；皮肤、头发和衣物依靠密集交叉排线塑造，带有地下漫画的粗粝与怪诞。\n\n（画风方向：Underground Crosshatched Grotesque Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-028",
+   "title": "Retro Detached American Comic",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑色齐肩直发、方形眼镜、条纹上衣与绿色外套、冷静平涂色块；人物正面站立、表情疏离，画面具有复古美式成人漫画的克制感。\n\n（画风方向：Retro Detached American Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-029",
+   "title": "Geometric Diagrammatic Narrative",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "几何精密线条、孤立小人物、公交站牌与城市方块、信息图式留白；人物和环境由规整矩形与细线组成，色彩克制，叙事像一张安静的城市图表。\n\n（画风方向：Geometric Diagrammatic Narrative；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-030",
+   "title": "Clean Urban Solitude Comic",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "清晰细线、年轻亚洲女性半身像、深色外套、低饱和肤色与黑发；人物侧身回望，表情安静克制，背景留白，呈现都市观察和轻微疏离。\n\n（画风方向：Clean Urban Solitude Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-031",
+   "title": "High-Contrast Black-White Memoir Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "黑白高对比、粗黑剪影、盘坐女性、简化五官、大片纯黑服装；人物姿态直接而静止，依靠白色脸部和黑色轮廓形成克制的回忆录漫画感。\n\n（画风方向：High-Contrast Black-White Memoir Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-032",
+   "title": "Loose French Improvised Ink",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "松散法式墨线、蓬乱卷发、大眼女性、黑猫、随意坐姿；线条保留手绘停顿和轻微不齐整，配合少量暖色块，形成即兴、俏皮而略带怪诞的画面。\n\n（画风方向：Loose French Improvised Ink；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-033",
+   "title": "Minimal Newspaper Comic",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "极简报纸漫画线、圆头小人物、低动作高人格、细微表情。\n\n（画风方向：Minimal Newspaper Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-034",
+   "title": "Elastic Sunday Strip",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "松散弹性墨线、夸张儿童表情、强肢体动作、少量透明水彩；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Elastic Sunday Strip；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-035",
+   "title": "Bold Pop Satire Cartoon",
+   "category": "国际社论漫画",
+   "tags": [
+    "手绘",
+    "国际社论漫画"
+   ],
+   "prompt": "粗黑轮廓、圆凸大眼、扁平人物、极少阴影、成人讽刺；以醒目外轮廓和大形组织人物，五官少而有力，动作通过肩胯与手脚方向直接传达；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Bold Pop Satire Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-036",
+   "title": "Loose Ink-and-Wash Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "抖动墨线、松散水彩、四肢夸张、动作极灵、快速速写感。\n\n（画风方向：Loose Ink-and-Wash Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-037",
+   "title": "Nordic Fine-Line Whimsy",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "北欧墨线、细密但轻盈、奇异人物、温柔孤独、大留白。\n\n（画风方向：Nordic Fine-Line Whimsy；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-038",
+   "title": "Busy Anthropomorphic Everyday World",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "拟人动物社会、职业角色、圆润轮廓、丰富生活动作。\n\n（画风方向：Busy Anthropomorphic Everyday World；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-039",
+   "title": "Warm Vintage Line-and-Wash",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "古典细线、水彩旧书感、安静角色、温暖生活气息。\n\n（画风方向：Warm Vintage Line-and-Wash；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-040",
+   "title": "Crosshatched Wild Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "细线排线、怪物造型、童话荒诞、毛茸茸纹理。\n\n（画风方向：Crosshatched Wild Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-041",
+   "title": "Bendy Absurd Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "极端比例、弯曲结构、怪生物、流动线条、疯狂想象。\n\n（画风方向：Bendy Absurd Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-042",
+   "title": "Naturalist Watercolor Animal Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "精细水彩、自然主义动物、古典绘本、柔和纸张感。\n\n（画风方向：Naturalist Watercolor Animal Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-043",
+   "title": "Classic Pen-and-Light-Wash Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "钢笔速写、淡水彩、古典角色、优雅而轻松。\n\n（画风方向：Classic Pen-and-Light-Wash Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-044",
+   "title": "Quirky Ink-and-Watercolor Tale",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "怪趣人物、墨线、水彩、不规则比例、现代童话；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Quirky Ink-and-Watercolor Tale；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-045",
+   "title": "Minimal Poetic Picturebook Doodle",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "极简人物、手写感、松散涂色、诗意荒诞；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Minimal Poetic Picturebook Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-046",
+   "title": "Bold Geometric Picturebook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "几何块面、极简轮廓、高饱和色、强剪影；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Bold Geometric Picturebook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-047",
+   "title": "Muted Deadpan Picturebook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "极简动物、半闭眼、低饱和、Deadpan 冷幽默；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Muted Deadpan Picturebook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-048",
+   "title": "Folk-Line Decorative Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "民俗线描、复古配色、植物纹样、奇异群像；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Folk-Line Decorative Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-049",
+   "title": "Dreamlike Surreal Storybook",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "柔和手绘笔触、轻微超现实人物、低饱和梦境配色、安静叙事气质；人物轮廓简洁清楚，比例略诗意变形，表情克制偏沉静，留出白底与空间感，避免过于指向单一作者的独特怪脸机制。\n\n（画风方向：Dreamlike Surreal Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-050",
+   "title": "Layered Vintage Storybook Collage",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "分层拼贴质感、复古纸张肌理、手工剪贴与印刷颗粒感并存；人物由大形与贴纸般色块构成，造型怪趣但易读，配色温暖克制，强调材料感与旧书气息，避免复现某个固定童书角色。\n\n（画风方向：Layered Vintage Storybook Collage；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-051",
+   "title": "Expressive Character Sketch Cartoon",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "速写式手绘线条、夸张但亲切的人物表演、清楚外轮廓与鲜明性格；脸部结构简化，眉眼嘴主导情绪，动作有动画草图般弹性和节奏，适合做高人格角色，避免过度逼近具体作者角色设计。\n\n（画风方向：Expressive Character Sketch Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-052",
+   "title": "Dreamlike Clean-Line Sci-Fi Figure",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "干净细线、轻科技感人物、简洁未来服装与梦境般留白；线条清晰克制，配色偏浅淡蓝灰或柔和中性色，人物修长、姿态安静，强调现代科幻插图气质而非某个具体世界观。\n\n（画风方向：Dreamlike Clean-Line Sci-Fi Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-053",
+   "title": "European Clear-Line Adventure Figure",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "欧洲清线漫画语言、整洁闭合轮廓、平涂配色、人物可读性极高；造型简洁、动作明确，脸部结构控制在少量特征之内，带轻冒险叙事感，避免直接滑向某个经典固定角色。\n\n（画风方向：European Clear-Line Adventure Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-054",
+   "title": "Geometric European Clear-Line Figure",
+   "category": "国际绘本",
+   "tags": [
+    "手绘",
+    "国际绘本"
+   ],
+   "prompt": "几何化清线人物、现代主义图形秩序、简洁建筑感服装与姿态；以圆方弧线组织角色，平涂色块干净，表情直接而克制，整体更偏欧洲平面设计人物感，避免过强的单一作者指纹。\n\n（画风方向：Geometric European Clear-Line Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-055",
+   "title": "Chaotic Color Doodle Crowd",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "即兴彩色 Doodle、怪物人物、粗轮廓、高密度快乐混乱；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Chaotic Color Doodle Crowd；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-056",
+   "title": "Pop Magazine Doodle Overlay",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "卡通嘴眼、杂志涂鸦覆盖、Pop 色彩、朋克恶搞；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Pop Magazine Doodle Overlay；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-057",
+   "title": "Retro Geometric City Cartoon",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "几何人物、复古城市、高饱和平涂、70s–80s 商业卡通感；人物以圆、方、弧线等大形构成，五官图标化，比例强调图形辨识而非写实解剖；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Retro Geometric City Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-058",
+   "title": "Minimal Bold-Color Fashion Geometry",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "极简几何、大块高饱和色、女性时尚人物；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Minimal Bold-Color Fashion Geometry；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-059",
+   "title": "High-Contrast Negative-Space Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "极简剪影、正负形、高对比色、强视觉切割；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；主要依靠黑白关系和大面积留白塑形，表情集中在眼神、眉形与嘴形变化。\n\n（画风方向：High-Contrast Negative-Space Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-060",
+   "title": "Negative-Space Visual-Pun Graphic",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "负空间、双重图像、极少颜色、视觉双关；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Negative-Space Visual-Pun Graphic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-061",
+   "title": "Midcentury Geometric Fairytale",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "几何童话、现代主义色块、夸张比例、明快配色。\n\n（画风方向：Midcentury Geometric Fairytale；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-062",
+   "title": "Ultra-Geometric Nature Character",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "极端几何化动物与人物、Flat Shape、装饰性强。\n\n（画风方向：Ultra-Geometric Nature Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-063",
+   "title": "Rough Cut-Paper Modernist Graphic",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "剪纸般粗粝几何形、强符号、极少元素。\n\n（画风方向：Rough Cut-Paper Modernist Graphic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-064",
+   "title": "Playful Modernist Collage Character",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "拼贴、玩具式图形、几何人物、现代主义幽默。\n\n（画风方向：Playful Modernist Collage Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-065",
+   "title": "Retro Pop Editorial Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "复古社论、强轮廓、波普色彩、海报化人物。\n\n（画风方向：Retro Pop Editorial Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-066",
+   "title": "Bold Retro Advertising Cartoon",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "粗线、复古广告、怪趣人物、Push Pin 气质。\n\n（画风方向：Bold Retro Advertising Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-067",
+   "title": "Decorative Retro Commercial Illustration",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "复古商业插画、装饰线条、怪人物、印刷感。\n\n（画风方向：Decorative Retro Commercial Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-068",
+   "title": "Freeform Cut-Paper Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "剪纸色块、自由人体、极简轮廓、大面积纯色。\n\n（画风方向：Freeform Cut-Paper Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-069",
+   "title": "Poetic Single-Line Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "单线脸、不断笔、极少细节、优雅诗性。\n\n（画风方向：Poetic Single-Line Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-070",
+   "title": "Abstract Continuous-Line Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "连续线、抽象人体、几何变形、符号化。\n\n（画风方向：Abstract Continuous-Line Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-071",
+   "title": "Bold Kinetic Street-Pictogram",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "粗黑连续轮廓、动态小人、高动作、街头图腾。\n\n（画风方向：Bold Kinetic Street-Pictogram；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-072",
+   "title": "Raw Symbolic Graffiti Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "原始涂鸦、皇冠与符号、文字碎片、爆裂能量。\n\n（画风方向：Raw Symbolic Graffiti Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-073",
+   "title": "Punk Ink-and-Text Editorial",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "黑墨速写、朋克线稿、文字并置、粗粝社论；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Punk Ink-and-Text Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-074",
+   "title": "Grotesque Classical-Comic Portrait",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "扭曲五官、怪表情、古典人物与漫画混合；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Grotesque Classical-Comic Portrait；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-075",
+   "title": "Flat Belle-Époque Poster Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "海报式人物、简化轮廓、平面色块、都市生活。\n\n（画风方向：Flat Belle-Époque Poster Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-076",
+   "title": "Angular Expressive Figure Line",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "断裂敏感线条、细瘦人体、扭曲姿态、强情绪。\n\n（画风方向：Angular Expressive Figure Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-077",
+   "title": "Raw Art-Brut Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "Art Brut、粗糙线、人形符号、儿童式反精致。\n\n（画风方向：Raw Art-Brut Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-078",
+   "title": "Poetic Geometric Symbol Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "细线几何、童真符号、诗意色块、抽象人物。\n\n（画风方向：Poetic Geometric Symbol Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-079",
+   "title": "Biomorphic Symbolic Character",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "生物符号、原始线条、红蓝黄点色、自由空间。\n\n（画风方向：Biomorphic Symbolic Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-080",
+   "title": "Fluid Single-Line Motion Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "单线人物、流畅连续线、极简动态。\n\n（画风方向：Fluid Single-Line Motion Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-081",
+   "title": "Cinematic Grainy Flat-Shape Illustration",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "电影感极简色块、颗粒、强光影、远近层次；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；保留纸纹、颗粒、套印或手工媒介的不完美，强化独立出版物的触感。\n\n（画风方向：Cinematic Grainy Flat-Shape Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-082",
+   "title": "Retro Silkscreen Geometric Figure",
+   "category": "现代平面",
+   "tags": [
+    "手绘",
+    "现代平面"
+   ],
+   "prompt": "复古丝网印刷、厚重几何色层、旧书颗粒；人物以圆、方、弧线等大形构成，五官图标化，比例强调图形辨识而非写实解剖；保留纸纹、颗粒、套印或手工媒介的不完美，强化独立出版物的触感。\n\n（画风方向：Retro Silkscreen Geometric Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-083",
+   "title": "Dynamic East-Asian Ink Editorial",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "流动墨线、东方笔意、强动作、现代 Editorial；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Dynamic East-Asian Ink Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-084",
+   "title": "Quiet Low-Saturation Japanese Editorial",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "安静平面人物、低饱和、留白、日系现代社论；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Quiet Low-Saturation Japanese Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-085",
+   "title": "Minimal Fashion Line Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "极简黑线、时尚人物、无阴影、大白底；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Minimal Fashion Line Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-086",
+   "title": "Cool Minimal Black-and-White Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "黑白线稿、极简脸、无表情、清冷日常；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；主要依靠黑白关系和大面积留白塑形，表情集中在眼神、眉形与嘴形变化。\n\n（画风方向：Cool Minimal Black-and-White Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-087",
+   "title": "Showa Retro Commercial Cartoon",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "昭和商业插画、圆润人物、明快复古色。\n\n（画风方向：Showa Retro Commercial Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-088",
+   "title": "Airy Transparent Watercolor Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "极轻透明水彩、柔和人物、湿边晕染、大量白纸。\n\n（画风方向：Airy Transparent Watercolor Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-089",
+   "title": "Showa Everyday Family Comic",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "昭和家庭漫画、简洁线条、日常观察。\n\n（画风方向：Showa Everyday Family Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-090",
+   "title": "Folklore Monster Ink Cartoon",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "朴拙漫画线、民俗怪谈、妖怪造型、黑白纹理。\n\n（画风方向：Folklore Monster Ink Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-091",
+   "title": "Classic Rounded Manga Character",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "圆润漫画轮廓、清楚表演、大眼、强动作可读性。\n\n（画风方向：Classic Rounded Manga Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-092",
+   "title": "Rebellious Big-Head Deadpan Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "大头冷脸、叛逆眼神、极少背景、怪可爱；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Rebellious Big-Head Deadpan Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-093",
+   "title": "80s Clean-Line Urban Pop Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "清线都市少女、80s 时尚、大块留白、Pop 色；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：80s Clean-Line Urban Pop Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-094",
+   "title": "Ornate Strange Botanical Ink",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "精密钢笔、奇异动植物、古典怪萌、细节密集；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Ornate Strange Botanical Ink；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-095",
+   "title": "Fashion Diary Sketch Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "女孩穿搭速写、手绘服装、Instagram 日记感；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Fashion Diary Sketch Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-096",
+   "title": "Loose Deadpan Everyday Sketch",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "脱力人物、松散线条、生活吐槽；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Loose Deadpan Everyday Sketch；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-097",
+   "title": "Yuru-Surreal Minimal Everyday Cartoon",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "ゆるシュール、极简人物、反逻辑日常；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Yuru-Surreal Minimal Everyday Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-098",
+   "title": "Notebook Lifestyle Doodle",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "手帐式小人物、小物罗列、文字注记、生活记录；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Notebook Lifestyle Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-099",
+   "title": "Cute Essay-Manga Everyday",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "可爱 Essay Manga、生活与职场小剧场；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Cute Essay-Manga Everyday；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-100",
+   "title": "Rough Gag-Manga Reaction",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "粗糙搞笑漫画、强 reaction、夸张情绪；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Rough Gag-Manga Reaction；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-101",
+   "title": "Clean Young-Lifestyle Manga Line",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "清秀线稿、年轻女性、轻宅生活感；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Clean Young-Lifestyle Manga Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-102",
+   "title": "Friendly Girl-Diary Cartoon",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "女生日常博客漫画、简单可亲、生活感；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Friendly Girl-Diary Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-103",
+   "title": "Minimal Absurd Short-Gag Cartoon",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "荒诞短漫画、冷笑话、极简小人物；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Minimal Absurd Short-Gag Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-104",
+   "title": "Warm Slightly-Strange Everyday Line",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "温暖线条、轻怪角色、小众生活气质；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Warm Slightly-Strange Everyday Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-105",
+   "title": "Fast Family-Essay Sketch",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "家庭 Essay、快速线稿、日常观察；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Fast Family-Essay Sketch；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-106",
+   "title": "Minimal Quirky Motion Character",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "极简古怪人物、图形化、短动画式节奏；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Minimal Quirky Motion Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-107",
+   "title": "Elegant Sparse-Line Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "极少线条、纤细女孩、优雅留白；线条轻细并保留呼吸感，人物比例偏修长，眉眼与嘴角的小变化承担主要表情；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Elegant Sparse-Line Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-108",
+   "title": "Delicate Emotional Female Line",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "纤细人物线稿、女性情绪、长线条发丝；线条轻细并保留呼吸感，人物比例偏修长，眉眼与嘴角的小变化承担主要表情；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Delicate Emotional Female Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-109",
+   "title": "Pop-Culture Minimal Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "简化人物、Pop Culture、年轻轻时尚；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Pop-Culture Minimal Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-110",
+   "title": "Modern Editorial Female Line",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "现代女性线稿、编辑插画、清爽人物；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Modern Editorial Female Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-111",
+   "title": "Soft Magazine Line-and-Wash",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "细线 + 淡水彩、生活方式、日系杂志感；线条轻细并保留呼吸感，人物比例偏修长，眉眼与嘴角的小变化承担主要表情；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Soft Magazine Line-and-Wash；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-112",
+   "title": "Minimal Daily-Life Girl Line",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "极简女生日常、细线、低干扰构图；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Minimal Daily-Life Girl Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-113",
+   "title": "Transparent Watercolor Magazine Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "简线人物、透明水彩、干净女性杂志感；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Transparent Watercolor Magazine Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-114",
+   "title": "Playful Marker Fairytale Character",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "彩色马克笔、奇想小物、轻童话人物；以醒目外轮廓和大形组织人物，五官少而有力，动作通过肩胯与手脚方向直接传达；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Playful Marker Fairytale Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-115",
+   "title": "Loose Pop Advertising Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "女孩、奇怪姿态、广告 Pop、松弛幽默；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：Loose Pop Advertising Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-116",
+   "title": "Transparent Emotional Youth Illustration",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "青春情绪、透明色、MV 感、线条流动；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Transparent Emotional Youth Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-117",
+   "title": "Warm Lifestyle Magazine Figure",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "温暖人物、轻线稿、生活杂志氛围；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；保留纸纹、颗粒、套印或手工媒介的不完美，强化独立出版物的触感。\n\n（画风方向：Warm Lifestyle Magazine Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-118",
+   "title": "Soft Empathy Social Comic",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "柔软人物、共感型短漫画、社交媒体情绪；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Soft Empathy Social Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-119",
+   "title": "High-Saturation Gen-Z Fashion Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "潮流女孩、高饱和、Z 世代、Graphic Fashion；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色使用少量高纯度撞色和平涂，让人物剪影和服装保持强图形对比。\n\n（画风方向：High-Saturation Gen-Z Fashion Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-120",
+   "title": "Soft Dreamy Animated Illustration",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "柔和幻想、轻动画感、梦境人物；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Soft Dreamy Animated Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-121",
+   "title": "Pastel Yami-Kawaii Girly",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "Pastel Girly、梦幻、Yami-kawaii、低对比；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Pastel Yami-Kawaii Girly；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-122",
+   "title": "Tokyo Street Graphic Girl",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "东京街头、图形化女孩、年轻潮流；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Tokyo Street Graphic Girl；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-123",
+   "title": "Mystic Fashion Character Graphic",
+   "category": "日本作者",
+   "tags": [
+    "手绘",
+    "日本作者"
+   ],
+   "prompt": "强配色、神秘女孩、Fashion × Character；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Mystic Fashion Character Graphic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-124",
+   "title": "Gentle Nature Dreambook Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "温柔手绘、人与自然、植物动物、梦境色彩；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Gentle Nature Dreambook Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-125",
+   "title": "Minimal Black-White Visual-Pun Cartoon",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "黑白极简、视觉双关、几笔成梗、无对白冷幽默；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；主要依靠黑白关系和大面积留白塑形，表情集中在眼神、眉形与嘴形变化。\n\n（画风方向：Minimal Black-White Visual-Pun Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-126",
+   "title": "Elongated New-Chinese Minimal Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "修长人物、无脸或弱五官、新中式、古典生活；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Elongated New-Chinese Minimal Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-127",
+   "title": "Dense East-Asian Fantasy Editorial",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "高密度东方构图、丰富线条、奇幻 Editorial；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Dense East-Asian Fantasy Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-128",
+   "title": "Seasonal Travel Watercolor Diary",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "柔和水彩、季节与旅行、自然、治愈留白；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Seasonal Travel Watercolor Diary；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-129",
+   "title": "Blue-Orange Grainy Chinese Editorial",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "蓝橙撞色、颗粒色块、中国现代社论；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Blue-Orange Grainy Chinese Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-130",
+   "title": "Cinematic Saturated Story Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "强色彩、电影感场景、故事性人物；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Cinematic Saturated Story Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-131",
+   "title": "Modern New-Guofeng Flat-Line Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "新国风、流畅线条、黄橙蓝绿、传统元素现代化；人物以圆、方、弧线等大形构成，五官图标化，比例强调图形辨识而非写实解剖；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Modern New-Guofeng Flat-Line Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-132",
+   "title": "Decorative Guochao Character Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "国潮商业插画、人物 + 建筑 + 装饰纹样；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Decorative Guochao Character Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-133",
+   "title": "Ornate Flowing Eastern Fantasy Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "飘逸人物、东方幻想、蓝绿橙红、装饰性强；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Ornate Flowing Eastern Fantasy Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-134",
+   "title": "Soft Chinese Watercolor Atmosphere",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "柔和水彩、中国元素、朦胧光线；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Soft Chinese Watercolor Atmosphere；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-135",
+   "title": "Contemporary Chinese Cultural Editorial",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "传统文化现代编辑化、干净构图、当代中国气质；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Contemporary Chinese Cultural Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-136",
+   "title": "Freehand Ink-Wash Ancient Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "水墨人物、古风衣袂、潇洒笔触、大面积留白；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；上色保留透明叠染、柔软边缘和纸纹，允许轻微颜色不均与留白。\n\n（画风方向：Freehand Ink-Wash Ancient Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-137",
+   "title": "Wild Ink Eastern Weirdness",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "野生墨线、水墨怪人、东方妖异、极强作者手感；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Wild Ink Eastern Weirdness；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-138",
+   "title": "Elegant Soft Ink Ancient Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "清雅水墨、古风人物、柔和情绪；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Elegant Soft Ink Ancient Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-139",
+   "title": "Refined Eastern Line-Art Character",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "精致手绘线稿、东方人物、清雅漫画感；线条轻细并保留呼吸感，人物比例偏修长，眉眼与嘴角的小变化承担主要表情；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Refined Eastern Line-Art Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-140",
+   "title": "Modern Eastern Fantasy Character",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "新国风人物、东方奇幻、现代角色设计；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Modern Eastern Fantasy Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-141",
+   "title": "Elegant Historical Manga Line",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "清雅漫画线稿、古风青年、细腻叙事；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；线条带书写性与留白意识，衣褶、发丝和姿势顺势流动，东方感来自形与节奏。\n\n（画风方向：Elegant Historical Manga Line；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-142",
+   "title": "Ornate Dark-Fantasy Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "华丽人物、暗黑幻想、装饰细节、唯美系；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Ornate Dark-Fantasy Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-143",
+   "title": "Mythic Bestiary Ink Character",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "山海经异兽、传统笔意、现代怪物设计；保留明显手绘笔压、停顿与轻微不齐整感，让轮廓产生真实纸上绘制的节奏；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Mythic Bestiary Ink Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-144",
+   "title": "Blue-Gray Dream Narrative Figure",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "蓝灰梦境、孤独人物、绘本叙事；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Blue-Gray Dream Narrative Figure；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-145",
+   "title": "Expressive Girl-Life Internet Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "女生生活漫画、夸张表情、网络吐槽；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Expressive Girl-Life Internet Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-146",
+   "title": "Minimal Youth Emotion Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "极简青年日常、社交情绪、轻漫画；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Minimal Youth Emotion Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-147",
+   "title": "Poetic Urban Dreambook Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "彩色手绘、诗意都市、童话超现实、孤独感；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Poetic Urban Dreambook Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-148",
+   "title": "Minimal Adult Relationship Satire",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "极简成人漫画、都市男女、关系讽刺；脸部与服装主动做减法，依靠清楚轮廓、眼口和少量关键形状建立人物辨识度；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Minimal Adult Relationship Satire；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-149",
+   "title": "Delicate Eastern Female Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "东方女性漫画、细腻线条、古典氛围；线条轻细并保留呼吸感，人物比例偏修长，眉眼与嘴角的小变化承担主要表情；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Delicate Eastern Female Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-150",
+   "title": "Dreamy Youth Picturebook Color",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "绘本色彩、梦境、青春情绪、柔和人物；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；配色控制在柔和低刺激色域，用少量点色区分层次，背景保持轻和干净。\n\n（画风方向：Dreamy Youth Picturebook Color；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-151",
+   "title": "Internet Girl-Life Story Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "网络少女漫画、清晰情绪、生活叙事；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；人物姿态松弛自然，服装靠清楚剪影体现时尚感，避免模板化甜美脸。\n\n（画风方向：Internet Girl-Life Story Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-152",
+   "title": "Fast-Paced Chinese Meme Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "中文互联网梗漫画、表情强、节奏快；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情偏冷脸、尴尬或突然夸张，姿态要有明确喜剧节奏，避免统一的可爱微笑。\n\n（画风方向：Fast-Paced Chinese Meme Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-153",
+   "title": "Free-Line Urban Youth Comic",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "青春手绘、自由线条、城市青年；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Free-Line Urban Youth Comic；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-154",
+   "title": "Contemporary Urban-Tech Character Illustration",
+   "category": "中国作者",
+   "tags": [
+    "手绘",
+    "中国作者"
+   ],
+   "prompt": "当代商业人物、都市/科技、清晰平面语言；人物轮廓优先于细节堆砌，脸型、头身比例与手脚形状要形成清楚而独立的视觉语言；表情与肢体动作要服从该风格的人格机制，避免回落为统一的标准Q版表情。\n\n（画风方向：Contemporary Urban-Tech Character Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-155",
+   "title": "Editorial Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "随手黑线、少量点色、人物 + 概念、白底。\n\n（画风方向：Editorial Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-156",
+   "title": "Loose Ink",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "不稳定笔压、断续墨线、快速动作、即兴感。\n\n（画风方向：Loose Ink；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-157",
+   "title": "Conceptual Line Drawing",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "极少线条、视觉隐喻、图形脑洞、留白。\n\n（画风方向：Conceptual Line Drawing；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-158",
+   "title": "Classic Magazine Single-Panel Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "黑线、成人场景、冷脸人物、一个情境一个笑点。\n\n（画风方向：Classic Magazine Single-Panel Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-159",
+   "title": "French Café Sketch",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "钢笔速写、细长人物、咖啡馆日常、少量淡彩。\n\n（画风方向：French Café Sketch；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-160",
+   "title": "Japanese Deadpan Loose-Line Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "极细线、松垮人体、无力表情、社畜/日常梗。\n\n（画风方向：Japanese Deadpan Loose-Line Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-161",
+   "title": "Japanese Notebook Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "小人物、手写字、箭头、贴纸、小图标。\n\n（画风方向：Japanese Notebook Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-162",
+   "title": "Japanese Magazine Essay Illustration",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "细线、低饱和、穿搭、美食、轻生活场景。\n\n（画风方向：Japanese Magazine Essay Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-163",
+   "title": "Japanese Offbeat Four-Panel Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "简单人体、突然夸张表情、短节奏反转。\n\n（画风方向：Japanese Offbeat Four-Panel Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-164",
+   "title": "Korean Lifestyle Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "柔软细线、奶油色、年轻人物、Instagram 日常。\n\n（画风方向：Korean Lifestyle Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-165",
+   "title": "Korean Black-Line Red-Accent Editorial",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "黑白细线 + 红色点睛、时尚人物、大留白。\n\n（画风方向：Korean Black-Line Red-Accent Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-166",
+   "title": "Indie Zine Rough Drawing",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "签字笔、故意不专业、Low-fi、地下刊物感。\n\n（画风方向：Indie Zine Rough Drawing；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-167",
+   "title": "Two-Color Risograph Drawing",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "双色套印、轻微错版、粗颗粒、纸张质感。\n\n（画风方向：Two-Color Risograph Drawing；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-168",
+   "title": "Crayon Editorial",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "粗蜡笔、越界填色、颗粒、成人主题 + 儿童画感。\n\n（画风方向：Crayon Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-169",
+   "title": "Colored Pencil Diary",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "铅笔轮廓、轻柔彩铅、纸纹、生活记录。\n\n（画风方向：Colored Pencil Diary；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-170",
+   "title": "Brush-Pen Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "粗细变化巨大、黑色笔刷、强动作、强表情。\n\n（画风方向：Brush-Pen Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-171",
+   "title": "One-Line Character",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "连续线、极少结构、现代极简、时尚人物。\n\n（画风方向：One-Line Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-172",
+   "title": "Naive Folk Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "错透视、怪比例、直接色块、朴拙成人幽默。\n\n（画风方向：Naive Folk Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-173",
+   "title": "Primitive Marker Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "粗黑线、简单大形、歪比例、极强小尺寸辨识度。\n\n（画风方向：Primitive Marker Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-174",
+   "title": "Dry-Brush Editorial",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "断裂笔刷、干涩纸纹、成熟抽象人物。\n\n（画风方向：Dry-Brush Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-175",
+   "title": "Ink with Flat Spot Color",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "黑墨主体 + 单一强调色、极简但醒目。\n\n（画风方向：Ink with Flat Spot Color；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-176",
+   "title": "Notebook Margin Cartoon",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "圆珠笔感、小人物、箭头注释、随手草图。\n\n（画风方向：Notebook Margin Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-177",
+   "title": "Deadpan Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "人物不演、表情平静、荒谬场景制造笑点。\n\n（画风方向：Deadpan Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-178",
+   "title": "Awkward Cute",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "比例别扭、眼神游离、怪但可爱、社恐感。\n\n（画风方向：Awkward Cute；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-179",
+   "title": "Heta-Uma",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "“画得不好但很好看”、粗糙比例、怪趣成人感。\n\n（画风方向：Heta-Uma；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-180",
+   "title": "Showa Retro Girl Illustration",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "昭和杂志人物、旧印刷、有限色、复古少女。\n\n（画风方向：Showa Retro Girl Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-181",
+   "title": "Heisei Girls Diary Illustration",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "90s–00s 手帐、贴纸、圆珠笔、少女杂志感。\n\n（画风方向：Heisei Girls Diary Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-182",
+   "title": "Airy Transparent Watercolor",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "大量白纸、轻水彩、低覆盖率、柔和湿边。\n\n（画风方向：Airy Transparent Watercolor；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-183",
+   "title": "Copic Pastel",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "马克笔叠色、柔和糖果色、纸面笔触。\n\n（画风方向：Copic Pastel；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-184",
+   "title": "Kissaten Retro Sketch",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "昭和咖啡馆、钢笔淡彩、棕橙复古。\n\n（画风方向：Kissaten Retro Sketch；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-185",
+   "title": "Creamy Social-Media Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "奶油白、粉黄绿、圆线、轻松可爱。\n\n（画风方向：Creamy Social-Media Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-186",
+   "title": "High-Saturation Social Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "橙蓝绿粉、高饱和、粗线、Sticker 与 doodle 元素。\n\n（画风方向：High-Saturation Social Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-187",
+   "title": "Korean High-Saturation Pop Doodle",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "高饱和 Pop、潮流女孩、圆润线条、图标式装饰。\n\n（画风方向：Korean High-Saturation Pop Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-188",
+   "title": "Chinese Retro Lianhuanhua",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "黑色细线、旧纸、有限色、传统叙事。\n\n（画风方向：Chinese Retro Lianhuanhua；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-189",
+   "title": "New-Guochao Flat Gongbi",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "工笔结构 + 平面色块 + 金色/传统纹样。\n\n（画风方向：New-Guochao Flat Gongbi；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-190",
+   "title": "Modern Dunhuang Illustration",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "飞天曲线、矿物色、莲花云纹、壁画颗粒。\n\n（画风方向：Modern Dunhuang Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-191",
+   "title": "Modernized Song-Dynasty Light Color",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "米白留白、细线、青绿赭石、古典安静。\n\n（画风方向：Modernized Song-Dynasty Light Color；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-192",
+   "title": "New-Chinese Tiny Ink Figures",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "大留白、水墨晕染、小人物、东方情绪。\n\n（画风方向：New-Chinese Tiny Ink Figures；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-193",
+   "title": "Cantonese Dim-Sum Guochao",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "岭南元素、点心、暖橙青绿、生活国潮。\n\n（画风方向：Cantonese Dim-Sum Guochao；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-194",
+   "title": "Shanghai Calendar-Poster Retro",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "20–30 年代上海商业画、女性、复古广告色。\n\n（画风方向：Shanghai Calendar-Poster Retro；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-195",
+   "title": "Republic-Era Advertising Redesign",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "旧商业人物、平涂、复古字体结构、现代化简化。\n\n（画风方向：Republic-Era Advertising Redesign；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-196",
+   "title": "Oil-Pastel Healing Illustration",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "粗颗粒、蜡质色块、奶油高饱和、拙朴人物。\n\n（画风方向：Oil-Pastel Healing Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-197",
+   "title": "Childlike Crayon Naive Style",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "不准比例、蜡笔越线、高纯色、童真怪萌。\n\n（画风方向：Childlike Crayon Naive Style；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-198",
+   "title": "Black-White Pen Deadpan Humor",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "极简黑线、冷脸人物、大留白、视觉梗。\n\n（画风方向：Black-White Pen Deadpan Humor；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-199",
+   "title": "Red-Blue Riso Guochao",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "红蓝套印、错版颗粒、中国元素、青年 Zine。\n\n（画风方向：Red-Blue Riso Guochao；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-200",
+   "title": "Mid-century Deadpan Ink Mascot",
+   "category": "通用网感",
+   "tags": [
+    "手绘",
+    "通用网感"
+   ],
+   "prompt": "黑白墨线、细长身体、成人服装、冷脸、强留白、Mid-century 社论味。\n\n（画风方向：Mid-century Deadpan Ink Mascot；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-217",
+   "title": "Stylized 3D Cartoon Personality",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "奇想风格化3D卡通美学、夸张头身比例、富有表现力的大眼、独特剪影轮廓与精细触感材质纹理；具有现代动画长片质感。\n\n（画风方向：Stylized 3D Cartoon Personality；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-218",
+   "title": "Quirky 60s-70s Retro Storybook Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "60-70年代复古儿童绘本插画感、夸张大眼睛与生动面部特征、粗糙手绘线条、质朴色铅笔/蜡笔颗粒质感、暖调复古配色、简练几何轮廓与怪诞可爱的人物造型。\n\n（画风方向：Quirky 60s-70s Retro Storybook Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-219",
+   "title": "Charming Vintage Storybook Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "复古暖调手绘儿童绘本插画风、质感蜡笔与彩铅颗粒肌理、松弛粗糙的墨水轮廓线、夸张生动的大眼睛与古怪可爱角色造型、复古纸本留边边框、明亮温暖的欧式复古动画叙事感。\n\n（画风方向：Charming Vintage Storybook Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-220",
+   "title": "Stylized Graphic 2D Animation Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代2D动画概念设计风、干练利落的几何剪影、大块平涂与微质感光影、夸张修长的身体比例、极富个性的面部轮廓与黑框眼镜造型、清新明快的角色概念原画感。\n\n（画风方向：Stylized Graphic 2D Animation Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-221",
+   "title": "Tactile Felt & Knitted 3D Puppet",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "定格动画式手工毛毡与针织3D人偶、温润质朴的毛线与布料绒毛纤维肌理、童趣复古粉彩色调、夸张头身比与古怪时尚着装、触感真实的微缩实体模型感。\n\n（画风方向：Tactile Felt & Knitted 3D Puppet；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-222",
+   "title": "Mid-Century Poetic Ink & Watercolor Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "二十世纪中叶经典复古儿童绘本风、细腻松弛的钢笔墨水线条、清透柔和的水彩晕染、大面积纯净留白、质朴水彩纸纹理、丁丁历险记般的诗意复古童趣。\n\n（画风方向：Mid-Century Poetic Ink & Watercolor Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-223",
+   "title": "Whimsical Watercolor Die-Cut Sticker Cartoon",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "手绘水彩贴纸风、圆形模切与干净白边边框、明亮灵动的大眼睛与微卷发丝、温润水彩与不透明水粉质感、治愈可爱的现代儿童插画与潮玩贴纸美学。\n\n（画风方向：Whimsical Watercolor Die-Cut Sticker Cartoon；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-224",
+   "title": "Retro 70s Tactile Wool & Clay Stop-Motion Puppet",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "70年代复古定格动画人偶风、温润黏土与羊羔绒/颗粒毛圈布料触感、暖调复古暖棕与姜黄配色、朴拙可爱的五官与夸张大脚大耳、怀旧儿童剧集的微缩实体感。\n\n（画风方向：Retro 70s Tactile Wool & Clay Stop-Motion Puppet；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-225",
+   "title": "Textured Cut-Paper Collage Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "复古手工剪纸拼贴绘本风、几何块面切割与质朴纸张撕边肌理、多层纹理纸张套叠、复古哑光大地与红黄色系、简练图形化的人物肖像与版画手工感。\n\n（画风方向：Textured Cut-Paper Collage Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-226",
+   "title": "Painterly Gouache Animation Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "温暖厚涂水粉动画插画风、松弛可见的干湿画笔笔触、夸张清澈的纯真大眼、温润电影感柔光与雪景氛围、复古绘本与现代动画长片概念美术质感。\n\n（画风方向：Painterly Gouache Animation Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-227",
+   "title": "Deadpan Stylized 3D Urban Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代风格化3D黏土/胶体角色雕刻、略带厌世与冷幽默的死鱼眼夸张神态、独特的拉长头部与夸张下颌剪影、哑光微雕质感、生动诙谐的都市通勤者小剧场。\n\n（画风方向：Deadpan Stylized 3D Urban Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-228",
+   "title": "Scandinavian Folk-Art Naive Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "北欧极简民间艺术绘本风、质朴稚拙的童趣造型、柔和哑光大地色系、松弛质感手绘笔触与克制留白、带有温暖手工民俗温度。\n\n（画风方向：Scandinavian Folk-Art Naive Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-229",
+   "title": "Minimalist Organic Pastel Editorial",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代极简编辑插画风、轻细灵动的铅笔/墨线、抽象有机几何形状、柔和莫兰迪粉彩色调、微颗粒纸本噪点与呼吸感留白。\n\n（画风方向：Minimalist Organic Pastel Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-230",
+   "title": "Vintage Ink & Watercolor Comic Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "经典复古手绘漫画绘本风、生动流畅的蘸水笔墨水线条、温润质朴的水彩平涂晕染、复古报刊插画排线、大眼睛与红润脸蛋的可爱人物造型、温暖怀旧的童年冒险叙事感。\n\n（画风方向：Vintage Ink & Watercolor Comic Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-231",
+   "title": "Chic Urban Editorial Motion Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代都市时尚编辑插画风、优雅舒展的动态剪影、松弛大方的服饰垂坠感、哑光粉彩与柔和铅笔微颗粒纹理、暖色提亮撞色、兼具高级时尚感与动画角色设计的清爽气质。\n\n（画风方向：Chic Urban Editorial Motion Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-232",
+   "title": "Fuzzy Plush Toy 3D Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "治愈系毛绒玩具与雪尼尔毛线3D人偶、逼真蓬松的绒毛与针织纤维触感、明快鲜艳的冰淇淋马卡龙配色、憨萌可爱的几何形体与大头小短腿比例、潮流艺术玩具感。\n\n（画风方向：Fuzzy Plush Toy 3D Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-233",
+   "title": "Warm Gouache & Colored Pencil Storybook Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "温暖水粉与彩色铅笔手绘绘本风、细腻柔和的铅笔颗粒质感与排线肌理、圆润饱满的卡通面部轮廓、大黑框眼镜与可爱红鼻头、治愈温馨的现代儿童插画质感。\n\n（画风方向：Warm Gouache & Colored Pencil Storybook Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-234",
+   "title": "Chunky Knit Mohair Stop-Motion Puppet",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "定格动画式粗针马海毛毛衣人偶风、逼真细腻的毛圈毛线编织与毛绒长毛纤维肌理、冷脸呆萌的死鱼眼黑框眼镜宅男造型、夸张长款大衣与修长小腿、微缩实体手办质感。\n\n（画风方向：Chunky Knit Mohair Stop-Motion Puppet；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-235",
+   "title": "Edwardian Vintage Ink Fashion Editorial",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "爱德华时代复古时尚墨水插画风、精美利落的钢笔排线与羽化阴影、典雅复古的礼帽长裙剪影、极简复古蓝与芥末黄点缀平涂、大面积呼吸感留白与诗意文学氛围。\n\n（画风方向：Edwardian Vintage Ink Fashion Editorial；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-236",
+   "title": "Stylized 3D Animation Feature Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代3D动画长片角色风、温润雕刻感面部轮廓与胡须发丝、颗粒毛衣针织纹理、富有神采的大眼与微表情、暖调柔和的工作室柔光光影。\n\n（画风方向：Stylized 3D Animation Feature Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-237",
+   "title": "Chubby Pastel Knitted Toy 3D Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "圆滚滚软萌针织与黏土3D玩偶风、细腻质感的棉线针织围巾手套与毛衣、糖果粉彩马卡龙色调、圆润夸张的身材与呆萌微怒表情、潮玩治愈系微缩模型感。\n\n（画风方向：Chubby Pastel Knitted Toy 3D Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-238",
+   "title": "Quirky Fantasy Sketchbook Character Concept",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "奇幻动画概念速写风、松散纤细的钢笔墨线、质朴水彩晕染与颗粒纸感、精灵耳与慵懒不羁的叛逆神态、层次丰富的异域服饰设计与独立动画设定集美学。\n\n（画风方向：Quirky Fantasy Sketchbook Character Concept；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-239",
+   "title": "Late-80s Cyberpunk Dark OVA Cel Anime",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "80年代末日本黑暗赛博朋克OVA赛璐珞动画风、锐利手绘勾线、浓郁阴郁的丙烯手绘背景、高对比度硬光影、冷艳魅惑的女性肖像与黄金时代动画胶片质感。\n\n（画风方向：Late-80s Cyberpunk Dark OVA Cel Anime；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-240",
+   "title": "Franco-Belgian Ligne Claire Urban Sketch",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "法比清线漫画与欧洲城市速写风、俯瞰全景视角、精密清爽的黑墨水线条、鲜明欢快的色块平涂、细致入微的欧式街区建筑与石板路细节、旅行绘本般的人文温度。\n\n（画风方向：Franco-Belgian Ligne Claire Urban Sketch；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-241",
+   "title": "Classic 60s-70s Xerox Cel Animation",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "60-70年代经典静电复印(Xerox)手绘赛璐珞动画风、生动微糙的石墨铅笔动态勾线、古典手绘水粉城堡背景、优雅灵动的迪士尼黄金时代复古人物造型。\n\n（画风方向：Classic 60s-70s Xerox Cel Animation；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-242",
+   "title": "Isometric Fantasy Illustrated Cartography",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "等轴测俯视手绘奇幻地图风、精细水墨钢笔轮廓排线、温润手绘水彩林地与溪流岩石质感、复古RPG冒险地图细节感。\n\n（画风方向：Isometric Fantasy Illustrated Cartography；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-243",
+   "title": "Loose Ink & Gouache Storybook Studio",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "松散墨水线条与水粉手绘插画风、率性写意的笔触排线、大头蓬松卷发与胡须大叔与宠物鸭子、温馨充满故事感的欧式生活日常画室。\n\n（画风方向：Loose Ink & Gouache Storybook Studio；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-244",
+   "title": "Medieval Dark Fantasy Ink & Ochre Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "中世纪暗黑奇幻墨线插画风、精密细腻的钢笔交错排线、暗调羊皮纸暖赭色调、压迫感十足的重装牛角铠甲骑士与古老石阶遗迹氛围。\n\n（画风方向：Medieval Dark Fantasy Ink & Ochre Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-245",
+   "title": "Classic 80s-90s Heroic Fantasy Cel Anime",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "80-90年代经典剑与魔法奇幻赛璐珞动画风、纯正手绘赛璐珞质感、红发持剑女勇士与古堡阴影下的重甲战士、古典戏剧性冷暖打光。\n\n（画风方向：Classic 80s-90s Heroic Fantasy Cel Anime；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-246",
+   "title": "Vintage 70s European Comic Animation Cel",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "70年代欧洲传统手绘手作动画风、质朴粗糙的手绘石墙背景、夸张滑稽的红发大胡子卫兵与尖帽侍从、古典讽刺动画与阿斯特里克斯式的幽默神态。\n\n（画风方向：Vintage 70s European Comic Animation Cel；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-247",
+   "title": "Modern Cinematic 2D Character Animation",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代电影级2D动画角色插画风、灵动深邃的大眼睛与微卷盘发墨镜、细腻柔和的室内环境光影与利落干净的动画清线造型。\n\n（画风方向：Modern Cinematic 2D Character Animation；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-248",
+   "title": "Guochao Fantasy Architectural Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "唯美国风奇幻建筑插画风、粉紫祥云与巨大明月、青瓦朱墙重檐宫殿楼阁与山石古松、扁平清丽的东方意境与梦幻国潮配色。\n\n（画风方向：Guochao Fantasy Architectural Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-249",
+   "title": "Retro Pointillist Pixel Grassland Fantasy",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "复古点彩微像素奇幻插画风、密性质感草地针织颗粒纹理、至尊金戒与金色钱币散落、绿斗篷隐者背影、莫比斯式的极简神秘寓言感。\n\n（画风方向：Retro Pointillist Pixel Grassland Fantasy；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-250",
+   "title": "Stylized Cinematic Action-Comedy Character",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "风格化大块面剪影动画插画风、夸张强壮的胡子大叔与市井风情、干练几何块面平涂与微颗粒光影、充满动势与幽默张力的街头角色原画。\n\n（画风方向：Stylized Cinematic Action-Comedy Character；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-251",
+   "title": "Glossy Mecha Cyber Flower Doll",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "高光亮面机甲机娘潮玩风、鲜艳大红与金边机甲涂装、机械巨镰与彼岸花发饰造型、极致精细的机械关节与陶瓷般高光质感。\n\n（画风方向：Glossy Mecha Cyber Flower Doll；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-252",
+   "title": "Soft Crayon & Sumi-e Cat Storybook",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "温润蜡笔与水墨和风绘本风、质朴手绘炭笔蜡笔颗粒肌理、巨型猫咪的翡翠绿眼与细腻毛流、微型人偶与红色印章、充满童趣温暖的日式日常绘本。\n\n（画风方向：Soft Crayon & Sumi-e Cat Storybook；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-253",
+   "title": "Minimalist Poetic Sempé Ink Doodle",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "极简法式诗意水墨线描风、桑贝式松弛写意小人与萌宠、大面积纯净留白、质朴手绘墨水笔触、治愈松弛的都市童心与生活小哲思。\n\n（画风方向：Minimalist Poetic Sempé Ink Doodle；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-254",
+   "title": "New Chinese Gongbi & Shanghai Vintage Fantasy",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "新中式细腻工笔重彩与民国月份牌复古风、精巧流畅的游丝铁线描、温润矿物颜料渐变晕染、典雅华贵的东方神话与旗袍仕女、空灵幽远的东方古典美学。\n\n（画风方向：New Chinese Gongbi & Shanghai Vintage Fantasy；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-255",
+   "title": "Modern Minimalist Sumi-e & Red Gouache Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "现代极简水墨与高对比度红黑插画风、粗粝松弛的宣纸焦墨飞白干笔、大块纯色水粉撞色平涂、现代几何构图与东方意境留白。\n\n（画风方向：Modern Minimalist Sumi-e & Red Gouache Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-256",
+   "title": "Chinese Ink Travelogue & Woodblock Collage",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "中式水墨旅行手账与复古木刻版画拼贴风、拓印肌理与书法印章排版、温润复古暖橙与灰蓝水墨调和、充满诗意与市井烟火气的东方纪行美学。\n\n（画风方向：Chinese Ink Travelogue & Woodblock Collage；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-257",
+   "title": "Romantic Pink Watercolor Sumi-e Wash",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "浪漫粉调新东风水墨晕染风、柔和半透明水粉水彩层次、写意书法墨色点缀、轻盈梦幻的落樱花瓣与东方抒情写意。\n\n（画风方向：Romantic Pink Watercolor Sumi-e Wash；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-258",
+   "title": "Vivid Watercolor Anime Fantasy World",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "鲜艳水彩与日系动画奇幻风、高饱和明快撞色色块、生动表现力墨水勾线、电影感通透光影与梦幻游戏插画质感。\n\n（画风方向：Vivid Watercolor Anime Fantasy World；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-259",
+   "title": "Retro Gouache Narrative Character Illustration",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "复古厚涂水粉叙事插画风、颗粒磨砂纸张肌理、朴实质感的人物造型与暖调复古色相、充满时代温度的绘本生活场景。\n\n（画风方向：Retro Gouache Narrative Character Illustration；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-260",
+   "title": "Chic Stylized Anime Comic Art",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "潮流风格化日系动漫插画风、利落流畅的手绘线稿、鲜明平涂色块与网点纸微纹理、极具辨识度的时尚青年角色设计。\n\n（画风方向：Chic Stylized Anime Comic Art；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "hd-261",
+   "title": "Charming 2D Animation Feature Character Visdev",
+   "category": "附件新增",
+   "tags": [
+    "手绘",
+    "附件新增"
+   ],
+   "prompt": "温润细腻的2D动画长片角色概念设计风、大眼与黑框眼镜的生动表情、利落剪影造型与微质感笔触边缘、纯白留白背景、质朴温和的大地与森林色系、极具亲和力与故事感的动画视觉开发(visdev)艺术。\n\n（画风方向：Charming 2D Animation Feature Character Visdev；请用你自己的笔触与构图重新演绎主题，不要模仿任何具体在世艺术家的署名作品。）",
+   "source": "手绘风格库",
+   "credit": "handdraw-style-prompter（风格特征描述，匿名化）"
+  },
+  {
+   "id": "gi-ui-screenshot-system",
+   "title": "UI 截图系统",
+   "category": "界面与 UI",
+   "tags": [
+    "模板",
+    "界面与 UI",
+    "UI",
+    "Dashboard",
+    "Screenshot"
+   ],
+   "prompt": "用于 App 截图、仪表盘、社媒截图和直播界面。\n要点：锁定平台、比例、层级和画面文字。；明确状态栏、Tab、操作区、评论层等 UI 元素。\n避免：避免平台描述过泛。；约束文字可读性和平台特征。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-ui"
+  },
+  {
+   "id": "gi-infographic-engine",
+   "title": "信息图引擎",
+   "category": "信息图与图表",
+   "tags": [
+    "模板",
+    "信息图与图表",
+    "Infographic",
+    "Chart",
+    "Education"
+   ],
+   "prompt": "用于解释图、技术图解、时间线和知识卡片。\n要点：定义 3-5 个模块、信息流、层级和短标签。；用色块、箭头、图标和留白控制复杂度。\n避免：避免把长段正文塞进画面。；先限制模块数量，再补视觉细节。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic"
+  },
+  {
+   "id": "gi-scientific-scale-diagram",
+   "title": "科学尺度缩放图",
+   "category": "信息图与图表",
+   "tags": [
+    "模板",
+    "信息图与图表",
+    "Infographic",
+    "Chart",
+    "Education"
+   ],
+   "prompt": "用于需要从微观到宏观展示尺度变化的科普主题。\n要点：使用 6-8 个尺度框，每个标签保持短句。；展示单位、倍率和不同尺度的细节。\n避免：避免所有尺度框长得一样。；避免通用放大镜式布局。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-infographic"
+  },
+  {
+   "id": "gi-poster-layout-system",
+   "title": "海报排版系统",
+   "category": "海报与字体",
+   "tags": [
+    "模板",
+    "海报与字体",
+    "Poster",
+    "Typography",
+    "Campaign"
+   ],
+   "prompt": "用于活动海报、电影海报、封面和社媒传播视觉。\n要点：锁定主体、标题、版式、配色和比例。；突出标题层级和主视觉。\n避免：需要成品海报时，避免生成拼贴展示板。；约束多余文字和装饰符号。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster"
+  },
+  {
+   "id": "gi-sports-campaign-poster",
+   "title": "运动商业 Campaign",
+   "category": "海报与字体",
+   "tags": [
+    "模板",
+    "海报与字体",
+    "Poster",
+    "Campaign",
+    "Typography"
+   ],
+   "prompt": "用于运动品牌 Campaign、运动员海报和运动产品视觉。\n要点：定义运动项目、姿态、核心道具、标题和品牌色。；使用强光影、干净构图和可读数据层。\n避免：避免错误运动器材和杂乱拼贴。；让运动员和核心道具占据主导。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster"
+  },
+  {
+   "id": "gi-conceptual-typography-poster",
+   "title": "概念字体海报",
+   "category": "海报与字体",
+   "tags": [
+    "模板",
+    "海报与字体",
+    "Typography",
+    "Poster",
+    "Style"
+   ],
+   "prompt": "用于标题文字需要成为主视觉结构的海报。\n要点：让字体成为画面主角，并保证标题拼写准确。；人物、物体或风景需要服务标题含义。\n避免：避免默认字效、无关图标和标题错字。；控制配色数量，保持克制。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster"
+  },
+  {
+   "id": "gi-ink-double-exposure-poster",
+   "title": "水墨双重曝光海报",
+   "category": "海报与字体",
+   "tags": [
+    "模板",
+    "海报与字体",
+    "Poster",
+    "Classical",
+    "Style"
+   ],
+   "prompt": "用于诗意人像海报、水墨氛围和文化主题视觉。\n要点：融合人像剪影、水墨质感、氛围和留白。；保持构图克制、高级、可读。\n避免：避免廉价奇幻拼贴和景物堆叠。；非必要时减少文字。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster"
+  },
+  {
+   "id": "gi-nature-science-poster",
+   "title": "自然科普海报",
+   "category": "海报与字体",
+   "tags": [
+    "模板",
+    "海报与字体",
+    "Poster",
+    "Education",
+    "Style"
+   ],
+   "prompt": "用于自然主题的高级、干净科普海报。\n要点：使用清晰主体、少量文案、柔和阴影和充足留白。；让科普标签短而清楚。\n避免：避免广告感太重。；避免密集百科正文。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-poster"
+  },
+  {
+   "id": "gi-product-commerce-visual",
+   "title": "商品商业视觉",
+   "category": "商品与电商",
+   "tags": [
+    "模板",
+    "商品与电商",
+    "Product",
+    "Commerce",
+    "Packaging"
+   ],
+   "prompt": "用于商品主图、包装视觉、详情页和销售卖点排版。\n要点：定义商品、卖点、材质、场景、光线和版块。；区分主商品、卖点标签和辅助道具。\n避免：避免无关道具削弱商品识别。；约束包装文字和卖点表达。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product"
+  },
+  {
+   "id": "gi-personalized-beauty-report",
+   "title": "个性化美妆报告",
+   "category": "商品与电商",
+   "tags": [
+    "模板",
+    "商品与电商",
+    "Product",
+    "Layout",
+    "Style"
+   ],
+   "prompt": "用于美妆推荐、肤质报告、导购助手和生活方式商品卡片。\n要点：使用诊断、推荐和商品卡片的报告层级。；对齐商品图、标签和评分。\n避免：避免医疗化结论和难读小字。；保持推荐逻辑清楚。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-product"
+  },
+  {
+   "id": "gi-brand-identity-package",
+   "title": "品牌身份包",
+   "category": "品牌与标识",
+   "tags": [
+    "模板",
+    "品牌与标识",
+    "Brand",
+    "Logo",
+    "Identity"
+   ],
+   "prompt": "用于 Logo 系统、品牌板、VI 套件和应用样机。\n要点：定义品牌名、定位、配色、字体、Logo 用法和触点。；要求视觉板中的应用统一对齐。\n避免：避免无关 Logo 变体和混乱配色。；保持品牌文字准确。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand"
+  },
+  {
+   "id": "gi-brand-touchpoint-board",
+   "title": "品牌触点视觉板",
+   "category": "品牌与标识",
+   "tags": [
+    "模板",
+    "品牌与标识",
+    "Brand",
+    "Identity",
+    "Campaign"
+   ],
+   "prompt": "用于多触点 Campaign 展示和品牌落地预览。\n要点：指定触点清单、统一视觉规则和样机排列。；让所有面板共享配色和字体逻辑。\n避免：避免混入多个无关 Campaign 风格。；可读性下降时减少触点数量。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-brand"
+  },
+  {
+   "id": "gi-architecture-space",
+   "title": "建筑与空间",
+   "category": "建筑与空间",
+   "tags": [
+    "模板",
+    "建筑与空间",
+    "Architecture",
+    "Interior",
+    "Map"
+   ],
+   "prompt": "用于室内、建筑表现、城市地图、空间规划和环境概念图。\n要点：定义视角、尺度、材质、光线和空间功能。；地图需要指定地标、标签、边框装饰和准确度。\n避免：概念图之外要避免不合理透视。；锁定地图标签语言和相对位置。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-architecture"
+  },
+  {
+   "id": "gi-realistic-photography",
+   "title": "写实摄影",
+   "category": "摄影与写实",
+   "tags": [
+    "模板",
+    "摄影与写实",
+    "Photography",
+    "Realistic",
+    "Lens"
+   ],
+   "prompt": "用于人像、街拍、商品摄影和电影感写实。\n要点：指定机位、镜头、光源、质感、背景和动作。；加入可信的小瑕疵增强纪实感。\n避免：商业美妆之外，避免过度磨皮。；需要时加入手部、文字、结构类负面约束。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo"
+  },
+  {
+   "id": "gi-street-accident-moment",
+   "title": "街头意外瞬间摄影",
+   "category": "摄影与写实",
+   "tags": [
+    "模板",
+    "摄影与写实",
+    "Photography",
+    "Realistic",
+    "Scene"
+   ],
+   "prompt": "用于街头抓拍、意外泼洒、手机纪实和快速动作。\n要点：描述具体瞬间、机位高度、运动模糊和街景。；加入避免摆拍和广告棚拍感的限制。\n避免：避免画面过于干净。；让事件看起来可信。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-photo"
+  },
+  {
+   "id": "gi-illustration-art-style",
+   "title": "插画与艺术风格",
+   "category": "插画与艺术",
+   "tags": [
+    "模板",
+    "插画与艺术",
+    "Illustration",
+    "Art",
+    "Style"
+   ],
+   "prompt": "用于动漫、水彩、水墨、装饰画和风格实验。\n要点：定义构图、主体、配色、笔触材质、情绪和完成度。；参考图任务需要说明保留哪些特征。\n避免：避免只写风格，不写构图。；使用参考图时锁定角色识别。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-illustration"
+  },
+  {
+   "id": "gi-character-design-sheet",
+   "title": "角色设定表",
+   "category": "角色与人物",
+   "tags": [
+    "模板",
+    "角色与人物",
+    "Character",
+    "Pose",
+    "Style"
+   ],
+   "prompt": "用于角色设定表、动作网格、动作拆解和一致性参考。\n要点：定义身份锚点、服装、比例、动作数量和版式。；保持脸、发型和服装细节一致。\n避免：避免不同动作里服装细节变化。；画面拥挤时减少动作数量。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character"
+  },
+  {
+   "id": "gi-3d-collectible-toy",
+   "title": "3D 收藏玩具",
+   "category": "角色与人物",
+   "tags": [
+    "模板",
+    "角色与人物",
+    "Character",
+    "3D",
+    "Style"
+   ],
+   "prompt": "用于高级收藏玩具、头像公仔、潮玩角色和 3D 展示图。\n要点：保留参考图中的脸和服装锚点。；指定材质、包装、底座、光线和收藏比例。\n避免：避免没有身份细节的通用玩具。；包装文字保持少量且准确。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-character"
+  },
+  {
+   "id": "gi-scene-storytelling",
+   "title": "场景叙事",
+   "category": "场景叙事",
+   "tags": [
+    "模板",
+    "场景叙事",
+    "Scene",
+    "Story",
+    "Storyboard"
+   ],
+   "prompt": "用于分镜、世界观、直播场景和情绪叙事画面。\n要点：定义人物、地点、时间、冲突、情绪和机位。；让场景细节服务故事。\n避免：避免通用幻想背景。；让故事线索在画面里可见。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-scene"
+  },
+  {
+   "id": "gi-history-classical-themes",
+   "title": "历史与古风题材",
+   "category": "历史与国风",
+   "tags": [
+    "模板",
+    "历史与国风",
+    "History",
+    "Classical",
+    "Scroll"
+   ],
+   "prompt": "用于古风题材、长卷、朝代服饰、诗词视觉和历史场景。\n要点：指定朝代、服饰制度、器物参考、版式和文化气质。；明确长卷、册页或海报形式。\n避免：需要历史准确时，避免朝代混搭。；约束随机现代物件。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-history"
+  },
+  {
+   "id": "gi-document-publishing",
+   "title": "文档与出版物",
+   "category": "文档与出版",
+   "tags": [
+    "模板",
+    "文档与出版",
+    "Document",
+    "Publishing",
+    "Layout"
+   ],
+   "prompt": "用于白皮书、手册、百科图鉴、报告页面和出版系统。\n要点：定义页面尺寸、分栏、目录、图表系统和字体层级。；使用可读标题、表格、标签和页面节奏。\n避免：避免密集小字。；让图表和说明对齐页面网格。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-document"
+  },
+  {
+   "id": "gi-concept-product-breakdown",
+   "title": "概念产品研发拆解",
+   "category": "其他场景",
+   "tags": [
+    "模板",
+    "其他场景",
+    "Creative",
+    "R&D",
+    "Special"
+   ],
+   "prompt": "用于实验型任务、研发视觉板、拆解图和特殊视觉系统。\n要点：定义产物类型、组件、标签、材质逻辑和展示格式。；使用清晰标注和受控技术风格。\n避免：避免任务边界过泛。；标签要短，组件关系要清楚。",
+   "source": "GPT-Image2 模板库",
+   "credit": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#tpl-other"
+  },
+  {
+   "id": "nb-1-1",
+   "title": "Hyper-Realistic Crowd Composition",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Create a hyper-realistic, ultra-sharp, full-color large-format image featuring a massive group of celebrities from different eras, all standing together in a single wide cinematic frame. The image must look like a perfectly photographed editorial cover with impeccable lighting, lifelike skin texture, micro-details of hair, pores, reflections, and fabric fibers.\n\nGENERAL STYLE & MOOD: Photorealistic, 8k, shallow depth of field, soft natural fill light + strong golden rim light. High dynamic range, calibrated color grading. Skin tones perfectly accurate. Crisp fabric detail with individual threads visible. Balanced composition, slightly wide-angle lens (35mm), center-weighted. All celebrities interacting naturally, smiling, posing, or conversing. Minimal background noise, but with enough world-building to feel real.\n\nTHE ENVIRONMENT: A luxurious open-air rooftop terrace at sunset overlooking a modern city skyline. Elements include: Warm golden light wrapping around silhouettes. Polished marble.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@SebJefferies"
+  },
+  {
+   "id": "nb-1-2",
+   "title": "2000s Mirror Selfie",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Create a 2000s Mirror Selfie of yourself using Gemini Nano Banana.\n\n{\n  \"subject\": {\n    \"description\": \"A young woman taking a mirror selfie with very long voluminous dark waves and soft wispy bangs\",\n    \"age\": \"young adult\",\n    \"expression\": \"confident and slightly playful\",\n    \"hair\": {\n      \"color\": \"dark\",\n      \"style\": \"very long, voluminous waves with soft wispy bangs\"\n    },\n    \"clothing\": {\n      \"top\": {\n        \"type\": \"fitted cropped t-shirt\",\n        \"color\": \"cream white\",\n        \"details\": \"features a large cute anime-style cat face graphic with big blue eyes, whiskers, and a small pink mouth\"\n      }\n    },\n    \"face\": {\n      \"preserve_original\": true,\n      \"makeup\": \"natural glam makeup with soft pink dewy blush and glossy red pouty lips\"\n    }\n  },\n  \"accessories\": {\n    \"earrings\": {\n      \"type\": \"gold geometric hoop earrings\"\n    },\n    \"jewelry\": {\n      \"waistchain\": \"silver waistchain\"\n    },\n    \"device\": {\n      \"type\": \"smartphone\",\n      \"details\": \"patterned case\"\n    }\n  },\n  \"photography\": {\n    \"camera_style\": \"early-2000s digital camera aesthetic\",\n    \"lighting\": \"harsh super-flash with bright blown-out highlights but subject still visible\",\n    \"angle\": \"mirror selfie\",\n    \"shot_type\": \"tight selfie composition\",\n    \"texture\": \"subtle grain, retro highlights, V6 realism, crisp details, soft shadows\"\n  },\n  \"background\": {\n    \"setting\": \"nostalgic early-2000s bedroom\",\n    \"wall_color\": \"pastel tones\",\n    \"elements\": [\n      \"chunky wooden dresser\",\n      \"CD player\",\n      \"posters of 2000s pop icons\",\n      \"hanging beaded door curtain\",\n      \"cluttered vanity with lip glosses\"\n    ],\n    \"atmosphere\": \"authentic 2000s nostalgic vibe\",\n    \"lighting\": \"retro\"\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@ZaraIrahh"
+  },
+  {
+   "id": "nb-1-3",
+   "title": "Victoria's Secret Style Photoshoot",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Create a glamorous photoshoot in the style of Victoria's Secret. A young woman attached in the uploaded reference image ( Keep the face of the person 100% accurate from the reference image ) stands almost sideways, slightly bent forward, during the final preparation for the show. Makeup artists apply lipstick to her (only her hands are visible in the frame). She is wearing a corset decorated with beaded embroidery and crystals with a short fluffy skirt, as well as large feather wings. The image has a \"backstage\" effect.\n\nThe background is a darkly lit room, probably under the podium. The main emphasis is on the girl's face and the details of her costume. Emphasize the expressiveness of the gaze and the luxurious look of the outfit. The photo is lit by a flash from the camera, which emphasizes the shine of the beads and crystals on the corset, as well as the girl's shiny skin. Victoria's Secret style: sensuality, luxury, glamour. Very detailed. Important: do not change the face.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@NanoBanana_labs"
+  },
+  {
+   "id": "nb-1-4",
+   "title": "1990s Camera Style Portrait",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Without changing her original face, create a portrait of a beautiful young woman with porcelain-white skin, captured with a 1990s-style camera using a direct front flash. Her messy dark brown hair is tied up, posing with a calm yet playful smile. She wears a modern oversized cream sweater. The background is a dark white wall covered with aesthetic magazine posters and stickers, evoking a cozy bedroom or personal room atmosphere under dim lighting. The 35mm lens flash creates a nostalgic glow.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@kingofdairyque"
+  },
+  {
+   "id": "nb-1-5",
+   "title": "One-Click Business Photo (Silicon Valley Style)",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Keep the facial features of the person in the uploaded image exactly consistent . Dress them in a professional navy blue business suit with a white shirt, similar to the reference image. Background : Place the subject against a clean, solid dark gray studio photography backdrop . The background should have a subtle gradient , slightly lighter behind the subject and darker towards the edges (vignette effect). There should be no other objects. Photography Style : Shot on a Sony A7III with an 85mm f/1.4 lens , creating a flattering portrait compression. Lighting : Use a classic three-point lighting setup . The main key light should create soft, defining shadows on the face. A subtle rim light should separate the subject's shoulders and hair from the dark background. Crucial Details : Render natural skin texture with visible pores , not an airbrushed look. Add natural catchlights to the eyes . The fabric of the suit should show a subtle wool texture.Final image should be an ultra-realistic, 8k professional headshot.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-1-6",
+   "title": "Emotional Film Photography",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Keep the facial features of the person in the uploaded image exactly consistent . Style : A cinematic, emotional portrait shot on Kodak Portra 400 film . Setting : An urban street coffee shop window at Golden Hour (sunset) . Warm, nostalgic lighting hitting the side of the face. Atmosphere : Apply a subtle film grain and soft focus to create a dreamy, storytelling vibe. Action : The subject is looking slightly away from the camera, holding a coffee cup, with a relaxed, candid expression. Details : High quality, depth of field, bokeh background of city lights.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-1-7",
+   "title": "Professional Headshot Creator",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "\"A professional, high-resolution profile photo, maintaining the exact facial structure, identity, and key features of the person in the input image. The subject is framed from the chest up, with ample headroom. The person looks directly at the camera. They are styled for a professional photo studio shoot, wearing a premium smart casual blazer in a subtle charcoal gray. The background is a solid '#562226' neutral studio color. Shot from a high angle with bright and airy soft, diffused studio lighting, gently illuminating the face and creating a subtle catchlight in the eyes, conveying a sense of clarity. Captured on an 85mm f/1.8 lens with a shallow depth of field, exquisite focus on the eyes, and beautiful, soft bokeh. Observe crisp detail on the fabric texture of the blazer, individual strands of hair, and natural, realistic skin texture. The atmosphere exudes confidence, professionalism, and approachability. Clean and bright cinematic color grading with subtle warmth and balanced tones, ensuring a polished and contemporary feel.\"",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@PavolRusnak"
+  },
+  {
+   "id": "nb-1-8",
+   "title": "Hyperrealistic Anime Portrait in Spotlight",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Generate a hyperrealistic realistic-anime portrait of a female character standing in a completely black background.\nLighting: use a **narrow beam spotlight** focused only on the center of the face. \nThe edges of the light must be sharp and dramatic. \nAll areas outside the spotlight should fall quickly into deep darkness \n(high falloff shadow), almost blending into the black background. \nNot soft lighting.\nHair: long dark hair with some strands falling over the face. The lower parts of the hair should fade into the shadows.\nPose: one hand raised gently to the lips in a shy, hesitant gesture. \nEyes looking directly at the camera with a mysterious mood.\nClothing: black long-sleeve knit sweater; \nthe sweater and body should mostly disappear into the darkness with minimal detail.\nOverall tone: dark, moody, dramatic, mysterious. \nHigh-contrast only in the lit portion of the face. \nEverything outside the spotlight should be nearly invisible.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Anissa ) - Post"
+  },
+  {
+   "id": "nb-1-9",
+   "title": "Bathroom Mirror Selfie",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "{\n  \"subject\": {\n    \"description\": \"Young woman taking bathroom mirror selfie, innocent doe eyes but the outfit tells another story\",\n    \"mirror_rules\": \"facing mirror, hips slightly angled, close to mirror filling frame\",\n    \"age\": \"early 20s\",\n    \n    \"expression\": {\n      \"eyes\": \"big innocent doe eyes looking up through lashes, 'who me?' energy\",\n      \"mouth\": \"soft pout, lips slightly parted, maybe tiny tongue touching corner\",\n      \"brows\": \"soft, slightly raised, faux innocent\",\n      \"overall\": \"angel face but devil body, the contrast is the whole point\"\n    },\n    \n    \"hair\": {\n      \"color\": \"platinum blonde\",\n      \"style\": \"messy bun or claw clip, loose strands framing face, effortless\"\n    },\n    \n    \"body\": {\n      \"waist\": \"tiny\",\n      \"ass\": \"round, full, fabric of shorts riding up and clinging between cheeks, every curve visible through thin athletic material\",\n      \"thighs\": \"thick, soft, shorts barely containing\"\n    },\n    \n    \"clothing\": {\n      \"top\": {\n        \"type\": \"ULTRA mini crop tee\",\n        \"color\": \"yellow\",\n        \"graphic\": \"single BANANA logo/graphic\",\n        \"fit\": \"barely containing chest, fabric stretched tight, ends just below, shows full stomach\"\n      },\n      \"bottom\": {\n        \"type\": \"tight tennis skort or athletic booty shorts\",\n        \"color\": \"white\",\n        \"material\": \"thin stretchy athletic fabric\",\n        \"fit\": \"vacuum tight, riding up, clinging between cheeks, fabric creases visible, leaving nothing to imagination\"\n      }\n    },\n    \n    \"face\": {\n      \"features\": \"pretty - big eyes, small nose, full lips\",\n      \"makeup\": \"minimal, natural, lip gloss, no-makeup makeup\"\n    }\n  },\n\n  \"accessories\": {\n    \"headwear\": {\n      \"type\": \"Goorin Bros cap\",\n      \"details\": \"black with animal patch, worn backwards or tilted\"\n    },\n    \"headphones\": {\n      \"type\": \"over-ear white headphones\",\n      \"position\": \"around neck\"\n    },\n    \"device\": {\n      \"type\": \"iPhone\",\n      \"details\": \"visible in mirror, held at chest level\"\n    }\n  },\n\n  \"photography\": {\n    \"camera_style\": \"casual iPhone mirror selfie, NOT professional\",\n    \"quality\": \"iPhone camera - good but not studio, realistic social media quality\",\n    \"angle\": \"eye-level, straight on mirror\",\n    \"shot_type\": \"3/4 body, close to mirror\",\n    \"aspect_ratio\": \"9:16 vertical\",\n    \"texture\": \"natural, slightly grainy iPhone look, not over-processed\"\n  },\n\n  \"background\": {\n    \"setting\": \"regular apartment bathroom\",\n    \"style\": \"normal NYC apartment bathroom, not luxury\",\n    \"elements\": [\n      \"white subway tile walls\",\n      \"basic bathroom mirror with good lighting above\",\n      \"simple white sink vanity\",\n      \"toiletries visible - skincare bottles, toothbrush holder\",\n      \"towel hanging on hook\",\n      \"maybe shower curtain edge visible\",\n      \"small plant on counter\"\n    ],\n    \"atmosphere\": \"real bathroom, lived-in, normal home\",\n    \"lighting\": \"good vanity lighting above mirror - bright, even, flattering but not studio\"\n  },\n\n  \"vibe\": {\n    \"energy\": \"innocent face + sinful body = the whole game\",\n    \"mood\": \"just got ready for tennis but making content first, 'what?' expression while wearing basically nothing\",\n    \"contrast\": \"doe eyes + ass eating the shorts = lethal\",\n    \"caption_energy\": \"'tennis anyone? 🍌' or 'running late oops'\"\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "gauche ) - Post"
+  },
+  {
+   "id": "nb-1-10",
+   "title": "Chalkboard Anime Art Documentation",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "{\n  \"intent\": \"Photorealistic documentation of a specific chalkboard art piece featuring a single anime character, capturing the ephemeral nature of the medium within a classroom context.\",\n  \"frame\": {\n    \"aspect_ratio\": \"4:3\",\n    \"composition\": \"A centered medium shot focusing on the chalkboard mural. The composition includes the teacher's desk in the immediate foreground to provide scale, with the artwork of the single character dominating the background space.\",\n    \"style_mode\": \"documentary_realism, texture-focused, ambient naturalism\"\n  },\n  \"subject\": {\n    \"primary_subject\": \"A large-scale, intricate chalk drawing of Boa Hancock from 'One Piece' on a standard green classroom blackboard.\",\n    \"visual_details\": \"The illustration depicts Boa Hancock in a commanding pose, positioned centrally on the board. She is drawn with her signature long, straight black hair with a hime cut, rendered using dense application of black chalk with white accents for sheen. Her expression is haughty and imperious, with detailed dark blue eyes. She is depicted forming a heart shape with her hands, referencing her 'Mero Mero Mellow' technique. She wears a revealing red blouse with purple geometric patterns and gold snake-shaped earrings, drawn with vibrant colored chalks.\",\n    \"medium_texture\": \"The image preserves the dusty, matte quality of the chalk. Visible hatching and cross-hatching strokes create shading on her clothing and hair. Smudged areas on the green slate indicate where colors have been blended by hand.\",\n    \"surrounding_elements\": \"To the right of the character, vertical Japanese text reading '海賊女帝' (Pirate Empress) is written in crisp white chalk.\"\n  },\n  \"environment\": {\n    \"location\": \"A standard Japanese school classroom.\",\n    \"foreground_elements\": \"A wooden teacher's desk occupies the lower foreground. Scattered across the surface are a yellow box of colored chalks, loose sticks of red, white, and blue pastel chalk, and a dust-covered black felt eraser.\",\n    \"background_elements\": \"The green chalkboard spans the width of the frame, bordered by a metallic chalk tray containing accumulated chalk dust. The wall above is a plain, off-white plaster, featuring a small mounted speaker box.\",\n    \"atmosphere\": \"Quiet and academic, with a sense of stillness suggesting the room is currently unoccupied.\"\n  },\n  \"lighting\": {\n    \"type\": \"Diffuse ambient classroom lighting.\",\n    \"quality\": \"Soft, nondirectional illumination provided by overhead fluorescent fixtures mixed with daylight from windows on the left. The light is even, preventing glare on the chalkboard surface while highlighting the texture of the chalk.\",\n    \"color_temperature\": \"Neutral white, approximately 5000K, ensuring accurate color rendition of the red and purple chalks against the dark green board.\",\n    \"direction\": \"Overhead and slightly frontal.\"\n  },\n  \"camera\": {\n    \"sensor_format\": \"35mm full-frame digital sensor.\",\n    \"lens\": \"35mm prime lens.\",\n    \"aperture\": \"f/5.6\",\n    \"depth_of_field\": \"Moderate depth of field, keeping the chalkboard drawing in sharp focus while allowing the foreground desk elements to soften slightly.\",\n    \"shutter_speed\": \"1/60s\",\n    \"iso\": \"400\",\n    \"camera_position\": \"Eye-level standing position, set back enough to frame the entire drawing and the desk.\"\n  },\n  \"negative\": {\n    \"content\": \"Multiple characters, Midoriya, Shigaraki, male characters, digital art overlay, vector graphics, paper texture, oil painting, messy composition, extreme low angle, fisheye lens.\",\n    \"style\": \"No hyper-saturation, no soft focus filters, no heavy vignetting.\"\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Emily ) - Post"
+  },
+  {
+   "id": "nb-1-11",
+   "title": "Portrait with Puppy in Snow",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "{\n  \"image_description\": {\n    \"subject\": {\n      \"face\": {\n        \"preserve_original\": true,\n        \"reference_match\": true,\n        \"description\": \"The girl's facial features, expression, and identity must remain exactly the same as the reference image.\"\n      },\n      \"girl\": {\n        \"age\": \"young\",\n        \"hair\": \"long, wavy brown hair\",\n        \"expression\": \"puckering her lips toward the camera\",\n        \"clothing\": \"black hooded sweatshirt\"\n      },\n      \"puppy\": {\n        \"type\": \"small white puppy\",\n        \"eyes\": \"light blue\",\n        \"expression\": \"calm, looking forward\"\n      }\n    },\n    \"environment\": {\n      \"setting\": \"outdoors in a winter scene\",\n      \"elements\": [\n        \"snow covering the ground\",\n        \"bare trees in the background\",\n        \"blurred silver car behind the girl\"\n      ],\n      \"sky\": \"clear light blue sky\"\n    },\n    \"mood\": \"cute, natural, winter outdoor moment\",\n    \"camera_style\": \"soft depth of field, natural daylight, subtle winter tones\"\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Zara ) - Post"
+  },
+  {
+   "id": "nb-1-12",
+   "title": "Fisheye Movie Character Selfie",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "A film-like fisheye wide-angle 360-degree selfie without any camera or phone visible in the subject's hands. A real and exaggerated selfie of [person from uploaded image] with [CHARACTERS]. They are making faces at the camera.\n\n(more detailed version)\nA hyper-realistic fisheye wide-angle selfie, captured with a vintage 35mm fisheye lens creating heavy barrel distortion. without any camera or phone visible in the subject's hands.\nSubject & Action: A close-up, distorted group photo featuring [Person From Uploaded Image] taking selfie with [CHARACTERS]. Everyone is making wild, exaggerated faces, squinting slightly from the flash.\nLighting & Texture: Harsh, direct on-camera flash lighting that creates hard shadows behind the subjects. Authentic film grain, slight motion blur on the edges, and chromatic aberration. It looks like a candid, amateur snapshot as if captured during a chaotic behind-the-scenes moment, not a studio photo.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "ΛRMIN | AI ) - Post"
+  },
+  {
+   "id": "nb-1-13",
+   "title": "Character Consistency Selfie with Movie Character",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "\"I'm taking a selfie with [movie character] on the set of [movie name].\n\nKeep the person exactly as shown in the reference image with 100% identical facial features, bone structure, skin tone, facial expression, pose, and appearance. 1:1 aspect ratio, 4K detail.\"",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Rohan Paul ) - Post"
+  },
+  {
+   "id": "nb-1-14",
+   "title": "Museum Art Exhibition Selfie",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "A commercial grade photograph of [uploaed reference image] posing inside a high-end museum exhibition space.\n[the character Source: Based strictly on the uploaded reference image.\nBehind them hangs a large, ornate framed classical oil painting.\n\nThe painting depicts the same person but rendered in a rich,\ntraditional oil painting style with thick, visible impasto brushstrokes, deep textures, and rich color palettes on canvas.\nGallery spotlights hit the textured paint surface.\nMasterpiece, ultra-detailed, cinematic lighting, strong contrast, dramatic shadows, 8K UHD, highly detailed textures\n, professional photography.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "烟花老师（一支烟花） ) - Post"
+  },
+  {
+   "id": "nb-1-15",
+   "title": "Compact Camera Screen Display",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Use facial feature of attached photo. A close-up shot of a young woman displayed on the screen of a compact Canon digital camera. The camera body surrounds the image with its buttons, dials, and textured surface visible, including the FUNC/SET wheel, DISP button, and the \"IMAGE STABILIZER\" label along the side. The photo on the screen shows the woman indoors at night, illuminated by a bright built-in flash that creates sharp highlights on her face and hair. She has long dark hair falling across part of her face in loose strands, with a soft, slightly open-lip expression. The flash accentuates her features against a dim, cluttered kitchen background with appliances, shelves, and metallic surfaces softly blurred. The mood is candid, raw, nostalgic, and reminiscent of early 2000s digital camera snapshots. Colors are slightly muted with cool undertones, strong flash contrast, and natural grain from the display. No text, no logos inside the photo preview itself.\n\nScale ratio: 4:5 vertical\n\nCamera: compact digital camera simulation\nLens: equivalent to 28–35mm\nAperture: f/2.8\nISO: 400\nShutter speed: 1/60 with flash\nWhite balance: auto flash\nLighting: harsh direct flash on subject, ambient low light in the background\nColor grading: nostalgic digital-camera tones, high contrast flash, subtle display grain, authentic screen glow.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "simply ) - Post"
+  },
+  {
+   "id": "nb-1-16",
+   "title": "Magazine Cover Portrait",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "A photo of a glossy magazine cover, the cover has the large bold words \"Nano Banana Pro\". The text is in a serif font, black on white, and fills the view. No other text.\n\nIn front of the text there is a dynamic portrait of a person in green and banana yellow colored high-end fashion.\n\nPut the issue number and today's date in the corner along with a barcode and a price. The magazine is on a white shelf against a wall.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Nano Banana Pro ) - Post"
+  },
+  {
+   "id": "nb-1-17",
+   "title": "Luxury Product Photography",
+   "category": "写实与美学",
+   "tags": [
+    "实战",
+    "写实与美学"
+   ],
+   "prompt": "Product:\n[BRAND] [PRODUCT NAME] - [bottle shape], [label description], [liquid color]\n\nScene:\nLuxury product shot floating on dark water with [flower type] in [colors] arranged around it.\n[Lighting style - e.g., \"golden hour glow\" /\n\"bright fresh light\"] creates reflections and ripples across the water.\n\nMood & Style:\n[Adjectives - e.g., \"ethereal and luxurious\" /\n\"fresh and clean\"], high-end commercial photography, [camera angle], shallow depth of field with soft bokeh background",
+   "source": "Nano Banana Pro 精选",
+   "credit": "AmirMušić ) - Post"
+  },
+  {
+   "id": "nb-2-1",
+   "title": "Star Wars \"Where's Waldo\"",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "A where is waldo image showing all Star Wars characters on Tatooine\n\nFirst one to pull this off. First take. Even Waldo is there.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@creacas"
+  },
+  {
+   "id": "nb-2-2",
+   "title": "Aging Through the Years",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "\"Generate the holiday photo of this person through the ages up to 80 years old\"",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@dr_cintas"
+  },
+  {
+   "id": "nb-2-3",
+   "title": "Recursive Visuals",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "recursive image of an orange cat sitting in an office chair holding up an iPad. On the iPad is the same cat in the same scene holding up the same iPad. Repeated on each iPad.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@venturetwins"
+  },
+  {
+   "id": "nb-2-4",
+   "title": "Coordinate Visualization",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "35.6586° N, 139.7454° E at 19:00",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Replicate"
+  },
+  {
+   "id": "nb-2-5",
+   "title": "Conceptual Visualization",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "How engineers see the San Francisco Bridge",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Replicate"
+  },
+  {
+   "id": "nb-2-7",
+   "title": "Multi-Subject Compositing",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "an office team photo, everyone making a silly face",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Replicate"
+  },
+  {
+   "id": "nb-2-8",
+   "title": "Whiteboard Marker Art",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Create a photo of vagabonds musashi praying drawn on a glass whiteboard in a slightly faded green marker",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@nicdunz"
+  },
+  {
+   "id": "nb-2-9",
+   "title": "Split View 3D Render - iPhone 17 Pro",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Create a high-quality, realistic 3D render of exactly one instance of the object: [Orange iPhone 17 Pro].\nThe object must float freely in mid-air and be gently tilted and rotated in 3D space (not front-facing).\nUse a soft, minimalist dark background in a clean 1080×1080 composition.\nLeft Half — Full Realism\nThe left half of the object should appear exactly as it looks in real life\n— accurate materials, colors, textures, reflections, and proportions.\nThis half must be completely opaque with no transparency and no wireframe overlay.\nNo soft transition, no fading, no blending.\nRight Half — Hard Cut Wireframe Interior\nThe right half must switch cleanly to a wireframe interior diagram.\nThe boundary between the two halves must be a perfectly vertical, perfectly sharp, crisp cut line, stretching straight from the top edge to the bottom edge of the object.\nNo diagonal edges, no curved slicing, no gradient.\nThe wireframe must use only two line colors:\nPrimary: white (≈80% of all lines)\nSecondary: a color sampled from the dominant color of the realistic half (<20% of lines)\nThe wireframe lines must be thin, precise, aligned, and engineering-style.\nEvery wireframe component must perfectly match the geometry of the object.\nStrict Single-Object Rule\nRender only ONE object in the entire frame.  Render only one physical object.\nDo NOT show a second object from any angle. Do NOT show a second object as a reflection, shadow, silhouette, outline, ghost image, or transparency. Do NOT show a second object for comparison or display purposes. Do NOT show both the front and the back separately.\nDo NOT show an extra device behind, beside, underneath, or partially hidden.\nOnly one single object is allowed in the entire frame.\nNo duplicate objects, no mirrored back-and-front pairings, no reflections showing a second object.\nThe object must appear alone, floating.\nPose & Lighting:\nApply a natural, subtle tilt + rotation in 3D to make it look like a floating product visualization.\nUse soft, neutral global illumination and no shadows under the object.\nNo extra props, no text, no labels unless explicitly requested.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Michal Malewicz ) - Post"
+  },
+  {
+   "id": "nb-2-10",
+   "title": "USA 3D Diorama with Landmarks",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Create a high-detail 3D isometric diorama of the entire United States, where each state is represented as its own miniature platform. Inside each state, place a stylized, small-scale 3D model of that state's most iconic landmark. Use the same visual style as a cute, polished 3D city diorama: soft pastel colors, clean materials, smooth rounded forms, gentle shadows, and subtle reflections. Each landmark should look like a miniature model, charming, simplified, but clearly recognizable. Arrange the states in accurate geographical layout, with consistent lighting and perspective. Include state labels and landmark labels in a clean, modern font, floating above or near each model.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Data Exec ) - Post"
+  },
+  {
+   "id": "nb-2-11",
+   "title": "US Map Made of Famous Foods",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "create a map of the US where every state is made out of its most famous food (the states should actually look like they are made of the food, not a picture of the food). Check carefully to make sure each state is right.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Ethan Mollick ) - Post"
+  },
+  {
+   "id": "nb-2-12",
+   "title": "City's Tallest Buildings 3D Cartoon View",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Present a clear, side miniature 3D cartoon view of [YOUR CITY] tallest buildings. Use minimal textures with realistic materials and soft, lifelike lighting and shadows. Use a clean, minimalistic composition showing exactly the three tallest buildings in Sopot, arranged from LEFT to RIGHT in STRICT descending height order. The tallest must appear visibly tallest, the second must be clearly shorter than the first, and the third must be clearly shorter than the second.\nAll buildings must follow accurate relative proportions: if a building is taller in real life, it MUST be taller in the image by the same approximate ratio. No building may be visually stretched or compressed.\nEach building should stand separately on a thin, simple ceramic base. Below each base, centered text should display:\nHeight in meters — semibold sans-serif, medium size\nYear built — lighter-weight sans-serif, smaller size, directly beneath the height text\nProvide consistent padding, spacing, leading, and kerning. Write \"YOUR CITY NAME\" centered above the buildings, using a medium-sized sans-serif font.\n No building top should overlap or touch the text above.Use accurate architectural proportions based on real-world references.Maintain consistent camera angle and identical scale for each building model.\nNo forced perspective. Use straight-on orthographic-style rendering. Do not exaggerate or stylize size differences beyond proportional accuracy.\n\nUse a square 1080×1080 composition.Use a clean, neutral background. Ensure no extra objects are present.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Michal Malewicz ) - Post"
+  },
+  {
+   "id": "nb-2-13",
+   "title": "3D Isometric Home Office Illustration",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Based on you know about me, generate a 3D isometric colored illustration of me working from home, filled with various interior details. The visual style should be rounded, polished, and playful. --ar 1:1\n\n[Additional details: a bichon frise and 3 monitors]",
+   "source": "Nano Banana Pro 精选",
+   "credit": "宝玉 ) - Post"
+  },
+  {
+   "id": "nb-2-14",
+   "title": "Emoji Combination - Banana with Sunglasses",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "combine these emojis: 🍌 + 😎, on a white background as a google emoji design",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Nano Banana Pro ) - Post"
+  },
+  {
+   "id": "nb-2-15",
+   "title": "Torn Paper Art Effect",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "task: \"edit-image: add widened torn-paper layered effect\"\n\nbase_image:\n  use_reference_image: true\n  preserve_everything:\n    - character identity\n    - facial features and expression\n    - hairstyle and anatomy\n    - outfit design and colors\n    - background, lighting, composition\n    - overall art style\n\nrules:\n  - Only modify the torn-paper interior areas.\n  - Do not change pose, anatomy, proportions, clothing details, shading, or scene elements.\n\neffects:\n  - effect: \"torn-paper-reveal\"\n    placement: \"across chest height\"\n    description:\n      - Add a wide, natural horizontal tear across the chest area.\n      - The torn interior uses the style defined in `interior_style`.\n\n  - effect: \"torn-paper-reveal\"\n    placement: \"lower abdomen height\"\n    description:\n      - Add a wide horizontal tear across the lower abdomen.\n      - The torn interior uses the style defined in `interior_style`.\n\ninterior_style:\n  mode: \"line-art\"\n\n  style_settings:\n    line-art:\n      palette: \"monochrome\"\n      line_quality: \"clean, crisp\"\n      paper: \"notebook paper with subtle ruled lines\"\n\n    sumi-e:\n      palette: \"black ink tones\"\n      brush_texture: \"soft bleeding edges\"\n      paper: \"plain textured paper\"\n\n    figure-render:\n      material: \"PVC-like\"\n      shading: \"semi-realistic highlights\"\n      paper: \"plain smooth surface\"\n\n    colored-pencil:\n      stroke_texture: \"visible pencil grain\"\n      palette: \"soft layered hues\"\n      paper: \"rough sketchbook paper\"\n\n    watercolor:\n      palette: \"soft transparent pigments\"\n      blending: \"smooth bleeding\"\n      edges: \"soft contours\"\n      paper: \"watercolor paper texture\"\n\n    pencil-drawing:\n      graphite_texture: \"visible pencil grain\"\n      shading: \"smooth gradients\"\n      line_quality: \"mixed sharp and soft\"\n      tone: \"gray-scale\"\n      paper: \"notebook paper with faint ruled lines\"",
+   "source": "Nano Banana Pro 精选",
+   "credit": "てんねん ) - Post"
+  },
+  {
+   "id": "nb-2-16",
+   "title": "Cinematic Keyframe Generator",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "<role>\nYou are an award-winning trailer director + cinematographer + storyboard artist. Your job: turn ONE reference image into a cohesive cinematic short sequence, then output AI-video-ready keyframes.\n</role>\n\n<input>\nUser provides: one reference image (image).\n</input>\n\n<non-negotiable rules - continuity & truthfulness>\n1) First, analyze the full composition: identify ALL key subjects (person/group/vehicle/object/animal/props/environment elements) and describe spatial relationships and interactions (left/right/foreground/background, facing direction, what each is doing).\n2) Do NOT guess real identities, exact real-world locations, or brand ownership. Stick to visible facts. Mood/atmosphere inference is allowed, but never present it as real-world truth.\n3) Strict continuity across ALL shots: same subjects, same wardrobe/appearance, same environment, same time-of-day and lighting style. Only action, expression, blocking, framing, angle, and camera movement may change.\n4) Depth of field must be realistic: deeper in wides, shallower in close-ups with natural bokeh. Keep ONE consistent cinematic color grade across the entire sequence.\n5) Do NOT introduce new characters/objects not present in the reference image. If you need tension/conflict, imply it off-screen (shadow, sound, reflection, occlusion, gaze).\n</non-negotiable rules - continuity & truthfulness>\n\n<goal>\nExpand the image into a 10–20 second cinematic clip with a clear theme and emotional progression (setup → build → turn → payoff).\nThe user will generate video clips from your keyframes and stitch them into a final sequence.\n</goal>\n\n<step 1 - scene breakdown>\nOutput (with clear subheadings):\n- Subjects: list each key subject (A/B/C…), describe visible traits (wardrobe/material/form), relative positions, facing direction, action/state, and any interaction.\n- Environment & Lighting: interior/exterior, spatial layout, background elements, ground/walls/materials, light direction & quality (hard/soft; key/fill/rim), implied time-of-day, 3–8 vibe keywords.\n- Visual Anchors: list 3–6 visual traits that must stay constant across all shots (palette, signature prop, key light source, weather/fog/rain, grain/texture, background markers).\n</step 1 - scene breakdown>\n\n<step 2 - theme & story>\nFrom the image, propose:\n- Theme: one sentence.\n- Logline: one restrained trailer-style sentence grounded in what the image can support.\n- Emotional Arc: 4 beats (setup/build/turn/payoff), one line each.\n</step 2 - theme & story>\n\n<step 3 - cinematic approach>\nChoose and explain your filmmaking approach (must include):\n- Shot progression strategy: how you move from wide to close (or reverse) to serve the beats\n- Camera movement plan: push/pull/pan/dolly/track/orbit/handheld micro-shake/gimbal—and WHY\n- Lens & exposure suggestions: focal length range (18/24/35/50/85mm etc.), DoF tendency (shallow/medium/deep), shutter \"feel\" (cinematic vs documentary)\n- Light & color: contrast, key tones, material rendering priorities, optional grain (must match the reference style)\n</step 3 - cinematic approach>\n\n<step 4 - keyframes for AI video (primary deliverable)>\nOutput a Keyframe List: default 9–12 frames (later assembled into ONE master grid). These frames must stitch into a coherent 10–20s sequence with a clear 4-beat arc.\nEach frame must be a plausible continuation within the SAME environment.\n</step 4 - keyframes for AI video>\n\n<step 5 - contact sheet output (MUST OUTPUT ONE BIG GRID IMAGE)>\nYou MUST additionally output ONE single master image: a Cinematic Contact Sheet / Storyboard Grid containing ALL keyframes in one large image.\n- Default grid: 3x3. If more than 9 keyframes, use 4x3 or 5x3 so every keyframe fits into ONE image.\nRequirements:\n1) The single master image must include every keyframe as a separate panel (one shot per cell) for easy selection.\n2) Each panel must be clearly labeled: KF number + shot type + suggested duration (labels placed in safe margins, never covering the subject).\n3) Strict continuity across ALL panels: same subjects, same wardrobe/appearance, same environment, same lighting & same cinematic color grade; only action/expression/blocking/framing/movement changes.\n4) DoF shifts realistically: shallow in close-ups, deeper in wides; photoreal textures and consistent grading.\n5) After the master grid image, output the full text breakdown for each KF in order so the user can regenerate any single frame at higher quality.\n</step 5 - contact sheet output>\n\n<final output format>\nOutput in this order:\nA) Scene Breakdown\nB) Theme & Story\nC) Cinematic Approach\nD) Keyframes (KF# list)\nE) ONE Master Contact Sheet Image (All KFs in one grid)\n</final output format>",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@underwoodxie96"
+  },
+  {
+   "id": "nb-2-17",
+   "title": "Photo Book Style Magazine Cover with Coordinates",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Create a beautiful, photo book style magazine cover that fully utilizes the 9:16 aspect ratio. Place the attached person at the precise coordinates of [latitude/longitude coordinate], seamlessly blending them into the scene as if they are sightseeing. Approach this task with the understanding that this is a critical page that will significantly influence visitor numbers. NEGATIVE: coordinate texts",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Min Choi ) - Post"
+  },
+  {
+   "id": "nb-2-18",
+   "title": "Floating Country Island Diorama",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Create an ultra-HD, hyper-realistic digital poster of a floating miniature island shaped like [COUNTRY], resting on white clouds in the sky. Blend iconic landmarks, natural landscapes (like forests, mountains, or beaches), and cultural elements unique to [COUNTRY]. Carve \"[COUNTRY]\" into the terrain using large white 3D letters. Add artistic details like birds (native to [COUNTRY]), cinematic lighting, vivid colors, aerial perspective, and sun reflections to enhance realism. Ultra-quality, 4K+ resolution. 1080x1080 format.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "TechieSA ) - Post"
+  },
+  {
+   "id": "nb-2-19",
+   "title": "Novel Scene 3D Poster",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Design a high-quality 3D poster for the movie/novel \"Name to be added\", first retrieving information about the movie/novel and famous scenes.\n\nFirst, please use your knowledge base to retrieve information about this movie/novel and find a representative famous scene or core location. In the center of the image, construct this scene as a delicate axonometric 3D miniature model. The style should adopt DreamWorks Animation's delicate and soft rendering style. You need to reproduce the architectural details, character dynamics, and environmental atmosphere of that time, whether it's a storm or a quiet afternoon, naturally integrating into the model's lighting.\n\nRegarding the background, do not use a simple pure white background. Please create a void environment with faint ink wash diffusion and flowing light mist around the model, with elegant colors, making the image look breathable and have depth, highlighting the preciousness of the central model.\n\nFinally, for the bottom layout, please generate Chinese text. Center the novel title with a font that matches the original style. Below the title, automatically retrieve and typeset a classic description or quote about this scene from the original work, using an elegant serif font. The overall layout should be as精致balanced as a high-end museum exhibit label.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "歸藏 ) - Post"
+  },
+  {
+   "id": "nb-2-20",
+   "title": "Miniature Swimming Pool Diorama",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Surreal miniature-world collage poster featuring an oversized open blue Nivea-style tin repurposed as a whimsical swimming pool filled with glossy white \"cream-water.\" \nTiny sunbathers float in pastel swim rings, lounge on miniature deck chairs, and slide into the cream pool from a small blue slide.\nThe background is a soft, warm, lightly textured countertop surface subtle marble or matte stone, evenly lit, no heavy veins or visual noise. \nKeep the scene grounded with soft shadows beneath props and figures.\nSurrounding the tin, keep the playful diorama elements: a small wooden deck with micro figures, pastel umbrellas, lounge chairs, and compact handcrafted accessories. Maintain the hovering pastel inflatables and plush cloud-like shapes, but ensure they feel like stylised decorative objects staged above the countertop \nPreserve the soft, high-saturation, toy-like aesthetic with plush textures, pastel gradients, and gentle lighting.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Salma ) - Post"
+  },
+  {
+   "id": "nb-2-21",
+   "title": "Christmas Ornament 3D Character",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "A transparent Christmas bauble hanging by a red ribbon. Inside, a tiny diorama of the person from the reference reimagined as a cute 3d chibi character. He works at a mini futuristic AI desk with three glowing holo-screens showing neural networks and code. Add tiny plants, a mini coffee cup, soft desk lighting, floating UI icons, and snow-glitter at the base. Warm magical Christmas glow, cinematic reflections on glass, cozy high-end diorama aesthetic.\n\nCinematic lighting, shallow depth of field, soft reflections on the glass, ultra-polished materials, high detail, festive Christmas atmosphere. Whimsical, premium, and heartwarming.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Pierrick Chevallier | IA ) - Post"
+  },
+  {
+   "id": "nb-2-22",
+   "title": "Ironing Out Wrinkles",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"prompt\": \"An award-winning, hyper-realist macro photograph in the style of high-concept editorial art. The image features an extreme close-up of an elderly woman's eye and cheekbone. A miniature, toy-like white and blue clothes iron is positioned on her skin, actively pressing down and ironing out deep wrinkles and crow's feet, leaving a streak of unnaturally smooth skin in its wake. A thin white cord trails organically across the texture of her face. The image demands microscopic clarity, capturing mascara clumps, skin pores, and vellus hairs. The lighting is an unforgiving, high-contrast hard flash typical of avant-garde fashion photography.\",\n  \"subject_details\": {\n    \"main_subject\": \"Elderly woman's face (Macro topography of aging skin)\",\n    \"object\": \"Miniature white and blue iron with realistic plastic textures and a trailing cord\",\n    \"action\": \"The iron is creating a visible, flattened path through the wrinkles, visually simulating a cosmetic procedure\",\n    \"features\": [\n      \"Piercing brown eye\",\n      \"Clumped mascara on aging lashes\",\n      \"Deeply etched crow's feet contrast with 'ironed' smooth areas\",\n      \"Micro-details: vellus hair, capillaries, makeup powder texture\"\n    ]\n  },\n  \"artistic_style\": {\n    \"genre\": [\"Contemporary Pop-Surrealism\", \"Satirical Editorial\", \"Visual Metaphor\"],\n    \"aesthetic\": [\"Maurizio Cattelan style\", \"Vivid Color\", \"Commercial Kitsch\", \"Tactile Realism\"],\n    \"lighting\": \"Studio Ring Flash, High-Key, Hard Shadows, Glossy finish\",\n    \"composition\": \"Macro Photography, Rule of Thirds focus on the iron\"\n  },\n  \"technical_specs\": {\n    \"camera\": \"Hasselblad H6D-100c\",\n    \"lens\": \"Macro 120mm f/4\",\n    \"film_stock\": \"Kodak Ektar 100\",\n    \"resolution\": \"8k, Unsplash award winner\"\n  },\n  \"mood\": \"Provocative, satirical, disturbingly pristine, humorous yet critical\"\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Ege ) - Post"
+  },
+  {
+   "id": "nb-2-23",
+   "title": "Perfectly Isometric Photography",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Make a photo that is perfectly isometric. It is not a miniature, it is a captured photo that just happened to be perfectly isometric. It is a photo of [subject].",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Nano Banana Pro ) - Post"
+  },
+  {
+   "id": "nb-2-24",
+   "title": "Extreme Wide Angle Phone Screen Replacement",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"edit_type\": \"extreme_wide_angle_phone_edit\",\n  \"source\": {\n    \"_hint\": \"Base for editing the person, clothing, and atmosphere of the original image. No new characters allowed.\",\n    \"mode\": \"EDIT\",\n    \"preserve_elements\": [\"Person\", \"Face\", \"Hairstyle\", \"Clothing\", \"Environment style\"],\n    \"change_rules\": {\n      \"camera_angle\": \"Ultra-wide or fisheye lens (equivalent to 12-18mm)\",\n      \"angle_options\": [\n        \"Looking up from directly in front\",\n        \"Looking down from directly in front\", \n        \"Extreme low angle\",\n        \"High angle\",\n        \"Tilted composition\"\n      ],\n      \"perspective_effect\": \"Nearby objects are exaggerated, distant objects become smaller\",\n      \"body_parts_close_to_camera\": \"Bring 1-3 body parts extremely close to the camera\",\n      \"body_part_options\": [\n        \"Hands\",\n        \"Feet/shoes\",\n        \"Knees/thighs\",\n        \"Face\",\n        \"Shoulders/chest\"\n      ],\n      \"pose_variety\": [\n        \"Extending one hand/leg toward the camera\",\n        \"Squatting or lying on stomach halfway\",\n        \"Sitting on the ground or an object\",\n        \"Lying on the ground with legs pointed at camera\",\n        \"Leaning body sharply toward the camera\",\n        \"Twisting body for dynamic pose\"\n      ]\n    },\n    \"phone_handling\": {\n      \"allowed\": true,\n      \"grip_options\": [\n        \"One-handed\", \n        \"Two-handed\",\n        \"Low angle\",\n        \"High angle\", \n        \"Tilted\",\n        \"Sideways\",\n        \"Close to chest\",\n        \"Close to waist\",\n        \"Casual grip\"\n      ],\n      \"screen_replacement\": {\n        \"target\": \"Only the smartphone screen portion displayed in the image\",\n        \"source\": \"Second reference image\",\n        \"fitting_rules\": \"Strictly match the screen shape, no stretching or compression\",\n        \"interface_rules\": \"No icons, status bars, or app borders; only display content from original image\"\n      }\n    },\n    \"environment_consistency\": {\n      \"location\": \"Maintain the same location as the original image\",\n      \"lighting\": \"Maintain direction and intensity\",\n      \"extension_rules\": \"Maintain the same buildings, walls, road markings, colors, materials, and lighting style\"\n    },\n    \"global_restrictions\": [\n      \"No new characters allowed\",\n      \"No changes to age or gender expression of person\", \n      \"No clothing changes\",\n      \"No changes to location type\",\n      \"No text, logos, or watermarks added to image\",\n      \"No illustration or anime style\"\n    ]\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "骑司Chase ) - Post"
+  },
+  {
+   "id": "nb-2-25",
+   "title": "Shop Window Cartoon Reflection",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"PROMPT\": \"Create a bright, high-end street-fashion photograph of the woman from the reference image, keeping her face, hair, body & outfit exactly the same. She stands outside a luxury toy-shop window, gently touching the glass. Inside the window display, place a full-height cartoon-style doll designed to resemble her—same features, hair, and outfit—transformed into a cute, big-eyed, stylized animated character. Crisp lighting, premium street-fashion look, realistic reflections, face unchanged.\",\n  \"settings\": {\n    \"style\": \"high-end street fashion\",\n    \"lighting\": \"crisp and bright\",\n    \"environment\": \"outside luxury toy-shop window\",\n    \"subject\": \"woman from reference image\",\n    \"focus\": [\"face\", \"hair\", \"body\", \"outfit\"],\n    \"additional_elements\": [\n      {\n        \"type\": \"doll\",\n        \"style\": \"cartoon-style, big-eyed, stylized\",\n        \"location\": \"inside window display\",\n        \"resemblance\": \"exact features, hair, outfit of woman\"\n      }\n    ],\n    \"reflections\": \"realistic\",\n    \"photorealism\": true\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Mira ) - Post"
+  },
+  {
+   "id": "nb-2-26",
+   "title": "Urban 3D LED Display",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "An enormous L-shaped glasses-free 3D LED screen situated prominently at a bustling urban intersection, designed in an iconic architectural style reminiscent of Shinjuku in Tokyo or Taikoo Li in Chengdu. The screen displays a captivating glasses-free 3D animation featuring [scene description]. The characters and objects possess striking depth and appear to break through the screen's boundaries, extending outward or floating vividly in mid-air. Under realistic daylight conditions, these elements cast lifelike shadows onto the screen's surface and surrounding buildings. Rich in intricate detail and vibrant colors, the animation seamlessly integrates with the urban setting and the bright sky overhead.\n\n----\nscene description: \n[An adorable giant kitten playfully paws at passing pedestrians, its fluffy paws and curious face extending realistically into the space around the screen.]",
+   "source": "Nano Banana Pro 精选",
+   "credit": "宝玉 ) - Post"
+  },
+  {
+   "id": "nb-2-27",
+   "title": "Trans-Dimensional Liquid Pour",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"meta\": {\n    \"type\": \"Creative Brief\",\n    \"genre\": \"Hyper-realistic Surrealism\",\n    \"composition_style\": \"Composite Portrait\",\n    \"aspect_ratio\": \"Portrait (implied by 'portrait' description)\"\n  },\n  \"scene_architecture\": {\n    \"viewpoint\": {\n      \"type\": \"Photographic\",\n      \"angle\": \"High-angle / Looking down\",\n      \"framing\": \"Tight on central subject\"\n    },\n    \"dimensional_hierarchy\": {\n      \"rule\": \"Scale disparity for surreal effect\",\n      \"dominant_element\": \"iPhone 17 Pro Max (Super-scaled)\",\n      \"subordinate_elements\": [\"Blue Book (Miniature)\", \"Pen (Miniature)\"]\n    }\n  },\n  \"realm_physical\": {\n    \"description\": \"The real-world environment surrounding the device.\",\n    \"environment\": {\n      \"surface\": \"Wooden table\",\n      \"texture_attributes\": [\"rich grain\", \"tactile\", \"worn\"]\n    },\n    \"lighting_global\": {\n      \"source\": \"Natural light\",\n      \"temperature\": \"Warm\",\n      \"shadow_quality\": \"Soft, diffused, volumetric\"\n    },\n    \"active_agent\": {\n      \"identity\": \"Human Hand (Real)\",\n      \"action\": \"Pouring\",\n      \"position\": \"Entering frame laterally\"\n    },\n    \"held_object\": {\n      \"item\": \"Bottle\",\n      \"state\": \"Chilled (visible condensation)\",\n      \"branding\": {\n        \"logo_text\": \"Decamin\",\n        \"placement\": \"Visible on label\"\n      },\n      \"contents\": {\n        \"substance\": \"Water\",\n        \"color\": \"Light Green\",\n        \"state\": \"Liquid flow\"\n      }\n    },\n    \"static_props\": [\n      {\n        \"item\": \"Book\",\n        \"color\": \"Blue\",\n        \"scale_notes\": \"Significantly smaller than phone\"\n      },\n      {\n        \"item\": \"Pen\",\n        \"type\": \"Ballpoint/Ink\",\n        \"scale_notes\": \"Significantly smaller than phone\"\n      }\n    ]\n  },\n  \"realm_digital\": {\n    \"description\": \"The content displayed on the screen.\",\n    \"container_device\": {\n      \"model\": \"iPhone 17 Pro Max\",\n      \"state\": \"Screen ON\",\n      \"orientation\": \"Flat on physical surface\"\n    },\n    \"screen_content\": {\n      \"subject_identity\": \"mqn (Reference ID)\",\n      \"subject_scale\": \"Close-up (filling screen)\",\n      \"expression\": \"Happy / Smiling\",\n      \"attire\": \"Winter clothing (matching reference)\",\n      \"setting\": \"Winter landscape / snowy backdrop\",\n      \"held_object_digital\": {\n        \"item\": \"Drinking Glass\",\n        \"branding\": {\n          \"logo_text\": \"Decamin\",\n          \"visibility\": \"Clear\"\n        },\n        \"initial_state\": \"Empty (waiting for pour)\"\n      }\n    }\n  },\n  \"surreal_bridge_event\": {\n    \"description\": \"The interaction connecting the physical and digital realms.\",\n    \"action_type\": \"Trans-dimensional Fluid Dynamics\",\n    \"source\": \"realm_physical.held_object.contents (Light Green Water)\",\n    \"interaction_point\": \"realm_digital.container_device.screen_surface\",\n    \"destination\": \"realm_digital.screen_content.held_object_digital (The Glass)\",\n    \"physics_violation_rules\": {\n      \"rule_1\": \"Liquid does not splash off the glass screen surface.\",\n      \"rule_2\": \"Screen surface acts as a permeable membrane solely for this liquid.\",\n      \"rule_3\": \"Physical liquid transitions seamlessly into digital representation upon contact.\"\n    },\n    \"visual_details\": [\"Sharp liquid simulation\", \"No surface tension on screen glass\", \"Fluid physically filling digital cup\"]\n  },\n  \"rendering_specifications\": {\n    \"visual_fidelity\": \"Hyper-realistic\",\n    \"texture_focus\": [\"Sharp fluid details\", \"Glass pixels\", \"Wood grain\", \"Skin texture (hand and subject)\"],\n    \"mood\": \"Cinematic, warm, magical\",\n    \"resolution_target\": \"8K / Highly detailed\"\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Yaseen Khan Gul ) - Post"
+  },
+  {
+   "id": "nb-2-28",
+   "title": "Fisheye Matcha Girl",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"scene\": {\n    \"environment\": \"sunny_boardwalk\",\n    \"details\": \"wooden_planks, colorful_stalls, people_walking, distant_umbrellas\",\n    \"lighting\": \"bright_midday_sun\",\n    \"sky\": \"clear_blue\"\n  },\n  \"camera\": {\n    \"lens\": \"ultra_wide_fisheye_12mm\",\n    \"distance\": \"very_close_up\",\n    \"distortion\": \"strong_exaggeration\",\n    \"angle\": \"slightly_low_upward\"\n  },\n  \"subject\": {\n    \"type\": \"young_person\",\n    \"gender\": \"neutral\",\n    \"expression\": \"curious_playful\",\n    \"eyes\": \"large_due_to_lens_distortion\",\n    \"pose\": \"leaning_forward_sipping_drink\",\n    \"clothing\": {\n      \"top\": \"bright_green_knit_sweater\",\n      \"accessory\": \"chunky_blue_sunglasses\"\n    }\n  },\n  \"drink\": {\n    \"type\": \"iced_matcha_latte\",\n    \"ice_cubes\": \"large_clear\",\n    \"cup\": \"transparent_plastic\",\n    \"straw\": \"green_white_spiral\"\n  },\n  \"effects\": {\n    \"depth_of_field\": \"shallow_foreground_sharp_background_soft\",\n    \"reflections\": \"glasses_show_boardwalk_and_people\",\n    \"color_grade\": \"clean_natural\"\n  },\n  \"composition\": {\n    \"focus\": \"face_extreme_closeup\",\n    \"mood\": \"funny_intimate_casual\",\n    \"background_elements\": [\n      \"distant_people\",\n      \"benches\",\n      \"bright_shops\"\n    ]\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Ege ) - Post"
+  },
+  {
+   "id": "nb-2-29",
+   "title": "Canon IXUS Aesthetic Portrait",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "{\n  \"image_parameters\": {\n    \"style\": \"Canon IXUS aesthetic\",\n    \"type\": \"Point-and-shoot photography\",\n    \"quality\": \"Hyper-realistic\",\n    \"tone\": \"Sharp, direct\",\n    \"lighting_and_atmosphere\": \"Realistic, flash-style/direct lighting\"\n  },\n  \"subject\": {\n    \"constraints\": {\n      \"facial_identity\": \"Match reference image exactly 100%\",\n      \"face_edits\": \"None allowed\"\n    },\n    \"hair\": {\n      \"style\": \"Long, natural, lightly messy layered look\",\n      \"movement\": \"Blowing gently in the wind\",\n      \"details\": \"Strands slightly covering part of face\"\n    },\n    \"makeup\": {\n      \"cheeks_and_nose\": \"Soft pink blush with blurred effect\",\n      \"lips\": \"Subtle pink-orange tinted outline\"\n    },\n    \"expression\": [\n      \"Cute\",\n      \"Naive\",\n      \"Cheerful\",\n      \"Slightly sexy/undone charm\"\n    ],\n    \"pose\": {\n      \"body_position\": \"Half-sitting, half-standing\",\n      \"action\": \"Flicking hair\"\n    },\n    \"clothing\": {\n      \"top\": \"Black strapless top\",\n      \"bottom\": \"Low-waisted jeans with a floating waistline\",\n      \"neck\": \"Thin black fabric choker/wrap\"\n    },\n    \"accessories\": [\n      \"Small pendant necklace\",\n      \"Gold watch\"\n    ]\n  },\n  \"environment\": {\n    \"setting\": \"Modern pub\",\n    \"foreground_props\": [\n      \"Round table\",\n      \"Bottle of liquor\",\n      \"Glass of liquor\"\n    ]\n  }\n}",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Lex ) - Post"
+  },
+  {
+   "id": "nb-2-30",
+   "title": "Hyperrealistic Anime Portrait Spotlight",
+   "category": "创意实验",
+   "tags": [
+    "实战",
+    "创意实验"
+   ],
+   "prompt": "Generate a hyperrealistic realistic-anime portrait of a female character standing in a completely black background.\nLighting: use a **narrow beam spotlight** focused only on the center of the face. \nThe edges of the light must be sharp and dramatic. \nAll areas outside the spotlight should fall quickly into deep darkness \n(high falloff shadow), almost blending into the black background. \nNot soft lighting.\nHair: long dark hair with some strands falling over the face. The lower parts of the hair should fade into the shadows.\nPose: one hand raised gently to the lips in a shy, hesitant gesture. \nEyes looking directly at the camera with a mysterious mood.\nClothing: black long-sleeve knit sweater; \nthe sweater and body should mostly disappear into the darkness with minimal detail.\nOverall tone: dark, moody, dramatic, mysterious. \nHigh-contrast only in the lit portion of the face. \nEverything outside the spotlight should be nearly invisible.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Anissa ) - Post"
+  },
+  {
+   "id": "nb-3-1",
+   "title": "Concept Visualization (Text to Infographic)",
+   "category": "教育与知识",
+   "tags": [
+    "实战",
+    "教育与知识"
+   ],
+   "prompt": "Create an educational infographic explaining [Photosynthesis] . Visual Elements : Illustrate the key components: The Sun, a green Plant, Water (H2O) entering roots, Carbon Dioxide (CO2) entering leaves, and Oxygen (O2) being released. Style : Clean, flat vector illustration suitable for a high school science textbook. Use arrows to show the flow of energy and matter. Labels : Label each element clearly in English .",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-3-2",
+   "title": "Kids' Crayon Travel Journal Illustrator",
+   "category": "教育与知识",
+   "tags": [
+    "实战",
+    "教育与知识"
+   ],
+   "prompt": "--- Prompt ---\n\nPlease create a vibrant, child-like crayon-style vertical (9:16) illustration titled \"{City Name} Travel Journal.\"  \nThe artwork should look as if it were drawn by a curious child using colorful crayons, featuring a soft, warm light-toned background (such as pale yellow), combined with bright reds, blues, greens, and other cheerful colors to create a cozy, playful travel atmosphere.\n\nI. Main Scene: Travel-Journal Style Route Map\n\nIn the center of the illustration, draw a \"winding, zigzagging travel route\" with arrows and dotted lines connecting multiple locations.  \nThe route should automatically generate recommended attractions based on {Number of Days}:\n\nExample structure (auto-filled with {City Name}-related content):\n\n- \"Stop 1: {Attraction 1 + short fun description}\"\n- \"Stop 2: {Attraction 2 + short fun description}\"\n- \"Stop 3: {Attraction 3 + short fun description}\"\n- …\n- \"Final Stop: {Local signature food or souvenir + warm closing remark}\"\n\nRules:\n- If no number of days is provided, default to a 1-day highlight itinerary.\n\nII. Surrounding Playful Elements (Auto-adapt to the City)\n\nAdd many cute doodles and child-like decorative elements around the route, such as:\n\n1. Adorable travel characters\n   - A child holding a local snack  \n   - A little adventurer with a backpack\n\n2. Q-style hand-drawn iconic landmarks\n   - \"{City Landmark 1}\"\n   - \"{City Landmark 2}\"\n   - \"{City Landmark 3}\"\n\n3. Funny signboards\n   - \"Don't get lost!\"\n   - \"Crowds ahead!\"\n   - \"Yummy food this way!\"  \n   (Auto-adjust contextually for the city)\n\n4. Sticker-style short phrases\n   - \"{City Name} travel memories unlocked!\"\n   - \"{City Name} food adventure!\"\n   - \"Where to next?\"\n\n5. Cute icons of local foods\n   - \"{Local Food 1}\"\n   - \"{Local Food 2}\"\n   - \"{Local Food 3}\"\n\n6. Childlike exclamations\n   - \"I didn't know {City Name} was so fun!\"\n   - \"I want to come again!\"\n\nIII. Overall Art Style Requirements\n\n- Crayon / children's hand-drawn travel diary style  \n- Bright, warm, colorful palette  \n- Cozy but full and lively composition  \n- Emphasize the joy of exploring  \n- All text should be in a cute handwritten font  \n- Make the entire page feel like a young child's fun travel-journal entry",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@dotey"
+  },
+  {
+   "id": "nb-3-3",
+   "title": "Financial Sankey Diagram Visualization",
+   "category": "教育与知识",
+   "tags": [
+    "实战",
+    "教育与知识"
+   ],
+   "prompt": "[Subject]: A professional financial Sankey diagram visualizing the Income Statement of a major corporation, in the style of \"App Economy Insights\" and US corporate financial reports.[Visual Style]: High-fidelity vector infographic, clean minimalist aesthetic, flat design. The background is a clean, very light grey or off-white.[Color Strategy - CRITICAL]:\nAnalyze the [Insert Brand Name Here] logo. Extract its primary brand color (e.g., if Nvidia use neon green, if Meta use blue, if Tesla use red).\nUse this primary color as the dominant theme for the main revenue flows and profit blocks.\nCreate a harmonious color palette based on this primary color: use saturated shades for the vertical nodes (bars) and semi-transparent, lighter opacity gradients for the flowing paths to ensure a cohesive and professional look. Avoid clashing colors.[Composition & Structure]:\nFlow: A horizontal flow from Left (Revenue Sources) to Right (Net Profit).\nTexture: The connecting paths (flows) must appear \"silky smooth\" with elegant Bezier curves, looking like liquid ribbons, not jagged lines.\nIconography: On the left side (Revenue sources), include specific, minimalist flat vector icons representing the business segments (e.g., a car icon for automotive, a cloud icon for services, a chip icon for hardware).\nBranding: Place the official [Insert Brand Name Here] logo clearly at the top center or near the central revenue bar.[Details]: High resolution, 4k, sharp typography (sans-serif), professional data visualization layout. The chart clearly distinguishes between Revenue, Gross Profit, Operating Expenses, and Net Profit.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "饼干哥哥AGI（2.0） ) - Post"
+  },
+  {
+   "id": "nb-4-1",
+   "title": "Virtual Model Try-On",
+   "category": "电商与虚拟影棚",
+   "tags": [
+    "实战",
+    "电商与虚拟影棚"
+   ],
+   "prompt": "Using Image 1 (the garment) and Image 2 (the model), create a hyper-realistic full-body fashion photo where the model is wearing the garment. Crucial Fit Details : The [T-shirt/Jacket] must drape naturally on the model's body, conforming to their posture and creating realistic folds and wrinkles . High-Fidelity Preservation : Preserve the original fabric texture, color, and any logos from Image 1 with extreme accuracy. Seamless Integration : Blend the garment into Image 2 by perfectly matching the ambient lighting, color temperature, and shadow direction . Photography Style : Clean e-commerce lookbook, shot on a Canon EOS R5 with a 50mm f/1.8 lens for a natural, professional look.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-4-2",
+   "title": "Professional Product Photography",
+   "category": "电商与虚拟影棚",
+   "tags": [
+    "实战",
+    "电商与虚拟影棚"
+   ],
+   "prompt": "Identify the main product in the uploaded photo (automatically removing any hands holding it or messy background details). Recreate it as a premium e-commerce product shot . Subject Isolation : Cleanly extract the product, completely removing any fingers, hands, or clutter . Background : Place the product on a pure white studio background (RGB 255, 255, 255) with a subtle, natural contact shadow at the base to ground it. Lighting : Use soft, commercial studio lighting to highlight the product's texture and material. Ensure even illumination with no harsh glare. Retouching : Automatically fix any lens distortion, improve sharpness, and color-correct to make the product look brand new and professional .",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-4-3",
+   "title": "3D Chibi-Style Miniature Brand Store",
+   "category": "电商与虚拟影棚",
+   "tags": [
+    "实战",
+    "电商与虚拟影棚"
+   ],
+   "prompt": "3D chibi-style miniature concept store of {Brand Name}, creatively designed with an exterior inspired by the brand's most iconic product or packaging (such as a giant {brand's core product, e.g., chicken bucket/hamburger/donut/roast duck}). The store features two floors with large glass windows clearly showcasing the cozy and finely decorated interior: {brand's primary color}-themed decor, warm lighting, and busy staff dressed in outfits matching the brand. Adorable tiny figures stroll or sit along the street, surrounded by benches, street lamps, and potted plants, creating a charming urban scene. Rendered in a miniature cityscape style using Cinema 4D, with a blind-box toy aesthetic, rich in details and realism, and bathed in soft lighting that evokes a relaxing afternoon atmosphere. --ar 2:3",
+   "source": "Nano Banana Pro 精选",
+   "credit": "宝玉 ) - Post"
+  },
+  {
+   "id": "nb-4-4",
+   "title": "Room Furnishing Visualization",
+   "category": "电商与虚拟影棚",
+   "tags": [
+    "实战",
+    "电商与虚拟影棚"
+   ],
+   "prompt": "Show me how this room would look with furniture in it",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@NanoBanana"
+  },
+  {
+   "id": "nb-5-1",
+   "title": "Hand-drawn Flowchart to Corporate Charts",
+   "category": "职场与效率",
+   "tags": [
+    "实战",
+    "职场与效率"
+   ],
+   "prompt": "Convert this hand-drawn whiteboard sketch into a professional corporate flowchart suitable for a business presentation. Style Guide : Use a minimalist 'McKinsey-style' aesthetic : clean lines, ample whitespace, and a sophisticated blue-and-gray color palette. Structure : Automatically align all boxes and diamonds to a strict grid . Connect them with straight, orthogonal arrows (90-degree angles only, no curvy lines). Text : Transcribe the handwritten labels into a clear, bold Sans-Serif font (like Arial or Roboto). Output : High-resolution vector-style image on a pure white background.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-5-2",
+   "title": "UI Hand-drawn Sketch to High-Fidelity Prototype",
+   "category": "职场与效率",
+   "tags": [
+    "实战",
+    "职场与效率"
+   ],
+   "prompt": "Transform this rough wireframe sketch into a high-fidelity UI design mockups for a mobile app. Design System : Apply a modern, clean aesthetics similar to iOS 18 or Material Design 3 . Use rounded corners, soft drop shadows, and a vibrant primary color. Components : Intelligently interpret the sketch: turn scribbles into high-quality placeholder images , convert rough rectangles into proper buttons with gradients , and turn lines into realistic text blocks . Layout : Ensure perfect padding and consistent spacing between elements. Context : Place the design inside a realistic iPhone 16 frame mockups.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-5-3",
+   "title": "Magazine Layout Generator",
+   "category": "职场与效率",
+   "tags": [
+    "实战",
+    "职场与效率"
+   ],
+   "prompt": "Put this whole text, verbatim, into a photo of a glossy magazine article on a desk, with photos, beautiful typography design, pull quotes and brave formatting. The text: [...the unformatted article]",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@fofrAI"
+  },
+  {
+   "id": "nb-6-1",
+   "title": "Composition Rescue (Smart Outpainting)",
+   "category": "修图与修复",
+   "tags": [
+    "实战",
+    "修图与修复"
+   ],
+   "prompt": "Zoom out and expand this image to a 16:9 aspect ratio (computer wallpaper size). Context Awareness : Seamlessly extend the scenery on both left and right sides. Match the original lighting, weather, and texture perfectly. Logical Completion : If there are cut-off objects (like a shoulder, a tree branch, or a building edge) on the borders, complete them naturally based on logical inference. Do not distort the original center image.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-6-2",
+   "title": "Smart Crowd Removal",
+   "category": "修图与修复",
+   "tags": [
+    "实战",
+    "修图与修复"
+   ],
+   "prompt": "Remove all the tourists/people in the background behind the main subject. Intelligent Fill : Replace them with realistic background elements that logically fit the scene (e.g., extend the cobblestone pavement, empty park benches, or grass textures). Consistency : Ensure no blurry artifacts or 'smudges' remain. The filled area must have the same grain, focus depth, and lighting as the rest of the photo.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-6-3",
+   "title": "Face Detection CCTV Simulation",
+   "category": "修图与修复",
+   "tags": [
+    "实战",
+    "修图与修复"
+   ],
+   "prompt": "Create a high angle CCTV surveillance shot using the uploaded image as the source. Detect every visible person in the image and automatically draw a white rectangular bounding box around each face. For the most prominent person, add a large zoom in inset: a sharp, enhanced close-up of their face displayed in a floating rectangular frame connected with a thin white line.Keep the main image slightly noisy and security camera like (soft grain, slight distortion, muted colors), while the zoom in face box should be clearer, brighter, and more detailed. No text, no timestamps, no overlays except the boxes and connecting line. Maintain the original scene layout, angle, and environment of the uploaded image.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "@egeberkina"
+  },
+  {
+   "id": "nb-7-1",
+   "title": "Hard Furnishing Preview (Floor Plan to Design)",
+   "category": "室内设计",
+   "tags": [
+    "实战",
+    "室内设计"
+   ],
+   "prompt": "Based on the uploaded 2D floor plan, generate a professional interior design presentation board in a single image. Layout : The final image should be a collage with one large main image at the top, and several smaller images below it. Content of Each Panel :\n1. Main Image (Top) : A wide-angle perspective view of the main living area , showing the connection between the living room and dining area.\n2. Small Image (Bottom Left) : A view of the Master Bedroom , focusing on the bed and window.\n3. Small Image (Bottom Middle) : A view of the Home Office / Study room .\n4. Small Image (Bottom Right) : A 3D top-down floor plan view showing the furniture layout. Overall Style : Apply a consistent Modern Minimalist style with warm oak wood flooring and off-white walls across ALL images. Quality : Photorealistic rendering, soft natural lighting.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-8-1",
+   "title": "Viral Cover Image (Youtube/Douyin/TikTok)",
+   "category": "社媒与营销",
+   "tags": [
+    "实战",
+    "社媒与营销"
+   ],
+   "prompt": "Design a viral video thumbnail using the person from Image 1. Face Consistency : Keep the person's facial features exactly the same as Image 1 , but change their expression to look excited and surprised . Action : Pose the person on the left side, pointing their finger towards the right side of the frame. Subject : On the right side, place a high-quality image of [a delicious avocado toast]. Graphics : Add a bold yellow arrow connecting the person's finger to the toast. Text : Overlay massive, pop-style text in the middle: '3分钟搞定!' (Done in 3 mins!). Use a thick white outline and drop shadow. Background : A blurred, bright kitchen background. High saturation and contrast.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-8-2",
+   "title": "Commercial Promotional Poster",
+   "category": "社媒与营销",
+   "tags": [
+    "实战",
+    "社媒与营销"
+   ],
+   "prompt": "Design a professional promotional poster for a [Coffee Shop]. Composition : A cinematic close-up of a steaming cup of cappuccino on a rustic wooden table, autumn leaves in the background (cozy atmosphere). Text Integration :\n1. Main Title : 'Autumn Special' written in elegant, gold serif typography at the top.\n2. Offer : 'Buy One Get One Free' clearly displayed in a modern badge or sticker style on the side.\n3. Footer : 'Limited Time Only' in small, clean text at the bottom. Quality : Ensure all text is perfectly spelled, centered, and integrated into the image's depth of field.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-9-1",
+   "title": "Physical Store/Travel Translation",
+   "category": "生活与翻译",
+   "tags": [
+    "实战",
+    "生活与翻译"
+   ],
+   "prompt": "Translate the Chinese dish names on the wall menu into English for foreign tourists. Texture Preservation : Crucial! Maintain the original aged, greasy, and textured look of the wall/paper. The new English text should look like it was written/printed on the same surface, with slight fading or wear to match. Currency : Keep the '¥' symbol and price numbers exactly as they are ; do not convert currency. Layout : align the English translations next to or replacing the Chinese characters naturally.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-9-2",
+   "title": "Digital Content Localization (Comics/Memes)",
+   "category": "生活与翻译",
+   "tags": [
+    "实战",
+    "生活与翻译"
+   ],
+   "prompt": "Translate the text in the speech bubbles/captions from [Japanese/English] to [Chinese]. Seamless Cleaning : Erase the original text and perfectly fill the background (e.g., the white speech bubble or the colored image background). Style Matching : Render the translated Chinese text using a casual, handwritten-style font (or bold impact font for memes) that matches the aesthetic of the original image. Fit : Ensure the text fits naturally within the bubbles without overcrowding.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-10-1",
+   "title": "3D Blind Box Style Avatar",
+   "category": "社交与头像",
+   "tags": [
+    "实战",
+    "社交与头像"
+   ],
+   "prompt": "Transform the person in the uploaded photo into a cute 3D Pop Mart style blind box character . Likeness : Keep key features recognizable: [hair color, glasses, hairstyle]. Style : C4D rendering, occlusion render, cute Q-version , soft studio lighting, pastel colors. Background : A simple, solid matte color background (e.g., soft blue). Detail : The character should have a smooth, plastic toy texture with a slight glossy finish. Facing forward, friendly expression.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-10-2",
+   "title": "Pet Meme Creation",
+   "category": "社交与头像",
+   "tags": [
+    "实战",
+    "社交与头像"
+   ],
+   "prompt": "Turn this photo of my [cat/dog] into a funny hand-drawn WeChat sticker . Style : Minimalist ugly-cute line drawing (doodle style). White background. Expression : Exaggerate the animal's expression to look extremely shocked/judgemental/lazy (based on photo). Accessories : Add cute little doodles like sweat drops, question marks, or sparkles around the head. Text : Add handwritten text at the bottom: 'So Dumb'. Ensure the text style is messy and funny.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "WeChat Article"
+  },
+  {
+   "id": "nb-10-3",
+   "title": "Y2K Scrapbook Poster with Multiple Poses",
+   "category": "社交与头像",
+   "tags": [
+    "实战",
+    "社交与头像"
+   ],
+   "prompt": "facelock_identity\": \"true\",\n\"accuracy\": \"100%\",\nscene\"Colorful Y2K scrapbook poster aesthetic, vibrant stickers, multiple subjects wearing the same outfit and hairstyle with different poses and cutouts, colorful strokes and lines, frameless collage style. Includes: close-up shot with heart-shape fingers, full-body squatting pose supporting chin while holding a white polaroid camera, mid-shot touching cheek while blowing pink bubblegum, mid-shot smiling elegantly while holding a cat ,seated elegantly with one eye winking and peace sign, and mid-shot holding daisy flowers. Holographic textures, pastel gradients, glitter accents, playful doodles, magazine cut-out graphics, chaotic yet balanced layout, extremely artistic and visually engaging\",\nmain_subject\": {\n\"description\": \"A young Y2K-styled woman as the main focus in the center of the scrapbook collage.\",\n\"style_pose\": \"Playful and confident Y2K pose — slight side hip pop, one hand holding a lens-flare keychain, face toward the camera with a cute-cool expression, slight pout, candid early-2000s photo vibe.\"\noutfit\": {\n\"top\": \"Cropped oversized sweater in pastel color with embroidered patches\",\n\"bottom\": \"pastel skirt with a white belt\",\n\"socks\": \"White ankle socks with colorful pastel stripes\",\n\"shoes\": \"white sneakers\",\n\"accessories\": [\n\"Colorful plastic bracelets\",\n\"Chunky colorful rings\",\n\"Sparkling belly chain\",\n\"hairstyle\": \n\"type\": \"Y2K half-up half-down\",\n\"details\": \"Pastel flowers clips,thin front tendrils, wavy dark brown hair with bubblegum-pink tint on the lower strands, iconic early-2000s look.\"\nadditional_visuals\": \n\"Heart, star, and butterfly stickers\",\n\"Retro sparkles\",\n\"Polaroid frames\",\n\"Neon outlines\",\n\"Doodle borders\",\n\"Magazine cutout texts: 'SO CUTE!', '199X!', 'GIRL VIBES'\",\n\"Pastel lighting\",\n\"Glossy dreamy retro glow\",\n\"Ultra-aesthetic scrapbook layout\"\nphotography_rendering\": {\n\"color_grading\": \"Cinematic neon Y2K\",\n\"lighting\": \"Soft flash lighting\",\"skin_texture\": \"Smooth glossy finish\",\n\"rendering\": \"High-detail hyperrealistic Y2K scrapbook tone\",\n\"quality\": \"8K\",\n\"composition\": \"Perfectly balanced and artistic\"\nnegative_prompt\": \"no realism that breaks Y2K aesthetic, no modern 2020s clothing, no messy composition, no blurry face, no distorted hands, no extra limbs, no face warping, no low resolution, no grain, no muted colors, no watermark, no AI artifacts\"",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Shreya Yadav ) - Post"
+  },
+  {
+   "id": "nb-10-4",
+   "title": "Japanese High School Student Snap Photo",
+   "category": "社交与头像",
+   "tags": [
+    "实战",
+    "社交与头像"
+   ],
+   "prompt": "A daily snapshot taken with a low-quality disposable camera. A clumsy photo taken by a Japanese high school student. (Aspect ratio 3:2 is recommended)",
+   "source": "Nano Banana Pro 精选",
+   "credit": "SSSS_CRYPTOMAN ) - Post"
+  },
+  {
+   "id": "nb-10-5",
+   "title": "AI Skin Analysis and Skincare Routine",
+   "category": "社交与头像",
+   "tags": [
+    "实战",
+    "社交与头像"
+   ],
+   "prompt": "You are a professional skin analyst and skincare expert.\nThe user uploads a close-up photo of their face and may add short notes (age, allergies, current routine, pregnancy, etc.). Use ONLY what you see in the image plus the user text.\n 1. Carefully inspect the skin: shine, pores, redness, blemishes, spots, texture, flaking, fine lines, dark circles, etc.\n 2. Decide the main skin type: oily, dry, normal, combination, or sensitive.\n 3. Identify visible issues: acne/breakouts, blackheads/whiteheads, post-acne marks, hyperpigmentation, redness, enlarged pores, uneven texture, dehydration, fine lines, dark circles, puffiness, etc.\n\nRESPONSE FORMAT (very important)\n\nYour answer must be plain text in this exact structure:\n 1. First, write 3–6 short lines describing the skin and problems, for example:\n\n • overall skin type and how you know\n • where the main issues appear (forehead, cheeks, nose, chin, jawline, under-eyes)\n • how severe they look (mild / moderate / severe).\n\n 2. On a new line, write the word in caps:\nSKIN ROUTINE\n 3. Under SKIN ROUTINE, give at least 5 numbered steps (1., 2., 3., …).\nEach step must include:\n\n • what to do (e.g. \"Cleanser\", \"Treatment serum\", \"Moisturizer\", \"Sunscreen\", \"Night treatment\"),\n • product TYPE and key INGREDIENTS to look for (no brand names),\n • when to use it (AM, PM, or both) and how often,\n • 1 short practical instruction (how to apply, how much, any caution).\n\nFocus on over-the-counter products only (no prescription or medical diagnosis).\nIf acne or irritation looks very severe or infected, clearly but kindly suggest visiting a dermatologist.\nKeep the tone supportive, simple and clear.",
+   "source": "Nano Banana Pro 精选",
+   "credit": "Saman | AI ) - Post"
+  }
+ ]
+}

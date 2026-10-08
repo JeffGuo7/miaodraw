@@ -117,6 +117,7 @@ function resolveOutputPath(name: string): string | null {
 
 // ---------- 设置 ----------
 let libPromise: Promise<unknown> | null = null
+let stylesPromise: Promise<unknown> | null = null
 
 interface Settings {
   model?: string
@@ -529,6 +530,21 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] edit:', edited)
     check('edit', String(edited).startsWith('OK:') ? edited : `ERR:图像编辑失败 ${edited}`)
   }
+  // 风格库冒烟：校验内置数据条数，并打开抽屉确认渲染
+  if (process.env.SHOT_STYLES === '1') {
+    const count = await w.webContents.executeJavaScript(
+      `window.api.styles().then(d => 'OK:' + (d.count || 0) + '条/' + (d.groups ? d.groups.length : 0) + '组').catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] styles data:', count)
+    await w.webContents.executeJavaScript(
+      `(() => { const b = document.querySelector('.style-lib-btn'); if (b) b.click(); return !!b })()`
+    )
+    await new Promise((r) => setTimeout(r, 1800))
+    const cards = await w.webContents.executeJavaScript(`document.querySelectorAll('.style-card').length`)
+    console.log('[shot] styles cards:', cards)
+    const n = Number(String(count).match(/OK:(\d+)条/)?.[1] ?? 0)
+    check('styles', n > 100 && Number(cards) > 0 ? `OK:${n}条 · 抽屉渲染${cards}张卡片` : `ERR:风格库未就绪 (${count} / cards=${cards})`)
+  }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
       `document.querySelectorAll('.ant-menu-item')[${VIEW_INDEX.library}].click()`
@@ -731,6 +747,21 @@ function registerIpc(): void {
       })
     }
     return libPromise
+  })
+
+  /** 内置风格/提示词库（library/styles.json，随包分发；由 scripts/build-styles.cjs 生成） */
+  handle('styles', () => {
+    if (!stylesPromise) {
+      stylesPromise = fsp
+        .readFile(path.join(LIB_ROOT, 'styles.json'), 'utf-8')
+        .then((t) => JSON.parse(t.replace(/^\uFEFF/, '')) as unknown)
+        .catch((e) => {
+          stylesPromise = null
+          log('warn', `styles.json 读取失败：${e instanceof Error ? e.message : String(e)}`)
+          return { version: 1, groups: [], styles: [], count: 0 }
+        })
+    }
+    return stylesPromise
   })
 
   handle('history', async () => {

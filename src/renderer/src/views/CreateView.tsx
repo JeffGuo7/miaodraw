@@ -22,6 +22,7 @@ import {
   Upload
 } from 'antd'
 import {
+  AppstoreOutlined,
   CheckOutlined,
   DeleteOutlined,
   DownloadOutlined,
@@ -37,10 +38,11 @@ import {
   SendOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
-import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig, RefImage, RefRole } from '../types'
+import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig, RefImage, RefRole, StyleEntry } from '../types'
 import { byCap, modelKey, providerDef, providerLabel, refLimit, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
 import ImageEditModal from './ImageEditModal'
+import StyleLibrary from './StyleLibrary'
 import { touchActiveModel } from './StatusBar'
 import { mediaUrlData, mediaUrlToFile } from '../utils'
 
@@ -142,6 +144,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [agentSteps, setAgentSteps] = useState<Array<{ label: string; done: boolean }>>([])
   const [agentReply, setAgentReply] = useState('')
   const [editOpen, setEditOpen] = useState(false)
+  const [styleOpen, setStyleOpen] = useState(false)
 
   // 真实阶段进度（主进程推送）
   useEffect(() => {
@@ -353,6 +356,11 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   async function reroll(): Promise<void> {
     // 必须显式传 0（主进程随机）：setSeedNum(null) 要下次渲染才生效，本闭包里还是旧种子
     await doGenerate(0)
+  }
+
+  /** 套用内置风格：已有描述时拼接（保留用户的主体描述），否则直接填入 */
+  function pickStyle(s: StyleEntry): void {
+    setPrompt((p) => (p.trim() ? `${p.trim()}\n\n${s.prompt}` : s.prompt))
   }
 
   /** 图像编辑完成：结果接在当前图后面（版本链），作品目录与历史都能看到 */
@@ -568,18 +576,25 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             </div>
           )}
 
-          <Typography.Text className="field-label">
-            画面描述
-            {mode === 'fusion' && refItems.length > 0 && (
-              <span className="ref-tokens">
-                {refItems.map((r, i) => (
-                  <Tag key={r.id} className="ref-token" onClick={() => insertRefToken(i + 1)}>
-                    图{i + 1}
-                  </Tag>
-                ))}
-              </span>
-            )}
-          </Typography.Text>
+          <div className="field-label-row">
+            <Typography.Text className="field-label" style={{ margin: 0 }}>
+              画面描述
+              {mode === 'fusion' && refItems.length > 0 && (
+                <span className="ref-tokens">
+                  {refItems.map((r, i) => (
+                    <Tag key={r.id} className="ref-token" onClick={() => insertRefToken(i + 1)}>
+                      图{i + 1}
+                    </Tag>
+                  ))}
+                </span>
+              )}
+            </Typography.Text>
+            <Tooltip title="内置风格与提示词库（手绘风格 / 商业模板 / 实战提示词）">
+              <Button size="small" type="text" className="style-lib-btn" icon={<AppstoreOutlined />} onClick={() => setStyleOpen(true)}>
+                风格库
+              </Button>
+            </Tooltip>
+          </div>
           {mode === 'fusion' && (
             <div className="ref-templates">
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -913,6 +928,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           onClose={() => setEditOpen(false)}
           onDone={onEditDone}
         />
+        <StyleLibrary open={styleOpen} onClose={() => setStyleOpen(false)} onPick={pickStyle} />
       </Col>
     </Row>
   )

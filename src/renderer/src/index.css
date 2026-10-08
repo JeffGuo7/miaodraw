@@ -416,6 +416,55 @@ body {
   box-shadow: 0 0 0 1px #0071e3;
 }
 
+/* ---------- 风格库 ---------- */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.style-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.style-card {
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: #fff;
+  transition: box-shadow 0.16s, border-color 0.16s;
+}
+
+.style-card:hover {
+  border-color: rgba(0, 113, 227, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.style-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.style-prompt {
+  margin-bottom: 6px !important;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.style-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .create-main {
   min-width: 0;
 }

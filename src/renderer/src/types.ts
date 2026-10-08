@@ -85,6 +85,25 @@ export interface GenParams {
   refs?: SidecarRefInfo[]
 }
 
+/** 内置风格/提示词库条目 */
+export interface StyleEntry {
+  id: string
+  title: string
+  category: string
+  tags: string[]
+  prompt: string
+  source: string
+  credit?: string
+}
+
+export interface StyleLibraryData {
+  version: number
+  groups: Array<{ id: string; title: string; note?: string }>
+  sources?: Array<{ name: string; license: string; url?: string }>
+  count: number
+  styles: StyleEntry[]
+}
+
 export interface LibCase {
   n: number
   key: string
@@ -218,6 +237,8 @@ export interface SettingsShape {
 export interface Api {
   health(): Promise<HealthInfo>
   library(): Promise<LibraryData>
+  /** 内置风格/提示词库 */
+  styles(): Promise<StyleLibraryData>
   history(): Promise<HistoryItem[]>
   historyDelete(name: string): Promise<{ ok: boolean }>
   generate(opts: GenOpts): Promise<GenResult>
