@@ -1,0 +1,23 @@
+feat(image-edit): 图像编辑模块——局部重绘/擦除/去水印/超分/扩图/上色/线稿生图
+
+主进程（http.ts）
+- 新增 DashScope 异步任务链路 dashEditTask：提交（X-DashScope-Async: enable）→ 轮询 /tasks/{id}（4s 间隔）
+  → 取回结果图；支持 runId 级取消（并入既有 aborts 注册表）与超时
+- 新增 httpWanxEdit（wanx2.1-imageedit）：repaint/去水印/超分/扩图/上色/线稿，一个模型覆盖 7 种能力
+- 新增 httpEraseCompletion（image-erase-completion）：涂抹即抹除并补全背景（dilate_flag=false、关水印）
+- 摸清的官方约束：prompt 为全局必填；super_resolution 需 upscale_factor(1~4)；expand 需四向 scale
+
+主进程（index.ts）
+- 新增 IPC image:edit：op 路由 → 源图优先取字节、否则按作品目录文件名（走 resolveOutputPath 校验）
+- 结果落盘并写 sidecar（parent=源图 → 版本链接续），pngSize() 从 PNG IHDR 读真实宽高
+
+渲染层
+- 新增 ImageEditModal：7 种操作切换；涂抹画布（pointer 事件 + 双 canvas：显示层 + 等尺寸黑底白笔蒙版导出）；
+  笔刷大小、清空涂抹、笔画计数；超分倍数、扩图比例、提示词输入；结果接版本链
+- CreateView 结果区新增「图像编辑」入口；新增涂抹画布样式
+
+验证
+- 线上探针：super_resolution 21s 完成任务（先踩了缺 prompt / 缺 upscale_factor 两个坑并修正）
+- 打包版冒烟 SHOT_EDIT=1：自动生成蒙版 → 局部重绘成功
+  `[shot] edit: OK:image_1791430178215.png parent=image_1791031753914.png` exit 0
+- 目视验收：蒙版区域（上方圆形）按要求重绘，画面其余部分完整保留；sidecar parent 正确指向源图

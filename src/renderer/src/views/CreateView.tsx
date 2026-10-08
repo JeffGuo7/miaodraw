@@ -26,6 +26,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   FolderOpenOutlined,
+  HighlightOutlined,
   LeftOutlined,
   PictureOutlined,
   PlusOutlined,
@@ -39,6 +40,7 @@ import {
 import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig, RefImage, RefRole } from '../types'
 import { byCap, modelKey, providerDef, providerLabel, refLimit, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
+import ImageEditModal from './ImageEditModal'
 import { touchActiveModel } from './StatusBar'
 import { mediaUrlData, mediaUrlToFile } from '../utils'
 
@@ -139,6 +141,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [agentBusy, setAgentBusy] = useState(false)
   const [agentSteps, setAgentSteps] = useState<Array<{ label: string; done: boolean }>>([])
   const [agentReply, setAgentReply] = useState('')
+  const [editOpen, setEditOpen] = useState(false)
 
   // 真实阶段进度（主进程推送）
   useEffect(() => {
@@ -350,6 +353,18 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   async function reroll(): Promise<void> {
     // 必须显式传 0（主进程随机）：setSeedNum(null) 要下次渲染才生效，本闭包里还是旧种子
     await doGenerate(0)
+  }
+
+  /** 图像编辑完成：结果接在当前图后面（版本链），作品目录与历史都能看到 */
+  function onEditDone(r: GenResult): void {
+    setResult(r)
+    if (r.seed > 0) setSeedNum(r.seed)
+    void window.api
+      .imageChain(r.file)
+      .then((items) => setChain({ items, idx: items.length - 1 }))
+      .catch(() => undefined)
+    onHealthStale()
+    onGenerated()
   }
 
   async function runAgentFlow(): Promise<void> {
@@ -826,6 +841,11 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                       用作底图
                     </Button>
                   </Popconfirm>
+                  <Tooltip title="局部重绘 / 擦除物体 / 去水印 / 超分 / 扩图 / 上色">
+                    <Button size="small" icon={<HighlightOutlined />} onClick={() => setEditOpen(true)}>
+                      图像编辑
+                    </Button>
+                  </Tooltip>
                   <Tooltip title="反推这张图的提示词">
                     <Button size="small" icon={<ScanOutlined />} onClick={distillResult}>
                       蒸馏
@@ -885,7 +905,14 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             </Typography.Paragraph>
           )}
         </Card>
-</Card>
+        </Card>
+        <ImageEditModal
+          open={editOpen}
+          src={result?.url ?? null}
+          name={result?.file}
+          onClose={() => setEditOpen(false)}
+          onDone={onEditDone}
+        />
       </Col>
     </Row>
   )

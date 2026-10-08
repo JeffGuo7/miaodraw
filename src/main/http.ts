@@ -423,6 +423,172 @@ export async function httpOpenAIImages(o: HttpOpenAIImageOpts): Promise<HttpImag
   }
 }
 
+// ---------- DashScope 异步任务（图像编辑/擦除等 image2image 能力） ----------
+export type WanxEditFn =
+  | 'description_edit'
+  | 'description_edit_with_mask'
+  | 'remove_watermark'
+  | 'expand'
+  | 'super_resolution'
+  | 'colorization'
+  | 'doodle'
+  | 'stylization_all'
+  | 'stylization_local'
+
+export interface DashEditOpts {
+  origin: string
+  apiKey: string
+  /** wanx2.1-imageedit（通用图像编辑）或 image-erase-completion（擦除补全） */
+  model: string
+  input: Record<string, unknown>
+  parameters?: Record<string, unknown>
+  runId?: string
+  onProgress?: (stage: string, detail?: string) => void
+  timeoutMs?: number
+}
+
+/**
+ * DashScope 异步任务：提交（X-DashScope-Async: enable）→ 轮询 /tasks/{id} → 取回结果图。
+ * 图像编辑类接口均为异步，与生图（同步）不同，必须走这条链路。
+ */
+async function dashEditTask(o: DashEditOpts): Promise<HttpImageResult> {
+  const ac = new AbortController()
+  const cancelled = { v: false }
+  if (o.runId) aborts.set(o.runId, ac)
+  const t0 = Date.now()
+  const timeoutMs = o.timeoutMs ?? 300000
+  try {
+    o.onProgress?.('submit', '提交任务')
+    const sub = await fetch(`${dashBaseOf(o.origin)}/services/aigc/image2image/image-synthesis`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${o.apiKey}`,
+        'Content-Type': 'application/json',
+        'X-DashScope-Async': 'enable'
+      },
+      body: JSON.stringify({ model: o.model, input: o.input, parameters: o.parameters ?? {} }),
+      signal: ac.signal
+    })
+    const subJson = (await sub.json().catch(() => ({}))) as Record<string, unknown>
+    const subOut = subJson['output'] as { task_id?: string; task_status?: string } | undefined
+    if (sub.status < 200 || sub.status >= 300 || subJson['code'] || !subOut?.task_id) {
+      const msg = (subJson['message'] as string) || (subJson['code'] as string) || `HTTP ${sub.status}`
+      throw new Error(String(msg))
+    }
+    const taskId = subOut.task_id
+    log('info', `dashEditTask submit model=${o.model} task=${taskId}`)
+    // 轮询：4s 一次，直到 SUCCEEDED / FAILED / 超时 / 取消
+    for (;;) {
+      if (ac.signal.aborted) {
+        cancelled.v = true
+        throw new Error('已取消本次任务')
+      }
+      if (Date.now() - t0 > timeoutMs) throw new Error(`图像编辑任务超时（${Math.round(timeoutMs / 1000)}s）`)
+      await new Promise((r) => setTimeout(r, 4000))
+      if (ac.signal.aborted) {
+        cancelled.v = true
+        throw new Error('已取消本次任务')
+      }
+      const st = await fetch(`${dashBaseOf(o.origin)}/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${o.apiKey}` },
+        signal: ac.signal
+      })
+      const stJson = (await st.json().catch(() => ({}))) as Record<string, unknown>
+      const out = stJson['output'] as
+        | { task_status?: string; code?: string; message?: string; results?: Array<{ url?: string }>; output_image_url?: string }
+        | undefined
+      const status = out?.task_status
+      if (status === 'FAILED' || status === 'CANCELED' || status === 'UNKNOWN') {
+        throw new Error(`${out?.code ?? status}：${out?.message ?? '任务失败'}`)
+      }
+      if (status === 'SUCCEEDED') {
+        const urls = (out?.results ?? []).map((r) => r.url).filter((u): u is string => !!u)
+        if (!urls.length && out?.output_image_url) urls.push(out.output_image_url)
+        if (!urls.length) throw new Error('任务成功但没有返回图片')
+        o.onProgress?.('save', '下载编辑结果')
+        const buffers: Buffer[] = []
+        for (const u of urls) {
+          const resp = await fetch(u)
+          if (!resp.ok) throw new Error(`下载结果失败：HTTP ${resp.status}`)
+          buffers.push(Buffer.from(await resp.arrayBuffer()))
+        }
+        log('info', `dashEditTask done model=${o.model} task=${taskId} in ${Date.now() - t0}ms n=${buffers.length}`)
+        return { buffer: buffers[0], remoteUrl: urls[0], buffers, remoteUrls: urls }
+      }
+      o.onProgress?.('running', status === 'PENDING' ? '排队中' : '模型处理中')
+    }
+  } catch (e) {
+    if (cancelled.v) throw new Error('已取消本次任务', { cause: e })
+    throw e
+  } finally {
+    if (o.runId) aborts.delete(o.runId)
+  }
+}
+
+export interface WanxEditOpts {
+  origin: string
+  apiKey: string
+  fn: WanxEditFn
+  /** 底图（本地字节，自动转 base64 data URI） */
+  image: { name: string; data: ArrayBuffer }
+  /** 涂抹蒙版：非 0 区域为编辑区域（局部重绘/擦除用） */
+  mask?: { name: string; data: ArrayBuffer }
+  /** 提示词：官方要求所有 function 都必填，编辑类语义都靠它 */
+  prompt: string
+  /** super_resolution：1~4（1 = 仅高清不放大） */
+  upscaleFactor?: number
+  /** expand：四向扩展比例 1.0~2.0 */
+  expandScales?: { top?: number; bottom?: number; left?: number; right?: number }
+  runId?: string
+  onProgress?: (stage: string, detail?: string) => void
+}
+
+/** 万相通用图像编辑（wanx2.1-imageedit）：局部重绘 / 去水印 / 扩图 / 超分 / 上色 / 线稿生图 */
+export async function httpWanxEdit(o: WanxEditOpts): Promise<HttpImageResult> {
+  const input: Record<string, unknown> = {
+    function: o.fn,
+    prompt: o.prompt,
+    base_image_url: dataUri(o.image.name, o.image.data)
+  }
+  if (o.mask) input.mask_image_url = dataUri(o.mask.name, o.mask.data)
+  const parameters: Record<string, unknown> = { watermark: false, n: 1 }
+  if (o.fn === 'super_resolution') parameters.upscale_factor = Math.min(4, Math.max(1, Math.round(o.upscaleFactor ?? 2)))
+  if (o.fn === 'expand' && o.expandScales) {
+    parameters.top_scale = o.expandScales.top ?? 1
+    parameters.bottom_scale = o.expandScales.bottom ?? 1
+    parameters.left_scale = o.expandScales.left ?? 1
+    parameters.right_scale = o.expandScales.right ?? 1
+  }
+  return dashEditTask({ origin: o.origin, apiKey: o.apiKey, model: 'wanx2.1-imageedit', input, parameters, runId: o.runId, onProgress: o.onProgress })
+}
+
+export interface EraseOpts {
+  origin: string
+  apiKey: string
+  image: { name: string; data: ArrayBuffer }
+  /** 擦除蒙版：涂抹区域（非 0 值）会被抹除并补全背景 */
+  mask: { name: string; data: ArrayBuffer }
+  runId?: string
+  onProgress?: (stage: string, detail?: string) => void
+}
+
+/** 图像擦除补全（image-erase-completion）：抹掉物体/水印并补全背景，无需提示词 */
+export async function httpEraseCompletion(o: EraseOpts): Promise<HttpImageResult> {
+  return dashEditTask({
+    origin: o.origin,
+    apiKey: o.apiKey,
+    model: 'image-erase-completion',
+    input: {
+      image_url: dataUri(o.image.name, o.image.data),
+      mask_url: dataUri(o.mask.name, o.mask.data)
+    },
+    // 涂抹产生的 mask：官方建议 dilate_flag=false；add_watermark 必须显式关掉（默认 true）
+    parameters: { dilate_flag: false, fast_mode: false, add_watermark: false },
+    runId: o.runId,
+    onProgress: o.onProgress
+  })
+}
+
 // ---------- 产物落盘（文件 + 参数 sidecar，历史页可复现） ----------
 /** sidecar 里的素材条目：hash 指向 userData/refs/<hash>，复现时不依赖原文件是否还在 */
 export interface SidecarRef {

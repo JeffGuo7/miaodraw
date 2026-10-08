@@ -378,6 +378,44 @@ body {
   border-color: #0071e3;
 }
 
+/* ---------- 图像编辑：涂抹画布 ---------- */
+.edit-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fafafc;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.edit-canvas {
+  max-width: 100%;
+  border-radius: 8px;
+  touch-action: none;
+}
+
+.edit-canvas.brushing {
+  cursor: crosshair;
+}
+
+.edit-prompt {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: #f5f5f7;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.edit-prompt:focus {
+  background: #fff;
+  box-shadow: 0 0 0 1px #0071e3;
+}
+
 .create-main {
   min-width: 0;
 }

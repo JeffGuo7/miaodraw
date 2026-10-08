@@ -26,6 +26,16 @@ const api = {
   revealImage: (url: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('image:reveal', url),
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   refsRead: (hash: string, ext: string): Promise<Uint8Array> => ipcRenderer.invoke('refs:read', hash, ext),
+  imageEdit: (payload: {
+    op: string
+    name?: string
+    data?: ArrayBuffer
+    mask?: ArrayBuffer
+    prompt?: string
+    factor?: number
+    scales?: { top?: number; bottom?: number; left?: number; right?: number }
+    runId?: string
+  }): Promise<unknown> => ipcRenderer.invoke('image:edit', payload),
   favorites: (): Promise<unknown> => ipcRenderer.invoke('favorites:list'),
   toggleFavorite: (item: unknown): Promise<unknown> => ipcRenderer.invoke('favorites:toggle', item),
   openPath: (kind: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('open:path', kind),

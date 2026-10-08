@@ -9,6 +9,8 @@ import {
   httpModels,
   httpBailianImage,
   httpOpenAIImages,
+  httpWanxEdit,
+  httpEraseCompletion,
   imageCapability,
   clampRefs,
   persistImage,
@@ -19,7 +21,8 @@ import {
   MODEL_NOISE_RE,
   DASHSCOPE_ORIGIN,
   type ModelConn,
-  type RefImage
+  type RefImage,
+  type WanxEditFn
 } from './http'
 import { httpGenerate, PROVIDER_BASE_URLS } from './providers'
 import { runAgent } from './agent'
@@ -493,6 +496,38 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] batch:', batched)
     const n = Number(String(batched).match(/OK:(\d+)张/)?.[1] ?? 0)
     check('batch', n > 1 ? `OK:组图 ${n} 张` : `ERR:组图未返回多张 (${batched})`)
+  }
+  // 图像编辑冒烟：自动生成蒙版 → 局部重绘（走异步任务链路 + 版本链接续）
+  if (process.env.SHOT_EDIT === '1') {
+    const edited = await w.webContents.executeJavaScript(
+      `(async () => {
+        try {
+          const hist = await window.api.history()
+          if (!hist || !hist.length) return 'ERR:no-history'
+          const item = hist[0]
+          const buf = await window.api.imageRead(item.url)
+          const blob = new Blob([buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)])
+          const url = URL.createObjectURL(blob)
+          const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url })
+          const off = document.createElement('canvas')
+          off.width = img.naturalWidth
+          off.height = img.naturalHeight
+          const ctx = off.getContext('2d')
+          ctx.fillStyle = '#000'
+          ctx.fillRect(0, 0, off.width, off.height)
+          ctx.fillStyle = '#fff'
+          ctx.beginPath()
+          ctx.arc(off.width * 0.5, off.height * 0.35, Math.min(off.width, off.height) * 0.18, 0, Math.PI * 2)
+          ctx.fill()
+          const mBlob = await new Promise((res) => off.toBlob((b) => res(b), 'image/png'))
+          const mask = await mBlob.arrayBuffer()
+          const r = await window.api.imageEdit({ op: 'repaint', name: item.name, mask, prompt: '在涂抹区域画一个白色的蝴蝶结', runId: 'edit-smoke' })
+          return 'OK:' + r.file + ' parent=' + (r.parent || '-')
+        } catch (e) { return 'ERR:' + e.message }
+      })()`
+    )
+    console.log('[shot] edit:', edited)
+    check('edit', String(edited).startsWith('OK:') ? edited : `ERR:图像编辑失败 ${edited}`)
   }
   if (process.env.SHOT_DISTILL === '1') {
     await w.webContents.executeJavaScript(
@@ -1087,6 +1122,127 @@ function registerIpc(): void {
       onEvent: (e: unknown) => win?.webContents.send('agent-progress', e)
     })
   })
+
+  // ---------- 图像编辑（wanx2.1-imageedit 系列：局部重绘/擦除/去水印/超分/扩图/上色/线稿） ----------
+  type ImageEditOp = 'repaint' | 'erase' | 'dewatermark' | 'upscale' | 'expand' | 'colorize' | 'doodle'
+  const EDIT_FN: Record<Exclude<ImageEditOp, 'erase'>, WanxEditFn> = {
+    repaint: 'description_edit_with_mask',
+    dewatermark: 'remove_watermark',
+    upscale: 'super_resolution',
+    expand: 'expand',
+    colorize: 'colorization',
+    doodle: 'doodle'
+  }
+  const EDIT_DEFAULT_PROMPT: Record<ImageEditOp, string> = {
+    repaint: '在该区域生成与周围自然协调的内容',
+    erase: '',
+    dewatermark: '去除画面中的文字水印，保持背景自然、无残留痕迹',
+    upscale: '保持画面内容不变，提升清晰度与细节',
+    expand: '自然延展画面内容，保持原有风格、光线与透视一致',
+    colorize: '为画面自然上色，色彩协调真实',
+    doodle: '根据线稿生成完整的画面内容，保持线条结构'
+  }
+  const EDIT_LABEL: Record<ImageEditOp, string> = {
+    repaint: '局部重绘',
+    erase: '擦除物体',
+    dewatermark: '去水印',
+    upscale: '超分放大',
+    expand: '扩图',
+    colorize: '上色',
+    doodle: '线稿生图'
+  }
+
+  /** 从 PNG 字节读宽高（sidecar 记录用；非 PNG 返回 0） */
+  function pngSize(buf: Buffer): { w: number; h: number } {
+    if (buf.length > 24 && buf.toString('ascii', 12, 16) === 'IHDR') {
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) }
+    }
+    return { w: 0, h: 0 }
+  }
+
+  handle(
+    'image:edit',
+    async (
+      _e,
+      payload: {
+        op: ImageEditOp
+        name?: string
+        data?: ArrayBuffer
+        mask?: ArrayBuffer
+        prompt?: string
+        factor?: number
+        scales?: { top?: number; bottom?: number; left?: number; right?: number }
+        runId?: string
+      }
+    ) => {
+      const op = payload?.op
+      if (!op || !(op in EDIT_LABEL)) throw new Error('未知的图像编辑操作')
+      const needsMask = op === 'repaint' || op === 'erase'
+      const key = bailianApiKey()
+      if (!key) throw new Error('未配置百炼 API Key，请到「设置 → 模型服务」粘贴密钥并保存')
+      // 源图：优先直接用字节；否则按作品目录文件名读取（走统一校验）
+      let srcBuf: Buffer
+      let srcName: string
+      if (payload.data) {
+        srcBuf = Buffer.from(payload.data)
+        srcName = payload.name || 'source.png'
+      } else {
+        const abs = resolveOutputPath(String(payload.name || ''))
+        if (!abs || !fs.existsSync(abs)) throw new Error('源图不存在或文件名不合法')
+        srcBuf = await fsp.readFile(abs)
+        srcName = path.basename(abs)
+      }
+      if (needsMask && !payload.mask) throw new Error('请先在图上涂抹要处理的区域')
+      const maskRef = payload.mask ? { name: 'mask.png', data: payload.mask } : undefined
+      const origin = bailianOrigin()
+      const prompt = payload.prompt?.trim() || EDIT_DEFAULT_PROMPT[op]
+      const model = op === 'erase' ? 'image-erase-completion' : 'wanx2.1-imageedit'
+      const onProgress = (stage: string, detail?: string): void => {
+        win?.webContents.send('gen-progress', { runId: payload.runId, stage, detail })
+      }
+      const t0 = Date.now()
+      onProgress('prepare', `${EDIT_LABEL[op]}：准备中`)
+      try {
+        const r =
+          op === 'erase'
+            ? await httpEraseCompletion({
+                origin,
+                apiKey: key,
+                image: { name: srcName, data: new Uint8Array(srcBuf).buffer as ArrayBuffer },
+                mask: maskRef!,
+                runId: payload.runId,
+                onProgress
+              })
+            : await httpWanxEdit({
+                origin,
+                apiKey: key,
+                fn: EDIT_FN[op],
+                image: { name: srcName, data: new Uint8Array(srcBuf).buffer as ArrayBuffer },
+                mask: maskRef,
+                prompt,
+                upscaleFactor: payload.factor,
+                expandScales: payload.scales,
+                runId: payload.runId,
+                onProgress
+              })
+        const size = pngSize(r.buffer)
+        const { file, url } = await persistImage(r.buffer, OUT_DIR, {
+          prompt,
+          w: size.w,
+          h: size.h,
+          seed: 0,
+          model,
+          provider: 'bailian',
+          parent: payload.name
+        })
+        log('info', `image:edit done op=${op} file=${file} in ${Date.now() - t0}ms`)
+        return { file, url, elapsed: Date.now() - t0, seed: 0, model, parent: payload.name, op }
+      } catch (e) {
+        log('error', `image:edit failed op=${op}: ${e instanceof Error ? e.message : String(e)}`)
+        throw e
+      }
+    }
+  )
 
   handle('image:chain', async (_e, name: string) => {
     const chain: Array<{ name: string; url: string }> = []

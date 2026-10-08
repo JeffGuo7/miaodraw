@@ -28,6 +28,9 @@ export interface ActiveModel {
 
 export type ModelCap = 'image' | 'text' | 'vision'
 
+/** 图像编辑操作（对应主进程 image:edit） */
+export type ImageEditOp = 'repaint' | 'erase' | 'dewatermark' | 'upscale' | 'expand' | 'colorize' | 'doodle'
+
 /** 用户为某个供应商追加的自定义模型条目 */
 export interface UserModelEntry {
   id: string
@@ -227,6 +230,17 @@ export interface Api {
   imageRead(url: string): Promise<Uint8Array>
   /** 读取素材留档（内容寻址）；历史「复现」还原素材托盘用 */
   refsRead(hash: string, ext: string): Promise<Uint8Array>
+  /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */
+  imageEdit(payload: {
+    op: ImageEditOp
+    name?: string
+    data?: ArrayBuffer
+    mask?: ArrayBuffer
+    prompt?: string
+    factor?: number
+    scales?: { top?: number; bottom?: number; left?: number; right?: number }
+    runId?: string
+  }): Promise<GenResult & { op: ImageEditOp }>
   favorites(): Promise<FavItem[]>
   toggleFavorite(item: Omit<FavItem, 'savedAt'>): Promise<FavItem[]>
   openPath(kind: string): Promise<{ ok: boolean }>
