@@ -819,6 +819,58 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-i2i:', r)
     check('canvas-i2i', r)
   }
+  if (process.env.SHOT_CANVAS_CONNECT === '1') {
+    // 连线反馈可断言探针（不做截图验收）：橡皮筋在画布层 + 起点=真实端口中心(±1px) + 目标高亮
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
+        toolbar('图片').click(); await sleep(600)
+        toolbar('出图').click(); await sleep(600)
+        const img = nodesByTitle('图片')[0]
+        const gen = nodesByTitle('出图')[0]
+        if (!img || !gen) return 'ERR: 节点未创建'
+        const port = img.querySelector('.ivc-node-port')
+        if (!port) return 'ERR: 图片节点无端口'
+        const pr = port.getBoundingClientRect()
+        const portCx = pr.left + pr.width / 2
+        const portCy = pr.top + pr.height / 2
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: portCx, clientY: portCy, pointerId: 3, button: 0, buttons: 1 }))
+        await sleep(120)
+        const gr = gen.getBoundingClientRect()
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, buttons: 1 }))
+        await sleep(220)
+        const path = document.querySelector('[data-pending-line]')
+        if (!path) return 'ERR: 橡皮筋未渲染'
+        const inCanvasLayer = !!path.closest('.ivc-root') && !path.closest('[data-node-id]')
+        const highlighted = gen.className.includes('ivc-node-drop')
+        const d = path.getAttribute('d') || ''
+        const m = d.match(/M\\s+(-?[\\d.]+)\\s+(-?[\\d.]+)/)
+        if (!m) return 'ERR: path d 解析失败: ' + d
+        const OFF = 100000
+        const world = document.querySelector('.ivc-world')
+        const tm = (world.style.transform || '').match(/translate\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px\\)\\s*scale\\(([\\d.]+)\\)/)
+        const k = tm ? Number(tm[3]) : 1
+        const vx = tm ? Number(tm[1]) : 0
+        const vy = tm ? Number(tm[2]) : 0
+        const rootRect = document.querySelector('.ivc-root').getBoundingClientRect()
+        const startX = rootRect.left + vx + (Number(m[1]) - OFF) * k
+        const startY = rootRect.top + vy + (Number(m[2]) - OFF) * k
+        const dx = Math.abs(startX - portCx)
+        const dy = Math.abs(startY - portCy)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, button: 0 }))
+        await sleep(300)
+        const ok = inCanvasLayer && highlighted && dx <= 1 && dy <= 1
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ inCanvasLayer, highlighted, startDx: +dx.toFixed(2), startDy: +dy.toFixed(2), scale: k })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-connect:', r)
+    check('canvas-connect', r)
+  }
   if (process.env.SHOT_CANVAS_DRAG === '1') {
     // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」
     const r = await w.webContents.executeJavaScript(

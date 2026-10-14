@@ -5,7 +5,7 @@
  * 而是由 ConnectionLayer 注册 SVG 元素引用，这里直接改 `d` 属性（每帧一次 rAF 提交）。
  * React 只在 begin/end（挂载与卸载）时重渲染一次。
  */
-import { connectionPath } from './connection-hit'
+import { CANVAS_SVG_OFFSET, connectionPath } from './connection-hit'
 
 export interface PendingState {
   active: boolean
@@ -45,10 +45,12 @@ export function registerPendingElements(path: SVGPathElement | null, dot: SVGCir
 }
 
 function paint(s: PendingState): void {
-  if (pathEl) pathEl.setAttribute('d', connectionPath(s.from, s.to))
+  // 画布级 SVG 原点在 (-OFF, -OFF)，世界坐标必须 +OFF（与 ConnectionLayer 的连线一致）
+  const O = CANVAS_SVG_OFFSET
+  if (pathEl) pathEl.setAttribute('d', connectionPath({ x: s.from.x + O, y: s.from.y + O }, { x: s.to.x + O, y: s.to.y + O }))
   if (dotEl) {
-    dotEl.setAttribute('cx', String(s.to.x))
-    dotEl.setAttribute('cy', String(s.to.y))
+    dotEl.setAttribute('cx', String(s.to.x + O))
+    dotEl.setAttribute('cy', String(s.to.y + O))
   }
 }
 

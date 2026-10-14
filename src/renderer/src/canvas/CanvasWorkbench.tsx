@@ -21,6 +21,7 @@ import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
+import { CANVAS_SVG_OFFSET } from './connection-hit'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
@@ -319,7 +320,7 @@ function ConnectionLayer(): JSX.Element {
   const pathRef = useRef<SVGPathElement | null>(null)
   const dotRef = useRef<SVGCircleElement | null>(null)
   const byId = new Map(nodes.map((n) => [n.id, n]))
-  const OFF = 100000
+  const OFF = CANVAS_SVG_OFFSET
 
   // pending 状态只在 begin/end 时通知（拖动过程直接改 DOM 属性，不触发重渲染）
   useEffect(() => subscribePending(() => setPendingActive(Boolean(getPending()))), [])
@@ -351,8 +352,8 @@ function ConnectionLayer(): JSX.Element {
       })}
       {pendingActive && (
         <>
-          <path ref={pathRef} stroke="#4096ff" strokeWidth={2} strokeDasharray="6 4" fill="none" opacity={0.9} />
-          <circle ref={dotRef} r={4} fill="#4096ff" opacity={0.9} />
+          <path ref={pathRef} data-pending-line="1" stroke="#4096ff" strokeWidth={2} strokeDasharray="6 4" fill="none" opacity={0.9} />
+          <circle ref={dotRef} data-pending-dot="1" r={4} fill="#4096ff" opacity={0.9} />
         </>
       )}
     </svg>

@@ -6,6 +6,9 @@
  * padding 与 handleRadius 均除以 scale，保证缩放后屏幕命中面积不变）。
  */
 
+/** 画布级 SVG 的坐标偏移：SVG 本体定位在 (-OFF, -OFF)，世界坐标需 +OFF 才能落在视口内 */
+export const CANVAS_SVG_OFFSET = 100000
+
 export interface HitTestNode {
   id: string
   x: number
@@ -39,9 +42,14 @@ export interface HitResult {
 
 const EMPTY: HitResult = { nodeId: null, priority: null, anchor: null, isNear: false }
 
-/** 端口锚点：节点左侧中部（连线从上游右侧出发，落到下游左侧） */
+/** 目标端锚点：节点左侧中部（连线落到下游时吸附到这里） */
 export function portAnchor(node: HitTestNode): { x: number; y: number } {
   return { x: node.x, y: node.y + node.height / 2 }
+}
+
+/** 源端锚点：节点右侧中部（连线从上游端口拖出） */
+export function sourcePortAnchor(node: HitTestNode): { x: number; y: number } {
+  return { x: node.x + node.width, y: node.y + node.height / 2 }
 }
 
 function inside(node: HitTestNode, x: number, y: number): boolean {

@@ -14,7 +14,7 @@ import { NODE_SPECS } from './types'
 import { canvasStore } from './store'
 import { runGenerateNode } from './generation'
 import { runVideoNode, TEMPLATES } from './videoGeneration'
-import { hitTestConnectionTarget, portAnchor, snapEndpoint } from './connection-hit'
+import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
 import { clientToWorld, invalidateCanvasRect } from './rect-cache'
 import { beginPending, endPending, updatePending } from './pending-connection'
 
@@ -111,7 +111,7 @@ export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Elem
     e.preventDefault()
     // 手势开始先校准一次容器 rect：视图切换/窗口移动后缓存可能过期（热路径仍只做算术）
     invalidateCanvasRect()
-    const from = portAnchor(node)
+    const from = sourcePortAnchor(node)
     beginPending(node.id, from)
     setPending(true)
     let frame: number | null = null

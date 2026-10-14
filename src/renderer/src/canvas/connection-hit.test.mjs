@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { hitTestConnectionTarget, portAnchor, snapEndpoint, connectionPath } from './connection-hit.ts'
+import { hitTestConnectionTarget, portAnchor, sourcePortAnchor, snapEndpoint, connectionPath } from './connection-hit.ts'
 
 const nodes = [
   { id: 'a', x: 0, y: 0, width: 300, height: 200 },
@@ -95,4 +95,10 @@ test('吸附：命中目标时端点落到目标锚点，未命中时跟鼠标',
 test('connectionPath 输出三次贝塞尔', () => {
   const d = connectionPath({ x: 0, y: 0 }, { x: 100, y: 50 })
   assert.equal(d, 'M 0 0 C 50 0, 50 50, 100 50')
+})
+
+test('源端锚点在右、目标端锚点在左（连线方向：右出左进）', () => {
+  const n = { id: 'x', x: 100, y: 200, width: 320, height: 300 }
+  assert.deepEqual(sourcePortAnchor(n), { x: 420, y: 350 })
+  assert.deepEqual(portAnchor(n), { x: 100, y: 350 })
 })
