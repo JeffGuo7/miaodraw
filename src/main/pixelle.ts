@@ -167,6 +167,19 @@ export function registerPixelleHandlers(handle: HandleFn): void {
     return ensurePixelleBackend()
   })
 
+  /** 环境预检：uv 是否可用、后端目录是否存在（缺失给用户可执行的指引） */
+  handle('pixelle:checkEnv', async (): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }> => {
+    const uv = await new Promise<boolean>((resolve) => {
+      execFile('uv.exe', ['--version'], (err) => resolve(!err))
+    })
+    const dir = backendDir()
+    const backendDirExists = fs.existsSync(path.join(dir, 'pyproject.toml'))
+    let message: string | undefined
+    if (!uv) message = '未检测到 uv（Python 环境管理器）。请安装：https://docs.astral.sh/uv/ 或 winget install astral-sh.uv，安装后重启应用重试。'
+    else if (!backendDirExists) message = `Pixelle 后端目录不存在：${dir}。请克隆 https://github.com/ATH-MaaS/Pixelle-Video 到该位置，或设置环境变量 PIXELLE_BACKEND_DIR 指向实际目录。`
+    return { ok: uv && backendDirExists, uv, backendDir: backendDirExists, message }
+  })
+
   /** 通用代理：GET/POST 后端 REST，渲染层轮询任务也走这里（规避 CORS/混合内容） */
   handle(
     'pixelle:proxy',

@@ -214,6 +214,54 @@
   object-fit: contain;
 }
 
+/* 右键菜单 */
+.ivc-ctxmenu {
+  position: absolute;
+  z-index: 30;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ivc-ctxmenu button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.ivc-ctxmenu button:hover {
+  background: #f1f5f9;
+}
+
+/* 小地图 */
+.ivc-minimap {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  padding: 4px;
+  width: 176px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
 /* ── 工具条 ─────────────────────────────── */
 
 .ivc-toolbar {

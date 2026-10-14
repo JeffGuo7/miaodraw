@@ -92,6 +92,7 @@ export default function CanvasWorkbench(): JSX.Element {
   const state = useCanvasState()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [tool, setTool] = useState<'select' | 'pan'>('select')
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
 
   const setViewport = useCallback((vp: ViewportTransform): void => {
     canvasStore.setViewport(vp)
@@ -112,6 +113,27 @@ export default function CanvasWorkbench(): JSX.Element {
     []
   )
 
+  // ── 快捷键：Delete 删除选中节点；+/- 缩放；0 复位 ──
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const el = e.target instanceof Element ? e.target : null
+      if (el?.closest("input,textarea,select,[contenteditable='true']")) return
+      const selected = canvasStore.getState().selectedIds[0]
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+        e.preventDefault()
+        canvasStore.removeNode(selected)
+      } else if (e.key === '+' || e.key === '=') {
+        zoomBy(1.2)
+      } else if (e.key === '-' || e.key === '_') {
+        zoomBy(1 / 1.2)
+      } else if (e.key === '0') {
+        canvasStore.setViewport({ x: 80, y: 80, k: 1 })
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomBy])
+
   const resetView = useCallback((): void => {
     canvasStore.setViewport({ x: 80, y: 80, k: 1 })
   }, [])
@@ -123,7 +145,23 @@ export default function CanvasWorkbench(): JSX.Element {
         viewport={state.viewport}
         tool={tool}
         onViewportChange={setViewport}
-        onCanvasDeselect={() => canvasStore.select(null)}
+        onCanvasDeselect={() => {
+          canvasStore.select(null)
+          setCtxMenu(null)
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          const el = e.target instanceof Element ? e.target : null
+          const rect = containerRef.current?.getBoundingClientRect()
+          const vp = canvasStore.getState().viewport
+          setCtxMenu({
+            x: e.clientX - (rect?.left ?? 0),
+            y: e.clientY - (rect?.top ?? 0),
+            worldX: (e.clientX - (rect?.left ?? 0) - vp.x) / vp.k,
+            worldY: (e.clientY - (rect?.top ?? 0) - vp.y) / vp.k,
+            nodeId: el?.closest('[data-node-id]')?.getAttribute('data-node-id') ?? null
+          })
+        }}
       >
         <ConnectionLayer />
         {state.nodes.map((n) => (
@@ -153,7 +191,122 @@ export default function CanvasWorkbench(): JSX.Element {
         <Button size="small" type="text" onClick={resetView}>复位</Button>
       </div>
 
+      {ctxMenu && (
+        <div className="ivc-ctxmenu ivc-no-zoom" style={{ left: ctxMenu.x, top: ctxMenu.y }} onContextMenu={(e) => e.preventDefault()}>
+          {ctxMenu.nodeId ? (
+            <>
+              <button
+                onClick={() => {
+                  canvasStore.removeNode(ctxMenu.nodeId as string)
+                  setCtxMenu(null)
+                }}
+              >
+                删除节点
+              </button>
+              <button
+                onClick={() => {
+                  canvasStore.select(ctxMenu.nodeId)
+                  setCtxMenu(null)
+                }}
+              >
+                选中节点
+              </button>
+            </>
+          ) : (
+            ADD_BUTTONS.map((b) => (
+              <button
+                key={b.type}
+                onClick={() => {
+                  canvasStore.addNode(b.type, { x: ctxMenu.worldX, y: ctxMenu.worldY })
+                  setCtxMenu(null)
+                }}
+              >
+                新建：{b.label}
+              </button>
+            ))
+          )}
+          <button onClick={() => setCtxMenu(null)}>关闭</button>
+        </div>
+      )}
+
+      <MiniMap />
+
       <MigrationOverlay />
+    </div>
+  )
+}
+
+/** 小地图：节点包围盒 + 视口框，点击跳转 */
+function MiniMap(): JSX.Element {
+  const state = useCanvasState()
+  const W = 168
+  const H = 112
+  if (state.nodes.length === 0) {
+    return (
+      <div className="ivc-minimap ivc-no-zoom" style={{ opacity: 0.5 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>空画布</div>
+      </div>
+    )
+  }
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const n of state.nodes) {
+    minX = Math.min(minX, n.x)
+    minY = Math.min(minY, n.y)
+    maxX = Math.max(maxX, n.x + n.width)
+    maxY = Math.max(maxY, n.y + n.height)
+  }
+  // 视口也算进包围盒
+  const el = document.querySelector<HTMLElement>('.ivc-root')
+  if (el) {
+    const vp = state.viewport
+    minX = Math.min(minX, -vp.x / vp.k)
+    minY = Math.min(minY, -vp.y / vp.k)
+    maxX = Math.max(maxX, (el.clientWidth - vp.x) / vp.k)
+    maxY = Math.max(maxY, (el.clientHeight - vp.y) / vp.k)
+  }
+  const pad = 80
+  minX -= pad
+  minY -= pad
+  maxX += pad
+  maxY += pad
+  const scale = Math.min(W / (maxX - minX), H / (maxY - minY))
+  const toMap = (x: number, y: number): [number, number] => [(x - minX) * scale, (y - minY) * scale]
+
+  const onClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const wx = (e.clientX - rect.left) / scale + minX
+    const wy = (e.clientY - rect.top) / scale + minY
+    const root = document.querySelector<HTMLElement>('.ivc-root')
+    const k = canvasStore.getState().viewport.k
+    canvasStore.setViewport({
+      x: (root?.clientWidth ?? 800) / 2 - wx * k,
+      y: (root?.clientHeight ?? 600) / 2 - wy * k,
+      k
+    })
+  }
+
+  return (
+    <div className="ivc-minimap ivc-no-zoom" onClick={onClick}>
+      <svg width={W} height={H}>
+        {state.nodes.map((n) => {
+          const [x, y] = toMap(n.x, n.y)
+          return (
+            <rect
+              key={n.id}
+              x={x}
+              y={y}
+              width={Math.max(4, n.width * scale)}
+              height={Math.max(3, n.height * scale)}
+              rx={2}
+              fill={n.type === 'image' ? '#10b981' : n.type === 'video' ? '#f97316' : n.type === 'generate' ? '#60a5fa' : '#94a3b8'}
+              opacity={0.75}
+            />
+          )
+        })}
+      </svg>
     </div>
   )
 }

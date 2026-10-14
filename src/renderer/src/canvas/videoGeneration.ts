@@ -139,6 +139,9 @@ export async function runVideoNode(nodeId: string): Promise<void> {
   const startedAt = Date.now()
 
   try {
+    // 环境预检：uv/后端目录缺失时给可执行指引，不启动后端
+    const env = await window.api.pixelleCheckEnv()
+    if (!env.ok) throw new Error(env.message ?? 'Pixelle 环境未就绪')
     const { baseUrl } = await window.api.pixelleEnsure()
     patch({ status: 'submitting' })
     const submit = await proxy<{ task_id: string }>({

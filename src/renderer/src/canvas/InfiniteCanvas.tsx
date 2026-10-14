@@ -20,6 +20,7 @@ interface InfiniteCanvasProps {
   onCanvasMouseDown?: (e: React.PointerEvent<HTMLDivElement>) => void
   onCanvasDeselect?: () => void
   onCanvasDoubleClick?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void
   children: React.ReactNode
 }
@@ -35,6 +36,7 @@ export function InfiniteCanvas({
   onCanvasMouseDown,
   onCanvasDeselect,
   onCanvasDoubleClick,
+  onContextMenu,
   onDrop,
   children
 }: InfiniteCanvasProps): JSX.Element {
@@ -195,6 +197,7 @@ export function InfiniteCanvas({
       onPointerDown={handlePointerDown}
       onDoubleClick={handleDoubleClick}
       onWheel={handleWheel}
+      onContextMenu={onContextMenu}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
     >

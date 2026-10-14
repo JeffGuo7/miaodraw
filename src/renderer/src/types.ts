@@ -309,6 +309,8 @@ export interface Api {
   }>
   /** Pixelle 视频后端（M3）：确保后端已启动，返回 baseUrl */
   pixelleEnsure(): Promise<{ baseUrl: string }>
+  /** Pixelle 环境预检（uv/后端目录），缺失时给可执行指引 */
+  pixelleCheckEnv(): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }>
   /** Pixelle REST 代理（主进程转发，规避 CORS） */
   pixelleProxy(args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */

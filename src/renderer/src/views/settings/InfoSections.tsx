@@ -128,6 +128,12 @@ export function AboutSection({
           多服务商模型 · 阿里云百炼 / 硅基流动 / OpenAI · 纯 HTTP 直连引擎
           <br />
           Electron + React + Ant Design · 视觉参考：Cherry Studio / Toonflow
+          <br />
+          画布工作台引擎基于开源项目
+          <Typography.Link href="https://github.com/basketikun/infinite-canvas" target="_blank">
+            basketikun/infinite-canvas
+          </Typography.Link>
+          （MIT License）移植，保留原作者信息与前端标识
         </Typography.Paragraph>
         <div className="stat" style={{ marginTop: 4 }}>
           <span className="stat-label">当前接入点</span>
