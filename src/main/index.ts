@@ -954,6 +954,72 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] plan-chat:', r)
     check('plan-chat', r)
   }
+  if (process.env.SHOT_PLAN_CHAT_REVIEW === '1') {
+    // C3 闸门审阅卡：渲染 prompt/检查项；行内编辑走 patchStage（revision+1）；过期 revision → data-conflict 且草稿保留
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        // 打开审阅卡（点标题展开）
+        let review = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(200)
+          review = panel.querySelector('[data-review-stage]')
+          if (review) break
+        }
+        if (!review) return 'ERR: 审阅卡未渲染'
+        review.querySelector('.ivc-reviewcard-head').click()
+        await sleep(300)
+        const promptArea = review.querySelector('textarea')
+        const hasPrompt = !!promptArea && (promptArea.value || '').length > 0
+        const checksText = (review.querySelector('.ivc-reviewcard-checks')?.textContent || '').length > 0
+        const snap0 = await window.api.planAuthored(planId)
+        const rev0 = snap0.stages[0].revision
+
+        // 行内编辑 → 保存
+        setVal(promptArea, '改好的提示词：简洁背景，商品居中，柔光')
+        await sleep(150)
+        ;[...review.querySelectorAll('button')].find(b => b.textContent.includes('保存提示词')).click()
+        await sleep(600)
+        const snap1 = await window.api.planAuthored(planId)
+        const editedOk = snap1.stages[0].work_items.some(w => String(w.prompt).includes('改好的提示词')) && snap1.stages[0].revision === rev0 + 1
+
+        // 冲突：先在背后用当前 revision 成功推进一次（卡片仍持旧 revision，且不会被通知到 —— 事件会刷新卡片，
+        // 因此这里直接改 stage 快照之外的路径：用 patchGoal 推进 revision，然后立刻让卡片保存）
+        const behind = await window.api.planPatchStage({ planId, stageId: snap1.stages[0].id, patch: { goal: '后台改一次' }, expectedRevision: snap1.stages[0].revision })
+        await sleep(150)
+        setVal(promptArea, '冲突期间编辑的草稿不应丢')
+        await sleep(150)
+        ;[...review.querySelectorAll('button')].find(b => b.textContent.includes('保存提示词')).click()
+        await sleep(800)
+        const conflictFlag = review.getAttribute('data-conflict') === 'true'
+        const draftKept = (review.querySelector('textarea')?.value || '').includes('草稿不应丢')
+        const ok = hasPrompt && checksText && editedOk && behind.ok === true && conflictFlag && draftKept
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ hasPrompt, checksText, editedOk, behindOk: behind.ok, conflictFlag, draftKept, rev0, rev1: snap1.stages[0].revision })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-review:', r)
+    check('plan-chat-review', r)
+  }
   if (process.env.SHOT_PLAN_CHAT_GATE === '1') {
     // C2 双向等价确认：卡片按钮(actor=ui) 与 聊天消息(actor=chat) 走同一状态机；
     // 镜像消息按 source_message_id 去重（先判重再写事件 → 无幽灵记录）

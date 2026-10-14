@@ -15,6 +15,7 @@ import type { ChatMessage, StageRecord } from './plan-types'
 
 import { appendMessage, loadMessages, setLastCreateResult, useChatMessages } from './chat-store'
 import { actViaChat } from './plan-actions'
+import StageReviewCard from './StageReviewCard'
 
 interface Props {
   open: boolean
@@ -37,6 +38,7 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
   const [planId, setPlanId] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [stages, setStages] = useState<StageRecord[]>([])
   const messages = useChatMessages(planId)
   const listRef = useRef<HTMLDivElement | null>(null)
   const notedStages = useRef<Set<string>>(new Set())
@@ -47,6 +49,7 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
     const off = window.api.onPlanChanged((raw) => {
       const snap = raw as PlanSnapshotLite | undefined
       if (!snap?.plan?.id || snap.plan.id !== planId) return
+      setStages((snap.stages ?? []).slice())
       for (const stage of snap.stages ?? []) {
         const key = `${snap.plan.id}:${stage.id}:${stage.status}:${stage.waiting_reason}`
         if (notedStages.current.has(key)) continue
@@ -71,6 +74,19 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
       await loadMessages(planId)
     })()
   }, [open, planId])
+
+  // 种一次当前计划快照：首阶段可能在面板订阅 plan:changed 之前就已物化，避免漏掉闸门状态
+  useEffect(() => {
+    if (!planId) return
+    let alive = true
+    void (async () => {
+      const s = (await window.api.planAuthored(planId)) as PlanSnapshotLite | { error?: string }
+      if (alive && s && 'plan' in s) setStages((s.stages ?? []).slice())
+    })()
+    return () => {
+      alive = false
+    }
+  }, [planId])
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
@@ -127,14 +143,26 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
         {messages.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="说一句你的需求，我来搭流程" />
         ) : (
-          messages.slice(-50).map((m: ChatMessage) => {
+          messages.slice(-50).map((m: ChatMessage, i: number) => {
             const style = ROLE_STYLE[m.role] ?? ROLE_STYLE.system
+            // C3：闸门审阅卡锚定在最后一条消息之后（按 plan_id + stage_id 注入，不新增节点）
+            const gateStage = stages.find((s) => s.status === 'waiting_user') ?? null
+            const isLast = i === messages.slice(-50).length - 1
             return (
-              <div key={m.id} className="ivc-chat-msg" data-role={m.role} style={{ background: style.bg }}>
-                <Typography.Text type="secondary" className="ivc-chat-role">
-                  {style.label}
-                </Typography.Text>
-                <div className="ivc-chat-content">{m.content}</div>
+              <div key={m.id}>
+                <div className="ivc-chat-msg" data-role={m.role} style={{ background: style.bg }}>
+                  <Typography.Text type="secondary" className="ivc-chat-role">
+                    {style.label}
+                  </Typography.Text>
+                  <div className="ivc-chat-content">{m.content}</div>
+                </div>
+                {isLast && gateStage && planId && (
+                  <StageReviewCard
+                    planId={planId}
+                    stage={gateStage}
+                    onStageChanged={(s) => setStages((prev) => prev.map((x) => (x.id === s.id ? s : x)))}
+                  />
+                )}
               </div>
             )
           })
