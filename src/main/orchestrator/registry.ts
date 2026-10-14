@@ -56,6 +56,7 @@ export class PlanRegistry {
   private stages = new Map<string, StageRecord[]>()
   private replays = new Map<string, CachedReplan>()
   private events: PlanEvent[] = []
+  private driving = false
   private onChange?: (snapshot: PlanSnapshot) => void
   private onEvent?: (event: PlanEvent) => void
 
@@ -149,6 +150,8 @@ export class PlanRegistry {
     const plan = this.touch(planId, stages, now)
     this.record({ plan_id: planId, event: `advance:${action}`, actor, stage_id: stageId, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
     this.emit({ plan, stages })
+    // C4：计划开了自动推进时，执行器交付后自动接力过闸门
+    if (plan.auto_advance) this.driveAuto(planId, now)
     return { ok: true, value: r.stage }
   }
 
@@ -284,9 +287,56 @@ export class PlanRegistry {
     return result
   }
 
-  /** 取消计划（终态）：不动已完成阶段，未完成的保持原状态供用户重开 */
-  cancel(planId: string, now: number = Date.now()): { ok: boolean; error?: string } {
+  /**
+   * C4 自动推进开关：CAS 写 plan.auto_advance；开启后立即驱动机器过闸门（actor=auto）。
+   * 规则（任务卡）：review 为空或已有同类阶段确认过才允许自动；任何 blocked 立即置回 false。
+   */
+  setAutoAdvance(planId: string, enabled: boolean, expectedRevision?: number, now: number = Date.now()): { ok: boolean; error?: string; plan?: PlanRecord; conflict?: boolean } {
     const snap = this.get(planId)
+    if (!snap) return { ok: false, error: `计划不存在：${planId}` }
+    if (expectedRevision !== undefined && expectedRevision !== snap.plan.revision) {
+      return { ok: false, conflict: true, error: `计划修订冲突：期望 ${expectedRevision}，实际 ${snap.plan.revision}` }
+    }
+    const before = snap.plan.revision
+    const plan: PlanRecord = { ...snap.plan, auto_advance: enabled, revision: before + 1, updated_at: now }
+    this.plans.set(planId, plan)
+    this.record({ plan_id: planId, event: enabled ? 'auto_advance_on' : 'auto_advance_off', actor: 'ui', stage_id: null, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+    this.emit({ plan, stages: snap.stages })
+    if (enabled) this.driveAuto(planId, now)
+    return { ok: true, plan: this.plans.get(planId) }
+  }
+
+  /** 自动推进驱动：最多 8 步防跑飞；blocked → 关闭自动并广播；重入保护避免递归叠加 */
+  private driveAuto(planId: string, now: number): void {
+    if (this.driving) return
+    this.driving = true
+    try {
+      for (let step = 0; step < 8; step++) {
+      const snap = this.get(planId)
+      if (!snap?.plan.auto_advance) return
+      const stages = snap.stages
+      if (stages.some((s) => s.status === 'blocked')) {
+        const before = snap.plan.revision
+        const plan: PlanRecord = { ...snap.plan, auto_advance: false, revision: before + 1, updated_at: now }
+        this.plans.set(planId, plan)
+        this.record({ plan_id: planId, event: 'auto_advance_off_blocked', actor: 'auto', stage_id: stages.find((s) => s.status === 'blocked')?.id ?? null, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+        this.emit({ plan, stages })
+        return
+      }
+      const gate = stages.find((s) => s.status === 'waiting_user')
+      if (!gate) return // 没有闸门可过（等执行器跑 / 等 author）
+      // 用户显式开启自动推进即视为授权过闸门；唯一硬刹车是 blocked（下面提前返回并关自动）
+      const action: StageAction = gate.waiting_reason === 'plan_review' ? 'confirm_plan' : 'confirm_result'
+      const r = this.advance(planId, gate.id, action, gate.revision, now, 'auto')
+      if (!r.ok) return
+      }
+    } finally {
+      this.driving = false
+    }
+  }
+
+  /** 取消计划（终态）：不动已完成阶段，未完成的保持原状态供用户重开 */
+  cancel(planId: string, now: number = Date.now()): { ok: boolean; error?: string } {    const snap = this.get(planId)
     if (!snap) return { ok: false, error: `计划不存在：${planId}` }
     const before = snap.plan.revision
     const plan: PlanRecord = { ...snap.plan, status: 'cancelled', revision: before + 1, updated_at: now }

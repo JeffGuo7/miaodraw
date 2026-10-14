@@ -338,6 +338,8 @@ export interface Api {
   }): Promise<unknown>
   /** 取消计划（终态，可重开） */
   planCancel(planId: string): Promise<unknown>
+  /** C4：自动推进开关（CAS + blocked 自动转手动） */
+  planSetAutoAdvance(payload: { planId: string; enabled: boolean; expectedRevision?: number }): Promise<unknown>
   /** 审计事件（append-only，含 source_message_id 溯源） */
   planEvents(planId?: string): Promise<unknown>
   planDelete(planId: string): Promise<unknown>

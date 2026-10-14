@@ -10,6 +10,7 @@ import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { PlanRecord, StageRecord } from './plan-types'
 
 import { actViaCard } from './plan-actions'
+import { appendMessage } from './chat-store'
 
 interface Props {
   planId: string
@@ -60,6 +61,27 @@ export default function PlanCard({ planId }: Props): JSX.Element {
       <div className="ivc-plancard-head">
         <span className="ivc-plancard-title">{plan.title}</span>
         <Tag color={plan.status === 'done' ? 'green' : plan.status === 'cancelled' ? 'default' : 'blue'}>{plan.status}</Tag>
+        <Tooltip title="自动推进：无需人工确认即可过闸门；遇到 blocked 会自动转回手动">
+          <Button
+            size="small"
+            type={plan.auto_advance ? 'primary' : 'default'}
+            className="ivc-plancard-auto"
+            data-auto={plan.auto_advance ? 'on' : 'off'}
+            onClick={async () => {
+              const next = !plan.auto_advance
+              const res = (await window.api.planSetAutoAdvance({ planId, enabled: next, expectedRevision: plan.revision })) as { ok?: boolean }
+              await appendMessage({
+                planId,
+                role: 'system',
+                content: next ? '已开启自动推进：闸门将自动通过，遇到阻塞会立即转回手动。' : '已关闭自动推进。'
+              })
+              if (!res?.ok) await appendMessage({ planId, role: 'system', content: '自动推进开关切换失败（计划可能已更新），已刷新。' })
+              void refresh()
+            }}
+          >
+            ⚡ {plan.auto_advance ? '自动推进中' : '自动'}
+          </Button>
+        </Tooltip>
         <span className="ivc-plancard-progress">
           {doneCount}/{plan.stage_outline.length}
         </span>

@@ -954,6 +954,63 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] plan-chat:', r)
     check('plan-chat', r)
   }
+  if (process.env.SHOT_PLAN_CHAT_AUTO === '1') {
+    // C4 自动推进：开启后无需 confirm_plan 即过闸门（actor=auto）；blocked → 自动置 false 并有提示
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 30; i++) { await sleep(150); snap = await window.api.planAuthored(planId); if (snap?.stages?.length) break }
+        if (!snap?.stages?.length) return 'ERR: 首阶段未物化'
+        // 开启自动推进：阶段 1 应自动过 plan_review（actor=auto）
+        const on = await window.api.planSetAutoAdvance({ planId, enabled: true, expectedRevision: snap.plan.revision })
+        await sleep(500)
+        snap = await window.api.planAuthored(planId)
+        const s1 = snap.stages[0]
+        const autoConfirmed = s1.status === 'doing' || s1.status === 'waiting_user'
+        const autoEvents = (await window.api.planEvents(planId)).filter(e => e.actor === 'auto')
+        const planFlag = (await window.api.planAuthored(planId)).plan.auto_advance === true
+        // 执行器代跑：execution_done → 自动过 result_review → done
+        const d = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: s1.revision, actor: 'auto' })
+        await sleep(600)
+        snap = await window.api.planAuthored(planId)
+        const s1Done = snap.stages.find(s => s.id === s1.id)?.status === 'done'
+        const autoEvents2 = (await window.api.planEvents(planId)).filter(e => e.actor === 'auto')
+        const autoGates = autoEvents2.filter(e => String(e.event).includes('confirm_')).length
+
+        // blocked：新计划 → 开启自动 → 把阶段置 blocked → 驱动一次 → 应自动转手动
+        const created2 = await window.api.planCreate({ prompt: '再来一条短视频', canvasContext: { pixelleReady: true } })
+        const pid2 = created2.planId
+        let s2 = null
+        for (let i = 0; i < 30; i++) { await sleep(150); const x = await window.api.planAuthored(pid2); s2 = x.stages?.[0] ?? null; if (s2) break }
+        if (!s2) return 'ERR: 第二个计划首阶段未物化'
+        await window.api.planSetAutoAdvance({ planId: pid2, enabled: true, expectedRevision: (await window.api.planAuthored(pid2)).plan.revision })
+        await sleep(300)
+        const cur = (await window.api.planAuthored(pid2)).stages[0]
+        await window.api.planAdvance({ planId: pid2, stageId: cur.id, action: 'block', expectedRevision: cur.revision, actor: 'auto' })
+        await sleep(300)
+        // 触发一次机器（切换开关即会 drive）
+        await window.api.planSetAutoAdvance({ planId: pid2, enabled: true, expectedRevision: (await window.api.planAuthored(pid2)).plan.revision })
+        await sleep(500)
+        const snap2 = await window.api.planAuthored(pid2)
+        const blockedOff = snap2.plan.auto_advance === false
+        const blockEvent = (await window.api.planEvents(pid2)).some(e => e.event === 'auto_advance_off_blocked')
+
+        const ok = on.ok === true && planFlag && autoConfirmed && autoEvents.length >= 1 && s1Done && autoGates >= 2 && blockedOff && blockEvent
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          flagOn: planFlag, autoConfirmed, s1Done, autoGates, blockedOff, blockEvent,
+          stages1: snap.stages.map(s => s.status)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-auto:', r)
+    check('plan-chat-auto', r)
+  }
   if (process.env.SHOT_PLAN_CHAT_REVIEW === '1') {
     // C3 闸门审阅卡：渲染 prompt/检查项；行内编辑走 patchStage（revision+1）；过期 revision → data-conflict 且草稿保留
     const r = await w.webContents.executeJavaScript(

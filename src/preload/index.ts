@@ -74,6 +74,8 @@ const api = {
     sourceMessageId?: string
   }): Promise<unknown> => ipcRenderer.invoke('plan:replan', payload),
   planCancel: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:cancel', { planId }),
+  planSetAutoAdvance: (payload: { planId: string; enabled: boolean; expectedRevision?: number }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:setAutoAdvance', payload),
   planEvents: (planId?: string): Promise<unknown> => ipcRenderer.invoke('plan:events', { planId }),
   planDelete: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:delete', { planId }),
   onPlanChanged: (cb: (payload: unknown) => void): (() => void) => {

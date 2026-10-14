@@ -84,6 +84,8 @@ export interface PlanRecord {
   workflow_id: WorkflowId
   status: PlanStatus
   revision: number
+  /** C4：自动推进（无需人工确认即可过闸门；遇 blocked/失败立即置回 false） */
+  auto_advance?: boolean
   /** 全量骨架：未 author 的阶段只在这里留名字，禁止占位卡 */
   stage_outline: StageOutlineEntry[]
   created_at: number

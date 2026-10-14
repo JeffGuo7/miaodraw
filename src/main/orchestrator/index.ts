@@ -90,6 +90,11 @@ export function registerOrchestratorHandlers(
 
   handle('plan:cancel', (_e, payload: { planId: string }) => registry.cancel(payload?.planId))
 
+  /** C4：自动推进开关（CAS；开启即驱动机器过闸门，blocked 自动转手动） */
+  handle('plan:setAutoAdvance', (_e, payload: { planId: string; enabled: boolean; expectedRevision?: number }) =>
+    registry.setAutoAdvance(payload?.planId, Boolean(payload?.enabled), payload?.expectedRevision)
+  )
+
   handle('plan:delete', (_e, payload: { planId: string }) => {
     const removed = registry.remove(payload?.planId)
     return { ok: removed }
