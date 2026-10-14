@@ -766,6 +766,41 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-video:', r)
     check('canvas-video', r)
   }
+  if (process.env.SHOT_CANVAS_ASSETS === '1') {
+    // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const openDb = () => new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        try {
+          const db = await openDb()
+          const all = (store) => new Promise((res, rej) => {
+            const tx = db.transaction(store, 'readonly')
+            const rq = tx.objectStore(store).getAll()
+            rq.onsuccess = () => res(rq.result)
+            rq.onerror = () => rej(rq.error)
+          })
+          const assets = await all('assets')
+          const deps = await all('asset_dependencies')
+          const px = assets.filter(a => String(a.path || '').startsWith('pixelle/'))
+          const meta = assets.filter(a => a.metadata && String(JSON.stringify(a.metadata)).includes('source'))
+          return JSON.stringify({
+            assets: assets.length,
+            pixelle: px.length,
+            lastPixelle: px.slice(-2).map(a => a.path),
+            deps: deps.length,
+            lastDeps: deps.slice(-2).map(d => ({ role: d.role, op: d.operation })),
+            withMeta: meta.length
+          })
+        } catch (e) { return 'ERR:' + e.message }
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-assets:', r)
+    check('canvas-assets', r)
+  }
   if (process.env.SHOT_KEY === '1') {
     // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
     const r = await w.webContents.executeJavaScript(
