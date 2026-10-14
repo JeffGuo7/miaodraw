@@ -1,0 +1,61 @@
+{
+  "id": "doc-to-video",
+  "title": "文案成片",
+  "match": {
+    "keywords": ["做成视频", "成片", "短视频", "配画面", "口播", "分镜", "文案变视频"],
+    "requires": ["text"]
+  },
+  "stages": [
+    {
+      "id": "brief",
+      "name": "需求整理",
+      "goal": "把需求整理成生成简报（不扩写用户原句的意图）",
+      "work_items": [
+        { "id": "brief_doc", "name": "生成简报", "modality": "document", "prompt_hint": "输出简报正文：主题、受众、语气、画面方向；保留用户原句措辞" }
+      ],
+      "review": {
+        "before_execution": [],
+        "after_execution": ["确认简报理解正确"]
+      }
+    },
+    {
+      "id": "shots",
+      "name": "分镜出图",
+      "goal": "按简报逐镜出图",
+      "work_items": [
+        { "id": "shot_01", "name": "分镜 1", "modality": "image", "prompt_hint": "单镜画面描述，含主体、构图、光线" }
+      ],
+      "review": {
+        "before_execution": ["确认全部提示词与画幅"],
+        "after_execution": ["确认画面可用"]
+      },
+      "execution_locks": { "aspect_ratio": "9:16" }
+    },
+    {
+      "id": "narration",
+      "name": "旁白文案",
+      "goal": "按台词密度上限写旁白（中文 3-4 字/秒；15 秒≈40-55 字）",
+      "work_items": [
+        { "id": "vo_script", "name": "旁白稿", "modality": "document", "prompt_hint": "按密度上限写旁白；超长就拆段或删词，不许指望念快；避开黑名单句式" }
+      ],
+      "review": {
+        "before_execution": ["确认旁白定稿"],
+        "after_execution": []
+      }
+    },
+    {
+      "id": "video",
+      "name": "视频合成",
+      "goal": "图片 + 旁白交 Pixelle 出片",
+      "paid": true,
+      "work_items": [
+        { "id": "final_video", "name": "成片", "modality": "video", "prompt_hint": "确认模板与画幅后交 Pixelle 合成" }
+      ],
+      "review": {
+        "before_execution": ["确认模板与画幅（会调用付费视频链路）"],
+        "after_execution": ["确认成片可用"]
+      },
+      "execution_locks": { "aspect_ratio": "9:16", "resolution": "720P" }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "single-image",
+  "title": "单张成图",
+  "match": {
+    "keywords": ["画一张", "画个", "生成一张", "出图", "来张图", "配图", "海报", "头像", "插画"]
+  },
+  "stages": [
+    {
+      "id": "image",
+      "name": "出图",
+      "goal": "按需求产出成品图",
+      "work_items": [
+        { "id": "img_main", "name": "主图", "modality": "image", "prompt_hint": "把用户原句转成可直接派发的画面描述，保留原句的意图与语气" }
+      ],
+      "review": {
+        "before_execution": ["确认提示词与尺寸"],
+        "after_execution": ["确认画面可用"]
+      },
+      "execution_locks": { "resolution": "1024x1024" }
+    }
+  ]
+}
