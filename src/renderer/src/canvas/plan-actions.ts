@@ -88,7 +88,8 @@ export function pickGateStage(stages: StageRecord[], action: StageActionKind): S
   return stages.find((s) => s.status === 'waiting_user' && s.waiting_reason === want) ?? null
 }
 
-/** 聊天路径：确认/重试走同一条 IPC（actor=chat），并把用户原话落库 */
+/** C5：冻结区判定（实现在 frozen-scope.ts，纯函数可单测） */
+export { detectFrozenTouch, isFrozenStage, type FreezeCandidate } from './frozen-scope'
 export async function actViaChat(planId: string, text: string, stages: StageRecord[]): Promise<ActionOutcome> {
   const action = resolveStageAction(text, stages)
   if (!action) return { status: 'skipped', detail: '非确认类消息或当前无闸门' }

@@ -14,7 +14,7 @@ import { CloseOutlined, MessageOutlined, SendOutlined } from '@ant-design/icons'
 import type { ChatMessage, StageRecord } from './plan-types'
 
 import { appendMessage, loadMessages, setLastCreateResult, useChatMessages } from './chat-store'
-import { actViaChat } from './plan-actions'
+import { actViaChat, detectFrozenTouch } from './plan-actions'
 import StageReviewCard from './StageReviewCard'
 
 interface Props {
@@ -39,6 +39,7 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [stages, setStages] = useState<StageRecord[]>([])
+  const [frozenPrompt, setFrozenPrompt] = useState<{ stageId: string; stageName: string; text: string } | null>(null)
   const messages = useChatMessages(planId)
   const listRef = useRef<HTMLDivElement | null>(null)
   const notedStages = useRef<Set<string>>(new Set())
@@ -116,6 +117,18 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
       } else {
         // 已有计划：C2 起确认/重试类消息走与计划卡同一条 IPC（actor=chat）
         const stages = ((await window.api.planAuthored(planId)) as { stages?: StageRecord[] } | undefined)?.stages ?? []
+        // C5：命中冻结阶段的修改请求 → 先出范围确认卡，**未确认前不落任何变更**
+        const frozen = detectFrozenTouch(content, stages)
+        if (frozen) {
+          await appendMessage({ planId, role: 'user', content })
+          await appendMessage({
+            planId,
+            role: 'system',
+            content: `「${frozen.name}」已冻结（已完成）。改动它需要先选处理方式：从其后重排，或新建计划。`
+          })
+          setFrozenPrompt({ stageId: frozen.id, stageName: frozen.name, text: content })
+          return
+        }
         const outcome = await actViaChat(planId, content, stages)
         if (outcome.status === 'skipped') {
           await appendMessage({ planId, role: 'user', content })
@@ -168,6 +181,9 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
           })
         )}
       </div>
+      {frozenPrompt && planId && (
+        <FrozenConfirmCard planId={planId} prompt={frozenPrompt} stages={stages} onDone={() => setFrozenPrompt(null)} />
+      )}
       <div className="ivc-chat-input">
         <Input.TextArea
           value={text}
@@ -184,6 +200,66 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
         />
         <Button type="primary" icon={busy ? <Spin size="small" /> : <SendOutlined />} onClick={() => void send()} disabled={busy || !text.trim()}>
           发送
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** C5：冻结区范围确认卡（未选定前不落任何变更） */
+function FrozenConfirmCard({
+  planId,
+  prompt,
+  stages,
+  onDone
+}: {
+  planId: string
+  prompt: { stageId: string; stageName: string; text: string }
+  stages: StageRecord[]
+  onDone: () => void
+}): JSX.Element {
+  const replanAfter = async (): Promise<void> => {
+    const editable = stages.filter((s) => s.status !== 'done')
+    const reqId = `fz-${Date.now()}`
+    const res = (await window.api.planReplan({
+      planId,
+      requestId: reqId,
+      preserveThroughStageId: prompt.stageId,
+      ops: editable.length ? [{ kind: 'revise_stage', stage_id: editable[0].id, patch: { goal: prompt.text } }] : [],
+      actor: 'chat',
+      sourceMessageId: reqId
+    })) as { ok?: boolean; error?: string }
+    await appendMessage({
+      planId,
+      role: 'agent',
+      content: res?.ok ? '已从冻结区之后重排（冻结阶段保持不变）。' : `重排失败：${res?.error ?? '未知原因'}`
+    })
+    onDone()
+  }
+
+  const newPlan = async (): Promise<void> => {
+    const created = (await window.api.planCreate({ prompt: prompt.text, canvasContext: { pixelleReady: true } })) as { kind?: string }
+    await appendMessage({
+      planId,
+      role: 'agent',
+      content: created?.kind === 'plan' ? '已按新需求新建计划（原计划保持不动）。' : '这个需求不需要新建流程。'
+    })
+    onDone()
+  }
+
+  return (
+    <div className="ivc-frozen-confirm" data-frozen-confirm="true">
+      <div className="ivc-frozen-title">改动落在冻结区「{prompt.stageName}」</div>
+      <div className="ivc-frozen-desc">选一个处理方式（未选定前不会改动计划）：</div>
+      <div className="ivc-frozen-actions">
+        <Button size="small" type="primary" onClick={() => void replanAfter()}>
+          从其后重排
+        </Button>
+        <Button size="small" onClick={() => void newPlan()}>
+          新建计划
+        </Button>
+        <Button size="small" type="text" onClick={onDone}>
+          取消
         </Button>
       </div>
     </div>

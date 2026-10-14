@@ -577,3 +577,27 @@
 .ivc-reviewcard-actions {
   margin-top: 4px;
 }
+
+/* ── C5：冻结区范围确认卡 ── */
+.ivc-frozen-confirm {
+  border: 1px solid #ffd591;
+  background: #fffbe6;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px;
+  font-size: 12px;
+  color: #7c4a03;
+}
+
+.ivc-frozen-title {
+  font-weight: 600;
+}
+
+.ivc-frozen-desc {
+  margin: 4px 0 6px;
+}
+
+.ivc-frozen-actions {
+  display: flex;
+  gap: 6px;
+}

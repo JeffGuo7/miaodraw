@@ -123,6 +123,10 @@ export class PlanRegistry {
     if (!snap) return { ok: false, error: `计划不存在：${planId}` }
     const idx = snap.stages.findIndex((s) => s.id === stageId)
     if (idx < 0) return { ok: false, error: `阶段不存在：${stageId}` }
+    // C5 冻结前缀：已完成的阶段不可再 patch（要改只能 replan 从其后重排）
+    if (snap.stages[idx].status === 'done') {
+      return { ok: false, error: `阶段「${snap.stages[idx].name}」已冻结（已完成），只能通过 replan 从其后重排` }
+    }
     const r = patchStageContent(snap.stages[idx], patch, expectedRevision, now)
     if (!r.ok) return { ok: false, conflict: true, current: r.current }
     const stages = snap.stages.slice()

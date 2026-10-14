@@ -954,6 +954,66 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] plan-chat:', r)
     check('plan-chat', r)
   }
+  if (process.env.SHOT_PLAN_CHAT_FREEZE === '1') {
+    // C5 冻结边界：已完成阶段标 frozen 且不可 patch；聊天改冻结区 → 先出范围确认卡，未确认不落库
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        const send = async (msg) => {
+          setVal(ta, msg)
+          await sleep(120)
+          ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+          await sleep(600)
+        }
+        await send('做一条带货短视频，要有分镜和口播')
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        // 走完阶段 1（冻结它）
+        let snap = await window.api.planAuthored(planId)
+        let s1 = snap.stages[0]
+        const a1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision, actor: 'ui' })
+        const a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: a1.stage.revision, actor: 'auto' })
+        await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_result', expectedRevision: a2.stage.revision, actor: 'ui' })
+        await sleep(500)
+        // ① 卡片标 frozen + patch 被拒
+        const stageEl = document.querySelector('[data-plan-id] [data-stage-id="' + s1.id + '"]')
+        const frozenMark = stageEl?.getAttribute('data-frozen') === 'true'
+        snap = await window.api.planAuthored(planId)
+        const s1Now = snap.stages.find(s => s.id === s1.id)
+        const patchRejected = (await window.api.planPatchStage({ planId, stageId: s1.id, patch: { goal: '偷改冻结阶段' }, expectedRevision: s1Now.revision }))
+        const rejectedOk = patchRejected.ok === false && String(patchRejected.error || '').includes('冻结')
+        // ② 聊天改冻结区 → 出现范围确认卡，且事件数不变（未落库）
+        const eventsBefore = (await window.api.planEvents(planId)).length
+        await send('把第一步改成横屏')
+        await sleep(400)
+        const confirmCard = panel.querySelector('[data-frozen-confirm="true"]')
+        // 卡片必须给出两种处理方式（任务卡：新建计划 / 从当前阶段重排），否则用户无从选
+        const confirmOptions = confirmCard ? [...confirmCard.querySelectorAll('button')].map((b) => (b.textContent || '').replace(/\s+/g, '')) : []
+        const hasOptions = confirmOptions.some((t) => t.includes('重排')) && confirmOptions.some((t) => t.includes('新建计划'))
+        const eventsAfter = (await window.api.planEvents(planId)).length
+        const noCommit = eventsAfter === eventsBefore
+        const ok = frozenMark && rejectedOk && !!confirmCard && hasOptions && noCommit
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ frozenMark, rejectedOk, confirmCard: !!confirmCard, hasOptions, confirmOptions, noCommit, eventsBefore, eventsAfter })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-freeze:', r)
+    check('plan-chat-freeze', r)
+  }
   if (process.env.SHOT_PLAN_CHAT_AUTO === '1') {
     // C4 自动推进：开启后无需 confirm_plan 即过闸门（actor=auto）；blocked → 自动置 false 并有提示
     const r = await w.webContents.executeJavaScript(

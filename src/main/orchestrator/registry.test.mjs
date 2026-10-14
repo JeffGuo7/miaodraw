@@ -44,6 +44,31 @@ test('冻结前缀不可被增量改动（revise_stage 命中冻结阶段 → �
   assert.equal(s2.status, 'waiting_user')
 })
 
+test('C5 冻结边界：patchStage 拒绝已完成阶段，且不动 revision / 不写事件', () => {
+  const { reg, planId, events } = setup()
+  const s1 = completeStage(reg, planId) // done → 冻结
+  const snapBefore = reg.get(planId)
+  const revBefore = snapBefore.plan.revision
+  const eventsBefore = events.length
+
+  const r = reg.patchStage(planId, s1.id, { goal: '偷改冻结阶段' }, s1.revision)
+  assert.equal(r.ok, false)
+  assert.match(r.error, /冻结/)
+  assert.equal(r.conflict, undefined, '冻结拒绝不是 CAS 冲突（不该让 UI 走“刷新重试”分支）')
+  assert.equal(reg.get(planId).plan.revision, revBefore, '冻结拒绝不得改 revision')
+  assert.equal(events.length, eventsBefore, '冻结拒绝不得写 plan_events')
+  assert.equal(reg.get(planId).stages[0].goal, snapBefore.stages[0].goal)
+})
+
+test('C5 对照组：未完成阶段仍可正常 patch（不能一刀切禁编辑）', () => {
+  const { reg, planId } = setup()
+  completeStage(reg, planId)
+  const s2 = reg.authorFirstStage(planId).value.stages.find((s) => s.order === 2)
+  const r = reg.patchStage(planId, s2.id, { goal: '改成 9:16 竖屏' }, s2.revision)
+  assert.equal(r.ok, true)
+  assert.equal(r.value.goal, '改成 9:16 竖屏')
+})
+
 test('replan 正常路径：改后缀阶段 + 追加 outline，revision 递增且广播', () => {
   const { reg, planId, changes, events } = setup()
   const s1 = completeStage(reg, planId)
