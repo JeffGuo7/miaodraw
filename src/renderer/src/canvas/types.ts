@@ -7,7 +7,7 @@
 
 export type ViewportTransform = { x: number; y: number; k: number }
 
-export type CanvasNodeType = 'text' | 'image' | 'video' | 'audio' | 'config' | 'group'
+export type CanvasNodeType = 'text' | 'image' | 'video' | 'audio' | 'config' | 'group' | 'generate'
 
 export interface CanvasNodeData {
   id: string
@@ -28,5 +28,13 @@ export const NODE_SPECS: Record<CanvasNodeType, { width: number; height: number;
   video: { width: 360, height: 240, title: '视频', metadata: { content: '', taskId: '' } },
   audio: { width: 300, height: 90, title: '音频', metadata: { content: '' } },
   config: { width: 280, height: 220, title: '配置', metadata: {} },
-  group: { width: 480, height: 360, title: '分组', metadata: {} }
+  group: { width: 480, height: 360, title: '分组', metadata: {} },
+  generate: { width: 320, height: 300, title: '出图', metadata: { prompt: '', size: '1024x1024' } }
+}
+
+/** 节点连线：from 的产物/内容作为 to 的输入（如 image → generate 作为参考图） */
+export interface CanvasConnection {
+  id: string
+  from: string
+  to: string
 }

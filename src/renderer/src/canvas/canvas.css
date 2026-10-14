@@ -142,6 +142,64 @@
   border-bottom-right-radius: 10px;
 }
 
+/* 连线端口：右侧中部小圆点 */
+.ivc-node-port {
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #4096ff;
+  cursor: crosshair;
+  z-index: 2;
+}
+
+.ivc-node-port:hover {
+  background: #4096ff;
+}
+
+/* 拖拽中的临时连线 */
+.ivc-pending-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 出图节点 */
+.ivc-gen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  min-height: 0;
+}
+
+.ivc-gen-prompt {
+  flex: 1;
+  min-height: 0;
+}
+
+.ivc-gen-refs {
+  font-size: 12px;
+  color: #10b981;
+}
+
+.ivc-gen-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ivc-gen-error {
+  font-size: 12px;
+  color: #ef4444;
+  word-break: break-all;
+}
+
 /* ── 工具条 ─────────────────────────────── */
 
 .ivc-toolbar {

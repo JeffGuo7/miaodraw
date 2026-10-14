@@ -4,11 +4,12 @@
  */
 import { useSyncExternalStore } from 'react'
 
-import type { CanvasNodeData, CanvasNodeType, ViewportTransform } from './types'
+import type { CanvasConnection, CanvasNodeData, CanvasNodeType, ViewportTransform } from './types'
 import { NODE_SPECS } from './types'
 
 export interface CanvasState {
   nodes: CanvasNodeData[]
+  connections: CanvasConnection[]
   viewport: ViewportTransform
   selectedIds: string[]
   zCounter: number
@@ -16,6 +17,7 @@ export interface CanvasState {
 
 let state: CanvasState = {
   nodes: [],
+  connections: [],
   viewport: { x: 80, y: 80, k: 1 },
   selectedIds: [],
   zCounter: 1
@@ -82,7 +84,30 @@ export const canvasStore = {
   },
 
   removeNode(id: string): void {
-    set({ nodes: state.nodes.filter((n) => n.id !== id), selectedIds: state.selectedIds.filter((s) => s !== id) })
+    set({
+      nodes: state.nodes.filter((n) => n.id !== id),
+      connections: state.connections.filter((c) => c.from !== id && c.to !== id),
+      selectedIds: state.selectedIds.filter((s) => s !== id)
+    })
+  },
+
+  addConnection(from: string, to: string): void {
+    if (from === to) return
+    if (state.connections.some((c) => c.from === from && c.to === to)) return
+    set({ connections: [...state.connections, { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, from, to }] })
+  },
+
+  removeConnection(id: string): void {
+    set({ connections: state.connections.filter((c) => c.id !== id) })
+  },
+
+  /** 某节点的上游输入节点（连线来源） */
+  upstreamOf(id: string): CanvasNodeData[] {
+    const byId = new Map(state.nodes.map((n) => [n.id, n]))
+    return state.connections
+      .filter((c) => c.to === id)
+      .map((c) => byId.get(c.from))
+      .filter((n): n is CanvasNodeData => !!n)
   }
 }
 

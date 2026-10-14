@@ -10,6 +10,7 @@ import {
   getAssetByPath,
   getMeta,
   putAssetBatch,
+  putDependencyBatch,
   setMeta,
   type AssetDependencyRecord,
   type AssetRecord,
@@ -209,14 +210,3 @@ export async function runMigration(onProgress: (p: MigrationProgress) => void, i
   }
 }
 
-async function putDependencyBatch(records: AssetDependencyRecord[]): Promise<void> {
-  const { openCanvasDB } = await import('./db')
-  const db = await openCanvasDB()
-  await new Promise<void>((resolve, reject) => {
-    const t = db.transaction('asset_dependencies', 'readwrite')
-    const store = t.objectStore('asset_dependencies')
-    records.forEach((r) => store.add(r))
-    t.oncomplete = () => resolve()
-    t.onerror = () => reject(t.error ?? new Error('IndexedDB deps batch failed'))
-  })
-}

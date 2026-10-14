@@ -13,7 +13,8 @@ import {
   SoundOutlined,
   SettingOutlined,
   GroupOutlined,
-  DragOutlined
+  DragOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons'
 
 import { InfiniteCanvas } from './InfiniteCanvas'
@@ -25,6 +26,7 @@ import type { CanvasNodeType, ViewportTransform } from './types'
 import './canvas.css'
 
 const ADD_BUTTONS: Array<{ type: CanvasNodeType; icon: JSX.Element; label: string }> = [
+  { type: 'generate', icon: <ThunderboltOutlined />, label: '出图' },
   { type: 'text', icon: <FileTextOutlined />, label: '文本' },
   { type: 'image', icon: <FileImageOutlined />, label: '图片' },
   { type: 'video', icon: <PlayCircleOutlined />, label: '视频' },
@@ -123,6 +125,7 @@ export default function CanvasWorkbench(): JSX.Element {
         onViewportChange={setViewport}
         onCanvasDeselect={() => canvasStore.select(null)}
       >
+        <ConnectionLayer />
         {state.nodes.map((n) => (
           <CanvasNode key={n.id} node={n} selected={state.selectedIds.includes(n.id)} scale={state.viewport.k} />
         ))}
@@ -152,5 +155,38 @@ export default function CanvasWorkbench(): JSX.Element {
 
       <MigrationOverlay />
     </div>
+  )
+}
+
+/** 连线层：世界坐标系内一个大画布 SVG，节点间画贝塞尔线 */
+function ConnectionLayer(): JSX.Element {
+  const { nodes, connections } = useCanvasState()
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const OFF = 100000
+  return (
+    <svg
+      style={{ position: 'absolute', left: -OFF, top: -OFF, width: OFF * 2, height: OFF * 2, pointerEvents: 'none', overflow: 'visible' }}
+    >
+      {connections.map((c) => {
+        const a = byId.get(c.from)
+        const b = byId.get(c.to)
+        if (!a || !b) return null
+        const x1 = a.x + a.width
+        const y1 = a.y + a.height / 2
+        const x2 = b.x
+        const y2 = b.y + b.height / 2
+        const mx = (x1 + x2) / 2
+        return (
+          <path
+            key={c.id}
+            d={`M ${x1 + OFF} ${y1 + OFF} C ${mx + OFF} ${y1 + OFF}, ${mx + OFF} ${y2 + OFF}, ${x2 + OFF} ${y2 + OFF}`}
+            stroke="#4096ff"
+            strokeWidth={2}
+            fill="none"
+            opacity={0.7}
+          />
+        )
+      })}
+    </svg>
   )
 }
