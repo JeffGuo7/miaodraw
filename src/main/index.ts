@@ -864,7 +864,10 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         await sleep(1200)
         const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
         const chatBtn = byText('对话')
-        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + ' | body=' + (document.body.innerText || '').slice(0, 160).replace(/\\n+/g, ' / ') + '）'
+        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + '）'
+        // 先建一个画布节点：后面要断言"发送后画布不被阻塞（可拖动）"
+        byText('文本').click()
+        await sleep(500)
         chatBtn.click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -911,25 +914,37 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
           dragOk = 'no-node'
         }
 
-        // 持久化 + 迁移断言：读 messages / meta / plans
-        await sleep(600)
-        const db = await new Promise((res, rej) => {
-          const rq = indexedDB.open('miaodraw-canvas')
+        // 持久化 + 迁移断言：读 messages / meta / plans（meta 写入是异步的，轮询最多 3s）
+        let schema = null
+        let db = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(100)
+          if (!db) {
+            db = await new Promise((res, rej) => {
+              const rq = indexedDB.open('miaodraw-canvas')
+              rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+            })
+          }
+          const meta = await new Promise((res, rej) => {
+            const tx = db.transaction('meta', 'readonly')
+            const rq = tx.objectStore('meta').get('schema')
+            rq.onsuccess = () => res(rq.result?.value ?? null); rq.onerror = () => rej(rq.error)
+          })
+          schema = meta
+          if (schema?.version === 4) break
+        }
+        const messages = await new Promise((res, rej) => {
+          const tx = db.transaction('messages', 'readonly')
+          const rq = tx.objectStore('messages').getAll()
           rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
         })
-        const readAll = (store) => new Promise((res, rej) => {
-          const tx = db.transaction(store, 'readonly')
-          const rq = tx.objectStore(store).getAll()
-          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
-        })
-        const messages = await readAll('messages')
         const userRows = messages.filter(m => m.role === 'user')
-        const meta = await readAll('meta')
-        const schema = meta.find(m => m.key === 'schema')?.value ?? null
         const plans = await window.api.planList()
-        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version === 4 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1
+        // #185 类回归守卫：getSnapshot 对未知 key 必须返回稳定引用（否则 useSyncExternalStore 无限重渲染→白屏）
+        const stableSnapshot = window.__canvasChat.getMessages('__nope__') === window.__canvasChat.getMessages('__nope__')
+        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version === 4 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1 && stableSnapshot
         return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
-          drafting, sendLatency, userRows: userRows.length, dragOk,
+          drafting, sendLatency, userRows: userRows.length, dragOk, stableSnapshot,
           schemaVersion: schema?.version ?? null, assetsChecked: schema?.assetsChecked ?? null,
           plans: Array.isArray(plans) ? plans.length : null,
           stores: Array.from(db.objectStoreNames)

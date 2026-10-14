@@ -59,6 +59,7 @@ function buildAsset(args: {
     created_at: args.now,
     updated_at: args.now,
     migration_id: MIGRATION_ID,
+    superseded_by: null,
     candidate_asset_id: null,
     candidate_path: null
   }

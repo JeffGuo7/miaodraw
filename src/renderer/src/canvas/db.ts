@@ -139,12 +139,26 @@ export function openCanvasDB(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-/** 迁移断言：所有资产记录都必须有 superseded_by 字段（v2 不变式） */
-export async function assertAssetsMigrated(): Promise<{ total: number; missing: number }> {
+/** 迁移断言：所有资产记录都必须有 superseded_by 字段（v2 不变式）
+ *  v2 之前由生成链路写入的行没有该字段（onupgradeneeded 的 v1→v2 回填只覆盖升级那一刻的旧行），
+ *  这里做一次**幂等回填**再断言：不回降 DB 版本、不删库，仍未修好才抛错（fail-closed）。 */
+export async function assertAssetsMigrated(): Promise<{ total: number; missing: number; repaired: number }> {
   const all = await tx<AssetRecord[]>('assets', 'readonly', (s) => s.getAll())
-  const missing = all.filter((a) => (a as unknown as Record<string, unknown>).superseded_by === undefined).length
-  if (missing > 0) throw new Error(`资产表迁移不全：${missing}/${all.length} 条缺 superseded_by`)
-  return { total: all.length, missing }
+  const missing = all.filter((a) => (a as unknown as Record<string, unknown>).superseded_by === undefined)
+  if (missing.length > 0) {
+    const db = await openCanvasDB()
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction('assets', 'readwrite')
+      const store = t.objectStore('assets')
+      for (const rec of missing) store.put({ ...(rec as unknown as Record<string, unknown>), superseded_by: null } as unknown as AssetRecord)
+      t.oncomplete = () => resolve()
+      t.onerror = () => reject(t.error ?? new Error('superseded_by 回填失败'))
+    })
+  }
+  const after = await tx<AssetRecord[]>('assets', 'readonly', (s) => s.getAll())
+  const stillMissing = after.filter((a) => (a as unknown as Record<string, unknown>).superseded_by === undefined).length
+  if (stillMissing > 0) throw new Error(`资产表迁移不全：${stillMissing}/${after.length} 条缺 superseded_by`)
+  return { total: after.length, missing: 0, repaired: missing.length }
 }
 
 function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {

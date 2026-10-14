@@ -75,6 +75,7 @@ async function persistAssets(args: {
         created_at: now,
         updated_at: now,
         migration_id: null,
+        superseded_by: null,
         candidate_asset_id: null,
         candidate_path: null
       }
@@ -110,6 +111,7 @@ async function persistAssets(args: {
               created_at: now,
               updated_at: now,
               migration_id: null,
+              superseded_by: null,
               candidate_asset_id: null,
               candidate_path: null
             }

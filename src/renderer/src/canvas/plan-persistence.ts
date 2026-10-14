@@ -19,11 +19,11 @@ export function attachPlanPersistence(): () => void {
   if (attached && unsubscribe) return unsubscribe
   attached = true
 
-  // 迁移断言：v2 后所有资产必须有 superseded_by（失败只记日志，不阻塞画布）
+  // 迁移断言：v2 起所有资产必须有 superseded_by（缺的先幂等回填再断言；失败只记日志、不降级不删库）
   void assertAssetsMigrated()
     .then((r) => {
-      void setMeta('schema', { version: SCHEMA_VERSION, assetsChecked: r.total, at: Date.now() })
-      console.info(`[canvas-db] 迁移断言通过：assets=${r.total}，schema=v${SCHEMA_VERSION}`)
+      void setMeta('schema', { version: SCHEMA_VERSION, assetsChecked: r.total, repaired: r.repaired, at: Date.now() })
+      console.info(`[canvas-db] 迁移断言通过：assets=${r.total}（回填 ${r.repaired}），schema=v${SCHEMA_VERSION}`)
     })
     .catch((e) => console.warn('[canvas-db] 迁移断言未通过：', e instanceof Error ? e.message : e))
 
