@@ -819,6 +819,41 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-i2i:', r)
     check('canvas-i2i', r)
   }
+  if (process.env.SHOT_CANVAS_DRAG === '1') {
+    // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click()
+        await sleep(700)
+        const node = document.querySelector('[data-node-id]')
+        if (!node) return 'ERR: 节点未创建'
+        const header = node.querySelector('.ivc-node-header') || node
+        const before = node.getBoundingClientRect()
+        const r0 = header.getBoundingClientRect()
+        const cx = r0.left + 40, cy = r0.top + 10
+        header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 7, button: 0, buttons: 1 }))
+        await sleep(80)
+        for (let i = 1; i <= 10; i++) {
+          window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: cx + i * 12, clientY: cy + i * 6, pointerId: 7, buttons: 1 }))
+          await sleep(30)
+        }
+        const mid = node.getBoundingClientRect()
+        const during = (Math.abs(mid.left - before.left) > 1 || Math.abs(mid.top - before.top) > 1)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx + 120, clientY: cy + 60, pointerId: 7, button: 0 }))
+        await sleep(400)
+        const after = node.getBoundingClientRect()
+        return JSON.stringify({
+          liveFeedbackWhileDragging: during,
+          movedAfterRelease: (Math.abs(after.left - before.left) > 1 || Math.abs(after.top - before.top) > 1),
+          dx: Math.round(after.left - before.left),
+          dy: Math.round(after.top - before.top)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-drag:', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(
