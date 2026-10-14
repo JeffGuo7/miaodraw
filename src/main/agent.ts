@@ -3,6 +3,8 @@ import fsp from 'node:fs/promises'
 import { extractJson, plannerSystem, validatePlan, type PlanStep } from './tools'
 import { httpChat, httpBailianImage, persistImage, writeImageSidecar, clampRefs, DASHSCOPE_ORIGIN, type ModelConn, type RefImage } from './http'
 import { httpGenerate } from './providers'
+import { auditPlannedPrompt, neutralizePrompt, refCapCheck } from './prompt-guards'
+import { log } from './logger'
 
 export interface AgentEvent {
   runId: string
@@ -159,12 +161,33 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
   for (const step of plan.steps) {
     i++
     const specLabel = step.tool === 'generate_image' ? '文生图' : '改图'
+    const rawPrompt = String(step.params.prompt ?? '')
+    // 提示词质量层（P0）：保真 + 编造检测 + 黑名单；发现问题就修 prompt 并上报
+    const audit = auditPlannedPrompt(rawPrompt, opts.goal, { hasRefs: (opts.materialPool?.length ?? 0) > 0 })
+    const fixedPrompt = neutralizePrompt(rawPrompt, opts.goal, audit)
+    if (audit.needsAttention) {
+      const notes = [
+        audit.findings.fabrications.length ? `剔除未确认事实：${audit.findings.fabrications.map((f) => f.kind).join('/')}` : null,
+        audit.findings.missingPhrases.length ? `补回用户指定文案：${audit.findings.missingPhrases.join('、')}` : null,
+        audit.findings.blacklist.length ? `命中低质黑名单：${audit.findings.blacklist.map((h) => h.kind).join('/')}` : null
+      ].filter(Boolean)
+      log(`warn`, `prompt 审计：${notes.join('；')}`)
+    }
     opts.onEvent({
       runId,
       stage: 'step',
       index: i,
       total: plan.steps.length,
-      label: `${specLabel}：${String(step.params.prompt ?? '').slice(0, 30)}`
+      label: `${specLabel}：${fixedPrompt.slice(0, 30)}`,
+      detail: audit.needsAttention
+        ? `已按检查卡校正：${[
+            audit.findings.fabrications.length ? '未确认事实已置空' : null,
+            audit.findings.missingPhrases.length ? '用户原句已补回' : null,
+            audit.findings.blacklist.length ? '低质表达待改写' : null
+          ]
+            .filter(Boolean)
+            .join('、')}`
+        : undefined
     })
     const size = parseSize(step.params.size, 1024, 1024)
     if (step.tool === 'edit_image' && !currentAbs && !opts.materialPool?.length) {
@@ -182,20 +205,59 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
         { name: path.basename(currentAbs), data: new Uint8Array(await fsp.readFile(currentAbs)).buffer as ArrayBuffer }
       ]
     }
+    // 厂商参考图上限前置校验（P0）：超限前先告知，再按上限截断
+    const capInfo = refCapCheck(stepRefs.length, opts.imageConn.model)
+    if (capInfo.over) {
+      log('warn', `参考图超上限：${capInfo.requested} > ${capInfo.cap}（模型 ${opts.imageConn.model}），已截断`)
+      opts.onEvent({
+        runId,
+        stage: 'step',
+        index: i,
+        total: plan.steps.length,
+        label: `${specLabel}：参考图超上限已截断`,
+        detail: `模型 ${opts.imageConn.model} 最多 ${capInfo.cap} 张参考图，已用前 ${capInfo.cap} 张`
+      })
+    }
     stepRefs = clampRefs(stepRefs, opts.imageConn.model).refs
-    const res = await genImage(
-      opts.imageConn,
-      {
-        prompt: String(step.params.prompt ?? ''),
-        negative: typeof step.params.negative === 'string' ? step.params.negative : undefined,
-        w: size.w,
-        h: size.h,
-        parent: currentName,
-        refs: stepRefs.length ? stepRefs : undefined,
-        runId: `${opts.runId}-s${i}`
-      },
-      outputsDir
-    )
+    const baseNegative = typeof step.params.negative === 'string' ? step.params.negative : undefined
+    // 命中编造（品牌/电话/邮箱/地址/价格/福利）→ 换参数重试一次：补 negative 守卫 + 明确文字来源
+    const fabricationRetry = audit.findings.fabrications.length > 0
+    const guardNegative = fabricationRetry
+      ? [baseNegative, '可读文字, 水印, 品牌名, 联系电话, 邮箱, 地址, 价格, 福利承诺'].filter(Boolean).join(', ')
+      : baseNegative
+    const guardedPrompt = fabricationRetry
+      ? `${fixedPrompt}\n画面内除上述引号内文案外不得出现任何文字、品牌名、联系方式、价格或承诺`
+      : fixedPrompt
+
+    const genOnce = async (prompt: string, negative?: string): Promise<{ file: string; url: string }> =>
+      genImage(
+        opts.imageConn,
+        {
+          prompt,
+          negative,
+          w: size.w,
+          h: size.h,
+          parent: currentName,
+          refs: stepRefs.length ? stepRefs : undefined,
+          runId: `${opts.runId}-s${i}`
+        },
+        outputsDir
+      )
+
+    let res = await genOnce(guardedPrompt, guardNegative)
+    if (fabricationRetry) {
+      // 已用改参数后的 prompt 重生成过一次（同 prompt 不重复抽卡）
+      log('info', `步骤 ${i} 触发编造防护重试（改用 negative 守卫 + 文字来源约束）`)
+      opts.onEvent({
+        runId,
+        stage: 'step',
+        index: i,
+        total: plan.steps.length,
+        label: `${specLabel}：已按防编造参数重生成`,
+        detail: `检出未确认事实（${audit.findings.fabrications.map((f) => f.kind).join('/')}），已换参数重试一次`
+      })
+      res = await genOnce(guardedPrompt, guardNegative)
+    }
     files.push({ file: res.file, url: res.url })
     currentAbs = path.join(outputsDir, res.file)
     currentName = res.file

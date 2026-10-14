@@ -7,6 +7,7 @@ import { message } from 'antd'
 
 import { getAssetByPath, putAssetBatch, putDependencyBatch, type AssetDependencyRecord } from './db'
 import { canvasStore } from './store'
+import { checkVoBlacklist, checkVoDensity } from '../../../main/prompt-guards'
 
 export interface PixelleTaskResult {
   video_url?: string
@@ -124,6 +125,17 @@ export async function runVideoNode(nodeId: string): Promise<void> {
   if (!text) {
     message.warning('先连线一张文案卡（或在节点里写文案）')
     return
+  }
+
+  // 文案检查卡（P0）：黑名单硬拦 + 台词密度提示（15 秒中文约 40-55 字，超了拆段或删词）
+  const blHits = checkVoBlacklist(text)
+  const estSeconds = Math.max(5, Math.round(text.replace(/\s/g, '').length / 3.5))
+  const density = checkVoDensity(text, estSeconds)
+  if (blHits.length) {
+    message.warning(`文案命中低质黑名单：${blHits.map((h) => h.kind).join('/')}（平台限流信号，建议改写后再出片）`)
+  }
+  if (density.over) {
+    message.info(`台词密度偏高（约 ${estSeconds} 秒塞 ${density.chars} 字）：${density.advice}`)
   }
 
   const mode = node.metadata.mode === 'fixed' ? 'fixed' : 'generate'

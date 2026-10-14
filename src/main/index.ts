@@ -34,6 +34,7 @@ import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgres
 import { registerCanvasAssetHandlers } from './canvasAssets'
 import { registerPixelleHandlers, pixelleOutputDir, stopPixelleBackend } from './pixelle'
 import { registerOrchestratorHandlers } from './orchestrator'
+import { auditPlannedPrompt, buildImagePrompt } from './prompt-guards'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -819,6 +820,39 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] canvas-i2i:', r)
     check('canvas-i2i', r)
+  }
+  if (process.env.SHOT_P0_PROMPT === '1') {
+    // 提示词质量层 P0 端到端：组装 → 审计（含编造负例）→ z-image-turbo 真实出图（¥0.1）
+    const brief = '新中式茶馆春季招募海报，可以加点暖色，要醒目点'
+    const assembled = buildImagePrompt(brief, {
+      size: '1024x1024',
+      medium: '平面设计海报',
+      palette: { main: '茶汤琥珀', accent: '宣纸米白', highlight: '金色描边' },
+      layout: '信息阶梯',
+      onImageText: ['春水煎茶', '招募茶艺师']
+    })
+    const audit = auditPlannedPrompt(assembled, brief, { needsText: true })
+    // 负例（零成本）：Painter A/B 实测里模型编造的那段
+    const badDraft = '隐山·茶事 春季招聘 联系电话 010-8888-6666 邮箱 hr@yinshan.com 地址 杭州西湖区龙井路 18 号 五险一金 月薪 8000 元'
+    const badAudit = auditPlannedPrompt(badDraft, brief)
+    const noFalsePositive = audit.findings.fabrications.length === 0 && audit.findings.missingPhrases.length === 0
+    const detectsFabrication = badAudit.findings.fabrications.length >= 4
+    const gen = await w.webContents.executeJavaScript(
+      `window.api.generate({
+        prompt: ${JSON.stringify(assembled)},
+        model: 'z-image-turbo', provider: 'bailian', w: 1024, h: 1024
+      }).then(x => 'OK:' + x.file).catch(e => 'ERR:' + e.message)`
+    )
+    const ok = noFalsePositive && detectsFabrication && String(gen).startsWith('OK:')
+    const summary = JSON.stringify({
+      noFalsePositive,
+      detectsFabrication,
+      fabricationKinds: badAudit.findings.fabrications.map((f) => f.kind),
+      promptLen: assembled.length,
+      gen
+    })
+    console.log('[shot] p0-prompt:', (ok ? 'OK:' : 'ERR:') + summary)
+    check('p0-prompt', (ok ? 'OK:' : 'ERR:') + summary)
   }
   if (process.env.SHOT_PLAN_O1 === '1') {
     // 编排 O1 端到端：plan:create 立即返回 drafting → 事件推进首阶段 → 状态机走完 → IndexedDB 落盘
