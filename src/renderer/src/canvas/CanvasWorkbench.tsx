@@ -2,9 +2,9 @@
  * 画布工作台 — miaodraw 画布模式一级视图
  * 引擎/节点移植自 basketikun/infinite-canvas（MIT），见各文件头署名。
  */
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Button, Tooltip } from 'antd'
+import { Button, Progress, Tooltip } from 'antd'
 import {
   BgColorsOutlined,
   FileTextOutlined,
@@ -19,6 +19,8 @@ import {
 import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
+import { countAssets } from './db'
+import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
 import './canvas.css'
 
@@ -30,6 +32,59 @@ const ADD_BUTTONS: Array<{ type: CanvasNodeType; icon: JSX.Element; label: strin
   { type: 'config', icon: <SettingOutlined />, label: '配置' },
   { type: 'group', icon: <GroupOutlined />, label: '分组' }
 ]
+
+/** 迁移浮层：画布页首次打开跑一次历史索引，进度可中断；之后每次打开静默对账 */
+function MigrationOverlay(): JSX.Element | null {
+  const [progress, setProgress] = useState<MigrationProgress | null>(null)
+  const [assetCount, setAssetCount] = useState<number | null>(null)
+  const abortRef = useRef(false)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+    runMigration(setProgress, () => abortRef.current)
+      .catch(() => undefined)
+      .finally(() => {
+        countAssets().then(setAssetCount).catch(() => undefined)
+      })
+  }, [])
+
+  if (!progress || progress.phase === 'done') return null
+  if (progress.phase === 'failed') {
+    return (
+      <div className="ivc-migration-mask ivc-no-zoom">
+        <div className="ivc-migration-card">
+          <div>历史索引失败：{progress.error}</div>
+          <Button size="small" onClick={() => { startedRef.current = false; setProgress(null) }}>
+            关闭（可稍后重开画布页重试）
+          </Button>
+        </div>
+      </div>
+    )
+  }
+  if (!progress) return null
+  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : progress.phase === 'scanning' ? 0 : 100
+  return (
+    <div className="ivc-migration-mask ivc-no-zoom">
+      <div className="ivc-migration-card">
+        <div style={{ marginBottom: 8 }}>
+          {progress.phase === 'scanning' ? '扫描历史作品…' : '正在建立画布资产索引（原文件不动，只建目录）'}
+          {assetCount != null && ` · 现有 ${assetCount} 条`}
+        </div>
+        <Progress percent={pct} size="small" />
+        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            {progress.done}/{progress.total}
+          </span>
+          <Button size="small" onClick={() => { abortRef.current = true }}>
+            中断
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function CanvasWorkbench(): JSX.Element {
   const state = useCanvasState()
@@ -94,6 +149,8 @@ export default function CanvasWorkbench(): JSX.Element {
         <Button size="small" type="text" onClick={() => zoomBy(1.2)}>＋</Button>
         <Button size="small" type="text" onClick={resetView}>复位</Button>
       </div>
+
+      <MigrationOverlay />
     </div>
   )
 }

@@ -174,3 +174,26 @@
   font-size: 12px;
   color: #475569;
 }
+
+/* 迁移浮层 */
+.ivc-migration-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247, 248, 250, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.ivc-migration-card {
+  width: 380px;
+  background: #fff;
+  border: 1px solid #e2e6ee;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  color: #334155;
+}

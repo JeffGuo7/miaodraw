@@ -297,6 +297,16 @@ export interface Api {
   imageRead(url: string): Promise<Uint8Array>
   /** 读取素材留档（内容寻址）；历史「复现」还原素材托盘用 */
   refsRead(hash: string, ext: string): Promise<Uint8Array>
+  /** 画布资产信息（M1）：outputs/refs 只读取样（size/哈希/宽高），供 assets 索引 */
+  canvasAssetInfo(rel: string): Promise<{
+    size: number
+    mtimeMs: number
+    quickHash: string
+    fullHash: string
+    width: number | null
+    height: number | null
+    mime: string
+  }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */
   imageEdit(payload: {
     op: ImageEditOp

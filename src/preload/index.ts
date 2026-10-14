@@ -47,6 +47,7 @@ const api = {
   revealImage: (url: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('image:reveal', url),
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   refsRead: (hash: string, ext: string): Promise<Uint8Array> => ipcRenderer.invoke('refs:read', hash, ext),
+  canvasAssetInfo: (rel: string): Promise<unknown> => ipcRenderer.invoke('canvas:assetInfo', rel),
   imageEdit: (payload: {
     op: string
     name?: string

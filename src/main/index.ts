@@ -31,6 +31,7 @@ import { loadLibrary, libraryRoot } from './library'
 import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
+import { registerCanvasAssetHandlers } from './canvasAssets'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -744,6 +745,12 @@ async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; rol
 }
 
 function registerIpc(): void {
+  // ---------- 画布资产（M1 数据层：outputs/refs 只读取样，供 assets 索引） ----------
+  registerCanvasAssetHandlers(handle, {
+    outputsPath: () => OUT_DIR,
+    userDataPath: () => app.getPath('userData')
+  })
+
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {
     ipcMain.handle(channel, (e, ...args: unknown[]) => {
