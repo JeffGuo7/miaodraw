@@ -3,7 +3,7 @@
  * 结构依据 docs/m1-migration-plan.md，参照 minimax-reference-pack 01 思路自写实现。
  * 原生 IndexedDB API，零新依赖。
  */
-import type { PlanRecord, StageRecord } from './plan-types'
+import type { PlanEvent, PlanRecord, StageRecord } from './plan-types'
 
 export interface AssetRecord {
   id: string
@@ -49,8 +49,8 @@ export interface MigrationState {
 }
 
 const DB_NAME = 'miaodraw-canvas'
-/** v2：新增 plans / stages 两个 store（编排 O1），assets 增 superseded_by（重跑留档） */
-const DB_VERSION = 2
+/** v2：plans/stages（编排 O1）；v3：plan_events（B 批审计） */
+const DB_VERSION = 3
 
 export const SCHEMA_VERSION = DB_VERSION
 
@@ -93,6 +93,12 @@ export function openCanvasDB(): Promise<IDBDatabase> {
           stages.createIndex('plan_id', 'plan_id')
           stages.createIndex('plan_id_order', ['plan_id', 'order'])
           stages.createIndex('status', 'status')
+        }
+        // ── v3（B 批）：append-only 审计事件 ──
+        if (!db.objectStoreNames.contains('plan_events')) {
+          const events = db.createObjectStore('plan_events', { keyPath: 'id', autoIncrement: true })
+          events.createIndex('plan_id', 'plan_id')
+          events.createIndex('created_at', 'created_at')
         }
 
         // 旧资产补 superseded_by=null（重跑留档字段），并做迁移断言
@@ -283,4 +289,33 @@ export async function deletePlanCascade(planId: string): Promise<{ stages: numbe
     t.onerror = () => reject(t.error ?? new Error('plan delete failed'))
   })
   return { stages: stages.length }
+}
+
+// ---------- plan_events（B 批：append-only 审计） ----------
+
+export async function appendPlanEvent(event: PlanEvent): Promise<void> {
+  const db = await openCanvasDB()
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction('plan_events', 'readwrite')
+    const { id: _ignored, ...rest } = event
+    t.objectStore('plan_events').add(rest)
+    t.oncomplete = () => resolve()
+    t.onerror = () => reject(t.error ?? new Error('plan event append failed'))
+  })
+}
+
+export async function listPlanEvents(planId: string, limit = 200): Promise<PlanEvent[]> {
+  const db = await openCanvasDB()
+  return new Promise((resolve, reject) => {
+    const out: PlanEvent[] = []
+    const t = db.transaction('plan_events', 'readonly')
+    const req = t.objectStore('plan_events').index('plan_id').openCursor(IDBKeyRange.only(planId))
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (!cursor || out.length >= limit) return resolve(out)
+      out.push(cursor.value as PlanEvent)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error ?? new Error('plan events list failed'))
+  })
 }

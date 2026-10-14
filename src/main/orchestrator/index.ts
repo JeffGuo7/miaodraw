@@ -1,23 +1,29 @@
 /**
- * 编排 IPC（O1）—— 7 个通道 + plan:changed 事件。
- * 与设计稿一致：plan:create **立即返回 drafting**，首阶段靠事件异步推进。
+ * 编排 IPC（O1 + B 批）—— 通道 + 事件。
+ * 事件：plan:changed（计划快照）、plan:event（append-only 审计，含 source_message_id）
+ * plan:create 立即返回 drafting；plan:replan 为真实增量协议（幂等 + CAS + 原子后缀）。
  */
 import type { IpcMainInvokeEvent } from 'electron'
 
-import type { PlanRecord, StageRecord } from '../../shared/plan-types'
+import type { PlanEvent, PlanRecord, ReplanOp, StageRecord } from '../../shared/plan-types'
 
-import { PlanRegistry, type PlanSnapshot } from './registry.ts'
+import { PlanRegistry, type PlanSnapshot, type ReplanRequest } from './registry.ts'
 import type { StageAction } from './state.ts'
 
 type HandleFn = (channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown) => void
 
-/** 已处理的 replan 请求（幂等：同 requestId + 同 payload 直接回放结果） */
-const replanSeen = new Map<string, { at: number; result: unknown }>()
+export interface OrchestratorHandle {
+  registry: PlanRegistry
+}
 
-export function registerOrchestratorHandlers(handle: HandleFn, send: (channel: string, payload: unknown) => void): PlanRegistry {
-  const registry = new PlanRegistry((snapshot: PlanSnapshot) => {
-    send('plan:changed', snapshot)
-  })
+export function registerOrchestratorHandlers(
+  handle: HandleFn,
+  send: (channel: string, payload: unknown) => void
+): OrchestratorHandle {
+  const registry = new PlanRegistry(
+    (snapshot: PlanSnapshot) => send('plan:changed', snapshot),
+    (event: PlanEvent) => send('plan:event', event)
+  )
 
   /** 建计划：同步只做分类+骨架（立即返回 drafting），首阶段 author 走事件推进 */
   handle('plan:create', (_e, payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; pixelleReady?: boolean } }) => {
@@ -25,7 +31,6 @@ export function registerOrchestratorHandlers(handle: HandleFn, send: (channel: s
     if (res.kind !== 'plan') {
       return { kind: res.kind, direct: res.kind === 'direct', capsule: res.capsule }
     }
-    // 异步推进：先把 drafting 返回给渲染层，下一 tick 再物化首阶段并广播
     queueMicrotask(() => {
       registry.authorFirstStage(res.snapshot.plan.id)
     })
@@ -45,6 +50,8 @@ export function registerOrchestratorHandlers(handle: HandleFn, send: (channel: s
 
   handle('plan:list', (): PlanRecord[] => registry.list())
 
+  handle('plan:events', (_e, payload?: { planId?: string }): PlanEvent[] => registry.listEvents(payload?.planId))
+
   handle('plan:authorStage', (_e, payload: { planId: string; stageOrder?: number; expectedRevision?: number }) => {
     return registry.authorFirstStage(payload?.planId)
   })
@@ -53,29 +60,40 @@ export function registerOrchestratorHandlers(handle: HandleFn, send: (channel: s
     'plan:patchStage',
     (_e, payload: { planId: string; stageId: string; patch: Partial<StageRecord>; expectedRevision: number }) => {
       const r = registry.patchStage(payload.planId, payload.stageId, payload.patch as Parameters<PlanRegistry['patchStage']>[2], payload.expectedRevision)
-      return r.ok ? { ok: true, revision: r.value.revision, stage: r.value } : { ok: false, conflict: r.conflict ?? false, current: r.current, error: r.error }
+      if (r.ok) return { ok: true, revision: r.value.revision, stage: r.value }
+      return r.conflict ? { ok: false, conflict: true, current: r.current } : { ok: false, conflict: false, error: r.error }
     }
   )
 
-  handle('plan:advance', (_e, payload: { planId: string; stageId: string; action: StageAction; expectedRevision: number }) => {
-    const r = registry.advance(payload.planId, payload.stageId, payload.action, payload.expectedRevision)
-    return r.ok ? { ok: true, stage: r.value } : { ok: false, conflict: r.conflict ?? false, current: r.current, error: r.error }
+  handle('plan:advance', (_e, payload: { planId: string; stageId: string; action: StageAction; expectedRevision: number; actor?: 'chat' | 'ui' | 'auto' }) => {
+    const r = registry.advance(payload.planId, payload.stageId, payload.action, payload.expectedRevision, Date.now(), payload.actor ?? 'ui')
+    if (r.ok) return { ok: true, stage: r.value }
+    return r.conflict ? { ok: false, conflict: true, current: r.current } : { ok: false, conflict: false, error: r.error }
   })
 
-  /** O4 才做增量 replan；O1 先按幂等契约占位（同 requestId 回放，不重复执行） */
-  handle('plan:replan', (_e, payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: unknown[] }) => {
-    const key = `${payload?.planId}:${payload?.requestId}`
-    const seen = replanSeen.get(key)
-    if (seen) return seen.result
-    const result = { ok: false, error: 'replan 在 O4 提供（O1 仅占位，幂等键已记录）' }
-    replanSeen.set(key, { at: Date.now(), result })
-    return result
-  })
+  /** 增量协议（B 批）：三档中的 replan —— 原子更新后缀 + 冻结已确认前缀 */
+  handle(
+    'plan:replan',
+    (_e, payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: ReplanOp[]; expectedRevision?: number; actor?: 'chat' | 'ui' | 'auto'; sourceMessageId?: string }) => {
+      const req: ReplanRequest = {
+        planId: payload?.planId,
+        requestId: payload?.requestId,
+        preserveThroughStageId: payload?.preserveThroughStageId,
+        ops: payload?.ops ?? [],
+        expectedRevision: payload?.expectedRevision,
+        actor: payload?.actor,
+        sourceMessageId: payload?.sourceMessageId
+      }
+      return registry.replan(req)
+    }
+  )
+
+  handle('plan:cancel', (_e, payload: { planId: string }) => registry.cancel(payload?.planId))
 
   handle('plan:delete', (_e, payload: { planId: string }) => {
     const removed = registry.remove(payload?.planId)
     return { ok: removed }
   })
 
-  return registry
+  return { registry }
 }

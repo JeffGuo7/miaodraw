@@ -2,9 +2,9 @@
  * 计划持久化（O1）：plan 是真相源，画布节点只是视图。
  * 主进程每次 plan:changed 推全量快照，这里落 IndexedDB（plans/stages），支持重启续跑。
  */
-import type { PlanRecord, StageRecord } from './plan-types'
+import type { PlanEvent, PlanRecord, StageRecord } from './plan-types'
 
-import { assertAssetsMigrated, getPlan, listPlans, listStagesByPlan, putPlan, putStageBatch, SCHEMA_VERSION, setMeta } from './db'
+import { appendPlanEvent, assertAssetsMigrated, getPlan, listPlans, listStagesByPlan, putPlan, putStageBatch, SCHEMA_VERSION, setMeta } from './db'
 
 interface PlanChangedPayload {
   plan: PlanRecord
@@ -34,8 +34,15 @@ export function attachPlanPersistence(): () => void {
       .then(() => putStageBatch(payload.stages ?? []))
       .catch((e) => console.warn('[plan] 落盘失败：', e instanceof Error ? e.message : e))
   })
+  // B 批：审计事件 append-only 落盘（谁改的/改了什么/旧新 revision/溯源消息）
+  const offEvent = window.api.onPlanEvent((raw) => {
+    const event = raw as PlanEvent | undefined
+    if (!event?.plan_id) return
+    void appendPlanEvent(event).catch((e) => console.warn('[plan] 审计事件落盘失败：', e instanceof Error ? e.message : e))
+  })
   unsubscribe = () => {
     off()
+    offEvent()
     attached = false
     unsubscribe = null
   }

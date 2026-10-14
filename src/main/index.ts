@@ -854,6 +854,101 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] p0-prompt:', (ok ? 'OK:' : 'ERR:') + summary)
     check('p0-prompt', (ok ? 'OK:' : 'ERR:') + summary)
   }
+  if (process.env.SHOT_PLAN_B === '1') {
+    // B 批增量协议端到端：replan 增量 + 冻结前缀 + 幂等重放 + CAS 冲突 + 原子性 + 审计落盘 + cancel
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        if (created.kind !== 'plan') return 'ERR: 未建成计划'
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 20; i++) { await sleep(150); snap = await window.api.planAuthored(planId); if (snap?.stages?.length) break }
+        if (!snap?.stages?.length) return 'ERR: 首阶段未物化'
+        // 走完阶段 1（冻结前缀）
+        let s1 = snap.stages[0]
+        let a1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision })
+        let a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: a1.stage.revision })
+        let a3 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_result', expectedRevision: a2.stage.revision, actor: 'chat' })
+        const done1 = a3.stage.status === 'done'
+        // author 阶段 2
+        await window.api.planAuthorStage({ planId })
+        await sleep(200)
+        snap = await window.api.planAuthored(planId)
+        const s2 = snap.stages.find(s => s.order === 2)
+        if (!s2) return 'ERR: 阶段 2 未物化'
+        const revBefore = snap.plan.revision
+        const s1RevBefore = snap.stages.find(s => s.id === s1.id).revision
+        // 增量：改阶段 2 + 追加 outline（带冻结前缀与溯源消息）
+        const increment = await window.api.planReplan({
+          planId, requestId: 'req-probe-1', preserveThroughStageId: s1.id, expectedRevision: revBefore,
+          actor: 'chat', sourceMessageId: 'msg_probe_1',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { goal: '按新需求重写画面方向' } },
+            { kind: 'insert_stage_outline', entry: { id: planId + '_s9', order: 9, name: '加映花絮' } }
+          ]
+        })
+        const incOk = increment.ok === true && increment.frozen_through === s1.id && increment.revision === revBefore + 1
+        const frozenIntact = (await window.api.planAuthored(planId)).stages.find(s => s.id === s1.id).revision === s1RevBefore
+
+        // 幂等重放
+        const replay = await window.api.planReplan({
+          planId, requestId: 'req-probe-1', preserveThroughStageId: s1.id, expectedRevision: revBefore,
+          actor: 'chat', sourceMessageId: 'msg_probe_1',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { goal: '按新需求重写画面方向' } },
+            { kind: 'insert_stage_outline', entry: { id: planId + '_s9', order: 9, name: '加映花絮' } }
+          ]
+        })
+        const replayOk = replay.ok === true && replay.replayed === true
+        const revAfterReplay = (await window.api.planAuthored(planId)).plan.revision
+
+        // CAS 冲突（用过期的 revision）
+        const cas = await window.api.planReplan({ planId, requestId: 'req-probe-cas', expectedRevision: revBefore, ops: [] })
+        const casOk = cas.ok === false && cas.conflict?.code === 'PLAN_REVISION_CONFLICT' && cas.conflict.current_state.actual_revision >= revBefore + 1
+
+        // 原子性：合法 + 非法 op 混合 → 全不生效
+        const beforeAtomic = JSON.stringify(await window.api.planAuthored(planId))
+        const atomic = await window.api.planReplan({
+          planId, requestId: 'req-probe-atomic',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { name: '本次不应生效' } },
+            { kind: 'revise_stage', stage_id: 'not-exist', patch: { name: 'x' } }
+          ]
+        })
+        const atomicOk = atomic.ok === false && JSON.stringify(await window.api.planAuthored(planId)) === beforeAtomic
+
+        // 审计事件（IPC + IndexedDB）
+        const events = await window.api.planEvents(planId)
+        const auditOk = Array.isArray(events) && events.some(e => e.event === 'replan' && e.request_id === 'req-probe-1' && e.source_message_id === 'msg_probe_1')
+        await sleep(300)
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const persisted = await new Promise((res, rej) => {
+          const tx = db.transaction('plan_events', 'readonly')
+          const rq = tx.objectStore('plan_events').count()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+
+        // cancel
+        const cancel = await window.api.planCancel(planId)
+        const cancelled = cancel.ok === true && (await window.api.planAuthored(planId)).plan.status === 'cancelled'
+
+        const ok = done1 && incOk && frozenIntact && replayOk && casOk && atomicOk && auditOk && persisted >= 1 && cancelled
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          done1, incOk, frozenIntact, replayOk, revAfterReplay, casOk, atomicOk, auditOk,
+          persistedEvents: persisted, cancelled, stores: Array.from(db.objectStoreNames)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-b:', r)
+    check('plan-b', r)
+  }
   if (process.env.SHOT_PLAN_O1 === '1') {
     // 编排 O1 端到端：plan:create 立即返回 drafting → 事件推进首阶段 → 状态机走完 → IndexedDB 落盘
     const r = await w.webContents.executeJavaScript(

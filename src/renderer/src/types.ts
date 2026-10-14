@@ -325,11 +325,26 @@ export interface Api {
   /** 乐观锁内容编辑：revision 不匹配返回 conflict */
   planPatchStage(payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown>
   /** 状态机唯一入口：confirm_plan / execution_done / confirm_result / retry / block / unblock */
-  planAdvance(payload: { planId: string; stageId: string; action: string; expectedRevision: number }): Promise<unknown>
-  planReplan(payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: unknown[] }): Promise<unknown>
+  planAdvance(payload: { planId: string; stageId: string; action: string; expectedRevision: number; actor?: 'chat' | 'ui' | 'auto' }): Promise<unknown>
+  /** 增量协议（B 批）：stage_patch 走 patchStage；replan 为原子后缀更新 + 冻结前缀；换流程用 planCreate 新建 */
+  planReplan(payload: {
+    planId: string
+    requestId: string
+    preserveThroughStageId?: string
+    ops?: unknown[]
+    expectedRevision?: number
+    actor?: 'chat' | 'ui' | 'auto'
+    sourceMessageId?: string
+  }): Promise<unknown>
+  /** 取消计划（终态，可重开） */
+  planCancel(planId: string): Promise<unknown>
+  /** 审计事件（append-only，含 source_message_id 溯源） */
+  planEvents(planId?: string): Promise<unknown>
   planDelete(planId: string): Promise<unknown>
   /** 计划变更事件（主进程 → 渲染层） */
   onPlanChanged(cb: (payload: unknown) => void): () => void
+  /** 审计事件推送（主进程 → 渲染层） */
+  onPlanEvent(cb: (payload: unknown) => void): () => void
   /** Pixelle REST 代理（主进程转发，规避 CORS） */
   pixelleProxy(args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */

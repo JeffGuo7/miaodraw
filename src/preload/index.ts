@@ -62,15 +62,29 @@ const api = {
     ipcRenderer.invoke('plan:authorStage', payload),
   planPatchStage: (payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown> =>
     ipcRenderer.invoke('plan:patchStage', payload),
-  planAdvance: (payload: { planId: string; stageId: string; action: string; expectedRevision: number }): Promise<unknown> =>
+  planAdvance: (payload: { planId: string; stageId: string; action: string; expectedRevision: number; actor?: string }): Promise<unknown> =>
     ipcRenderer.invoke('plan:advance', payload),
-  planReplan: (payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: unknown[] }): Promise<unknown> =>
-    ipcRenderer.invoke('plan:replan', payload),
+  planReplan: (payload: {
+    planId: string
+    requestId: string
+    preserveThroughStageId?: string
+    ops?: unknown[]
+    expectedRevision?: number
+    actor?: string
+    sourceMessageId?: string
+  }): Promise<unknown> => ipcRenderer.invoke('plan:replan', payload),
+  planCancel: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:cancel', { planId }),
+  planEvents: (planId?: string): Promise<unknown> => ipcRenderer.invoke('plan:events', { planId }),
   planDelete: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:delete', { planId }),
   onPlanChanged: (cb: (payload: unknown) => void): (() => void) => {
     const h = (_e: unknown, payload: unknown): void => cb(payload)
     ipcRenderer.on('plan:changed', h)
     return () => ipcRenderer.removeListener('plan:changed', h)
+  },
+  onPlanEvent: (cb: (payload: unknown) => void): (() => void) => {
+    const h = (_e: unknown, payload: unknown): void => cb(payload)
+    ipcRenderer.on('plan:event', h)
+    return () => ipcRenderer.removeListener('plan:event', h)
   },
   imageEdit: (payload: {
     op: string

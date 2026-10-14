@@ -1,9 +1,16 @@
 /**
- * 编排注册表（O1）—— 纯逻辑，不依赖 electron，可单测。
- * 语义：plan 是真相源（渲染层落 IndexedDB，本注册表是主进程工作集）；
- *       一次只 author 一个阶段；状态迁移唯一入口是 state.applyAction（带乐观锁）。
+ * 编排注册表（O1 + B 批增量协议）—— 纯逻辑，不依赖 electron，可单测。
+ *
+ * 语义：
+ * - plan 是真相源（渲染层落 IndexedDB，本注册表是主进程工作集）
+ * - 一次只 author 一个阶段；状态迁移唯一入口 state.applyAction（带乐观锁）
+ * - 增量三档（B 批）：stage_patch（改当前阶段）／replan（原子更新后缀 + 冻结已确认前缀）／
+ *   换 workflow 才新建 plan（这里通过 create 表达）
+ * - replan 幂等：同 planId + request_id + 同 payload 重放 → 直接回放已保存结果
+ * - CAS 冲突：返回结构化 PLAN_REVISION_CONFLICT（current_state + allowed_actions）
+ * - 原子性：一批 ops 全部校验通过才提交，任一失败不留半成品
  */
-import type { PlanRecord, RoutingCapsule, StageRecord } from '../../shared/plan-types'
+import type { PlanConflict, PlanEvent, PlanRecord, ReplanOp, RouteKind, RoutingCapsule, StageOutlineEntry, StageRecord, WorkflowStageSpec } from '../../shared/plan-types'
 
 import { authorStage as authorStageContent, buildPlan, patchStage as patchStageContent } from './planner.ts'
 import { classify, getWorkflow, type RouteContext } from './router.ts'
@@ -19,17 +26,42 @@ export type CreateResult =
   | { kind: 'ask'; capsule: RoutingCapsule }
   | { kind: 'plan'; snapshot: PlanSnapshot; capsule: RoutingCapsule }
 
-export type ActionResult<T> = { ok: true; value: T } | { ok: false; conflict?: true; error?: string; current?: StageRecord }
+export type ActionResult<T> = { ok: true; value: T } | { ok: false; conflict?: false; error?: string } | { ok: false; conflict: true; current: StageRecord }
+
+export interface ReplanRequest {
+  planId: string
+  /** 幂等键：同 id + 同 payload 重放返回既有结果 */
+  requestId: string
+  /** 冻结到哪个阶段（含）：该阶段及之前不可被本批改动 */
+  preserveThroughStageId?: string
+  ops: ReplanOp[]
+  expectedRevision?: number
+  actor?: 'chat' | 'ui' | 'auto'
+  sourceMessageId?: string
+}
+
+export type ReplanResult =
+  | { ok: true; tier: 'replan'; snapshot: PlanSnapshot; replayed?: boolean; revision: number; frozen_through: string | null }
+  | { ok: false; tier: 'replan'; conflict: PlanConflict }
+  | { ok: false; tier: 'replan'; error: string }
+
+/** 幂等结果缓存（进程内；渲染层另有 plan_events 持久审计） */
+interface CachedReplan {
+  payloadHash: string
+  result: ReplanResult
+}
 
 export class PlanRegistry {
   private plans = new Map<string, PlanRecord>()
   private stages = new Map<string, StageRecord[]>()
-
-  /** 变更回调：由 IPC 层接成 plan:changed 事件 */
+  private replays = new Map<string, CachedReplan>()
+  private events: PlanEvent[] = []
   private onChange?: (snapshot: PlanSnapshot) => void
+  private onEvent?: (event: PlanEvent) => void
 
-  constructor(onChange?: (snapshot: PlanSnapshot) => void) {
+  constructor(onChange?: (snapshot: PlanSnapshot) => void, onEvent?: (event: PlanEvent) => void) {
     this.onChange = onChange
+    this.onEvent = onEvent
   }
 
   /** 建计划：**只写骨架并立即返回 drafting**，首阶段由 authorFirstStage 异步推进（设计稿 §5） */
@@ -44,6 +76,7 @@ export class PlanRegistry {
     const plan = buildPlan(prompt, workflow, now)
     this.plans.set(plan.id, plan)
     this.stages.set(plan.id, [])
+    this.record({ plan_id: plan.id, event: 'create', actor: 'auto', stage_id: null, before_revision: 0, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
     return { kind: 'plan', snapshot: this.get(plan.id) as PlanSnapshot, capsule }
   }
 
@@ -55,6 +88,10 @@ export class PlanRegistry {
 
   list(): PlanRecord[] {
     return [...this.plans.values()].sort((a, b) => b.updated_at - a.updated_at)
+  }
+
+  listEvents(planId?: string): PlanEvent[] {
+    return planId ? this.events.filter((e) => e.plan_id === planId) : [...this.events]
   }
 
   /** 物化当前阶段（一次一个）→ 进入 waiting_user(plan_review)；成功后广播 */
@@ -70,10 +107,11 @@ export class PlanRegistry {
     try {
       const stage = authorStageContent(snap.plan, workflow, snap.stages, order, now)
       const stages = [...snap.stages, stage]
+      const before = snap.plan.revision
       const plan = this.touch(planId, stages, now)
-      const out = { plan, stages }
-      this.onChange?.(out)
-      return { ok: true, value: out }
+      this.record({ plan_id: planId, event: 'author_stage', actor: 'auto', stage_id: stage.id, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+      this.emit({ plan, stages })
+      return { ok: true, value: { plan, stages } }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
@@ -88,12 +126,14 @@ export class PlanRegistry {
     if (!r.ok) return { ok: false, conflict: true, current: r.current }
     const stages = snap.stages.slice()
     stages[idx] = r.stage
-    this.touch(planId, stages, now)
+    const before = snap.plan.revision
+    const plan = this.touch(planId, stages, now)
+    this.record({ plan_id: planId, event: 'patch_stage', actor: 'ui', stage_id: stageId, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
     return { ok: true, value: r.stage }
   }
 
   /** 状态机唯一入口 */
-  advance(planId: string, stageId: string, action: StageAction, expectedRevision: number, now: number = Date.now()): ActionResult<StageRecord> {
+  advance(planId: string, stageId: string, action: StageAction, expectedRevision: number, now: number = Date.now(), actor: 'chat' | 'ui' | 'auto' = 'ui'): ActionResult<StageRecord> {
     const snap = this.get(planId)
     if (!snap) return { ok: false, error: `计划不存在：${planId}` }
     const idx = snap.stages.findIndex((s) => s.id === stageId)
@@ -105,14 +145,188 @@ export class PlanRegistry {
     }
     const stages = snap.stages.slice()
     stages[idx] = r.stage
-    this.touch(planId, stages, now)
+    const before = snap.plan.revision
+    const plan = this.touch(planId, stages, now)
+    this.record({ plan_id: planId, event: `advance:${action}`, actor, stage_id: stageId, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+    this.emit({ plan, stages })
     return { ok: true, value: r.stage }
+  }
+
+  /**
+   * 增量更新（B 批核心）：原子更新后缀，冻结已确认前缀。
+   * - 幂等：同 requestId + 同 payload → 回放既有结果
+   * - CAS：expectedRevision 与 plan.revision 不符 → 结构化冲突
+   * - 原子：全部 ops 校验通过后才提交
+   */
+  replan(req: ReplanRequest, now: number = Date.now()): ReplanResult {
+    const snap = this.get(req.planId)
+    if (!snap) return { ok: false, tier: 'replan', error: `计划不存在：${req.planId}` }
+
+    const payloadHash = hashPayload(req)
+    const cacheKey = `${req.planId}:${req.requestId}`
+    const cached = this.replays.get(cacheKey)
+    if (cached && cached.payloadHash === payloadHash) {
+      return { ...cached.result, replayed: true } as ReplanResult
+    }
+
+    if (req.expectedRevision !== undefined && req.expectedRevision !== snap.plan.revision) {
+      return {
+        ok: false,
+        tier: 'replan',
+        conflict: {
+          code: 'PLAN_REVISION_CONFLICT',
+          message: `计划修订冲突：期望 ${req.expectedRevision}，实际 ${snap.plan.revision}。请重新读取计划后重试。`,
+          current_state: { expected_revision: req.expectedRevision, actual_revision: snap.plan.revision },
+          allowed_actions: ['reread_plan']
+        }
+      }
+    }
+
+    // ── 在局部副本上执行，全部成功才提交（原子性） ──
+    const stages = snap.stages.map((s) => ({ ...s }))
+    let outline: StageOutlineEntry[] = snap.plan.stage_outline.map((o) => ({ ...o }))
+    const frozenThroughOrder = this.orderOf(stages, outline, req.preserveThroughStageId)
+    const frozenIds = new Set(stages.filter((s) => s.order <= frozenThroughOrder).map((s) => s.id))
+
+    try {
+      for (const op of req.ops ?? []) {
+        switch (op.kind) {
+          case 'revise_stage': {
+            const idx = stages.findIndex((s) => s.id === op.stage_id)
+            if (idx < 0) throw new Error(`阶段不存在：${op.stage_id}`)
+            if (frozenIds.has(op.stage_id)) throw new Error(`阶段 ${op.stage_id} 在冻结前缀内，不能被增量改动`)
+            stages[idx] = { ...stages[idx], ...op.patch, revision: stages[idx].revision + 1, updated_at: now }
+            break
+          }
+          case 'insert_stage_outline': {
+            if (outline.some((o) => o.order === op.entry.order)) throw new Error(`outline 已存在 order=${op.entry.order}`)
+            outline = [...outline, op.entry].sort((a, b) => a.order - b.order)
+            break
+          }
+          case 'omit_stage': {
+            const idx = stages.findIndex((s) => s.id === op.stage_id)
+            if (idx >= 0) {
+              if (frozenIds.has(op.stage_id)) throw new Error(`阶段 ${op.stage_id} 在冻结前缀内，不能被 omit`)
+              if (stages[idx].status !== 'pending' && stages[idx].status !== 'blocked') throw new Error(`只有未执行的阶段可 omit（${op.stage_id} 当前 ${stages[idx].status}）`)
+              stages.splice(idx, 1)
+            }
+            outline = outline.filter((o) => o.id !== op.stage_id && !op.stage_id.startsWith(`${o.id}_`))
+            break
+          }
+          case 'remove_unexecuted_stage': {
+            const idx = stages.findIndex((s) => s.id === op.stage_id)
+            if (idx < 0) throw new Error(`阶段不存在：${op.stage_id}`)
+            if (frozenIds.has(op.stage_id)) throw new Error(`阶段 ${op.stage_id} 在冻结前缀内，不能删除`)
+            if (stages[idx].status === 'doing' || stages[idx].status === 'done') throw new Error(`已开始/已完成的阶段不可删除（${op.stage_id} 当前 ${stages[idx].status}）`)
+            stages.splice(idx, 1)
+            break
+          }
+          case 'insert_stage': {
+            const spec: WorkflowStageSpec = op.spec
+            const order = this.nextFreeOrder(stages, outline)
+            const stage: StageRecord = {
+              id: `${req.planId}_s${order}`,
+              plan_id: req.planId,
+              order,
+              name: spec.name,
+              goal: spec.goal,
+              status: 'pending',
+              waiting_reason: null,
+              depends_on: [],
+              execution_locks: spec.execution_locks ?? {},
+              review: spec.review,
+              work_items: (spec.work_items ?? []).map((d) => ({ id: `${req.planId}_s${order}_${d.id}`, name: d.name, modality: d.modality, refs: [], prompt: d.prompt_hint ?? '', status: 'pending' as const })),
+              revision: 1,
+              updated_at: now
+            }
+            const authored = applyAction(stage, 'author_stage', stage.revision, now)
+            if (!authored.ok) throw new Error('insert_stage 迁移失败')
+            stages.push(authored.stage)
+            outline = [...outline, { id: `${req.planId}_s${order}`, order, name: spec.name }].sort((a, b) => a.order - b.order)
+            break
+          }
+          default:
+            throw new Error(`未知 op：${String((op as { kind?: string }).kind)}`)
+        }
+      }
+    } catch (e) {
+      // 原子性：不改动任何状态
+      return { ok: false, tier: 'replan', error: e instanceof Error ? e.message : String(e) }
+    }
+
+    const beforeRev = snap.plan.revision
+    const nextPlan: PlanRecord = {
+      ...snap.plan,
+      stage_outline: outline,
+      status: derivePlanStatus(stages, outline.length),
+      revision: beforeRev + 1,
+      updated_at: now
+    }
+    this.plans.set(req.planId, nextPlan)
+    this.stages.set(req.planId, stages)
+
+    const frozenThrough = req.preserveThroughStageId ?? (frozenThroughOrder > 0 ? stages.find((s) => s.order === frozenThroughOrder)?.id ?? null : null)
+    const result: ReplanResult = { ok: true, tier: 'replan', snapshot: { plan: nextPlan, stages }, revision: nextPlan.revision, frozen_through: frozenThrough }
+    this.replays.set(cacheKey, { payloadHash, result })
+    this.record({
+      plan_id: req.planId,
+      event: 'replan',
+      actor: req.actor ?? 'chat',
+      stage_id: null,
+      before_revision: beforeRev,
+      after_revision: nextPlan.revision,
+      request_id: req.requestId,
+      source_message_id: req.sourceMessageId ?? null,
+      detail: `${req.ops?.length ?? 0} ops，冻结至 ${frozenThrough ?? '（无）'}`,
+      created_at: now
+    })
+    this.emit({ plan: nextPlan, stages })
+    return result
+  }
+
+  /** 取消计划（终态）：不动已完成阶段，未完成的保持原状态供用户重开 */
+  cancel(planId: string, now: number = Date.now()): { ok: boolean; error?: string } {
+    const snap = this.get(planId)
+    if (!snap) return { ok: false, error: `计划不存在：${planId}` }
+    const before = snap.plan.revision
+    const plan: PlanRecord = { ...snap.plan, status: 'cancelled', revision: before + 1, updated_at: now }
+    this.plans.set(planId, plan)
+    this.record({ plan_id: planId, event: 'cancel', actor: 'ui', stage_id: null, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+    this.emit({ plan, stages: snap.stages })
+    return { ok: true }
   }
 
   remove(planId: string): boolean {
     const had = this.plans.delete(planId)
     this.stages.delete(planId)
+    for (const key of [...this.replays.keys()]) if (key.startsWith(`${planId}:`)) this.replays.delete(key)
     return had
+  }
+
+  // ── 内部 ──
+
+  private emit(snapshot: PlanSnapshot): void {
+    this.onChange?.(snapshot)
+  }
+
+  private record(event: PlanEvent): void {
+    const withId: PlanEvent = { ...event, id: this.events.length + 1 }
+    this.events.push(withId)
+    this.onEvent?.(withId)
+  }
+
+  private orderOf(stages: StageRecord[], outline: StageOutlineEntry[], stageId?: string): number {
+    if (!stageId) return 0
+    const fromStage = stages.find((s) => s.id === stageId)?.order
+    const fromOutline = outline.find((o) => o.id === stageId)?.order
+    return fromStage ?? fromOutline ?? 0
+  }
+
+  private nextFreeOrder(stages: StageRecord[], outline: StageOutlineEntry[]): number {
+    const used = new Set([...stages.map((s) => s.order), ...outline.map((o) => o.order)])
+    let n = 1
+    while (used.has(n)) n++
+    return n
   }
 
   /** 写回计划并重算 plan 状态（blocked > done > running > drafting） */
@@ -120,7 +334,7 @@ export class PlanRegistry {
     const plan = this.plans.get(planId) as PlanRecord
     const next: PlanRecord = {
       ...plan,
-      status: derivePlanStatus(stages, plan.stage_outline.length),
+      status: plan.status === 'cancelled' ? 'cancelled' : derivePlanStatus(stages, plan.stage_outline.length),
       revision: plan.revision + 1,
       updated_at: now
     }
@@ -129,3 +343,11 @@ export class PlanRegistry {
     return next
   }
 }
+
+/** 幂等 payload 指纹（只关心影响结果的字段） */
+function hashPayload(req: ReplanRequest): string {
+  return JSON.stringify({ p: req.planId, f: req.preserveThroughStageId ?? null, ops: req.ops ?? [] })
+}
+
+export { derivePlanStatus }
+export type { RouteKind }

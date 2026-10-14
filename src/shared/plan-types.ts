@@ -67,7 +67,7 @@ export interface StageRecord {
   updated_at: number
 }
 
-export type PlanStatus = 'drafting' | 'running' | 'done' | 'blocked'
+export type PlanStatus = 'drafting' | 'running' | 'done' | 'blocked' | 'cancelled'
 export type WorkflowId = 'single-image' | 'image-to-video' | 'doc-to-video' | 'custom'
 
 export interface StageOutlineEntry {
@@ -123,4 +123,41 @@ export interface WorkflowSpec {
   title: string
   match: { keywords: string[]; requires?: string[] }
   stages: WorkflowStageSpec[]
+}
+
+// ── 增量协议（B 批：对话改计划） ──
+
+/** 增量三档：改当前阶段 / 原子更新后缀（冻结前缀）/ 换流程新建 plan */
+export type ReplanTier = 'stage_patch' | 'replan' | 'new_plan'
+
+/** replan 批次内的操作（一次批量提交，全部成功才生效） */
+export type ReplanOp =
+  | { kind: 'revise_stage'; stage_id: string; patch: Partial<Pick<StageRecord, 'name' | 'goal' | 'execution_locks' | 'review' | 'work_items'>> }
+  | { kind: 'insert_stage'; after_stage_id?: string; spec: WorkflowStageSpec }
+  | { kind: 'insert_stage_outline'; entry: StageOutlineEntry }
+  | { kind: 'omit_stage'; stage_id: string }
+  | { kind: 'remove_unexecuted_stage'; stage_id: string }
+
+/** 结构化冲突（对齐 MiniMax 的 PLAN_REVISION_CONFLICT 形态） */
+export interface PlanConflict {
+  code: 'PLAN_REVISION_CONFLICT'
+  message: string
+  current_state: { expected_revision: number; actual_revision: number }
+  allowed_actions: string[]
+}
+
+/** 审计事件（append-only；source_message_id 回溯源话） */
+export interface PlanEvent {
+  id?: number
+  plan_id: string
+  /** 事件类型：create / author_stage / advance / patch_stage / replan / cancel */
+  event: string
+  actor: 'chat' | 'ui' | 'auto'
+  stage_id: string | null
+  before_revision: number
+  after_revision: number
+  request_id: string | null
+  source_message_id: string | null
+  detail?: string
+  created_at: number
 }

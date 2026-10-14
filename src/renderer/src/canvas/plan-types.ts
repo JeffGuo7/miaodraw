@@ -4,8 +4,12 @@
  */
 export type {
   ExecutionLocks,
+  PlanConflict,
+  PlanEvent,
   PlanRecord,
   PlanStatus,
+  ReplanOp,
+  ReplanTier,
   RouteKind,
   RoutingCapsule,
   StageOutlineEntry,
