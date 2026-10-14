@@ -840,13 +840,27 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
           const deps = await all('asset_dependencies')
           const px = assets.filter(a => String(a.path || '').startsWith('pixelle/'))
           const meta = assets.filter(a => a.metadata && String(JSON.stringify(a.metadata)).includes('source'))
+          const withQuick = assets.filter(a => a.quick_hash && String(a.quick_hash).length > 8)
+          const byHash = {}
+          for (const a of withQuick) byHash[a.quick_hash] = (byHash[a.quick_hash] || 0) + 1
+          const dupHashes = Object.keys(byHash).filter(k => byHash[k] > 1)
+          const dupDetail = dupHashes.slice(0, 3).map(k => ({
+            hash: String(k).slice(0, 10),
+            paths: withQuick.filter(a => a.quick_hash === k).map(a => a.path)
+          }))
+          const withFull = assets.filter(a => a.full_hash && String(a.full_hash).length > 8)
           return JSON.stringify({
             assets: assets.length,
             pixelle: px.length,
             lastPixelle: px.slice(-2).map(a => a.path),
             deps: deps.length,
             lastDeps: deps.slice(-2).map(d => ({ role: d.role, op: d.operation })),
-            withMeta: meta.length
+            withMeta: meta.length,
+            quickHash: withQuick.length,
+            fullHash: withFull.length,
+            dupHashGroups: dupHashes.length,
+            dupDetail,
+            statusMissing: assets.filter(a => a.status === 'missing').length
           })
         } catch (e) { return 'ERR:' + e.message }
       })().catch(e => 'ERR:' + e.message)`
