@@ -766,6 +766,59 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-video:', r)
     check('canvas-video', r)
   }
+  if (process.env.SHOT_CANVAS_I2I === '1') {
+    // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
+        const setText = (ta, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(ta, v)
+          ta.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        const taIn = (n) => n.querySelector('.ivc-gen-prompt')
+        const genIn = (n) => [...n.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成'))
+        toolbar('出图').click()
+        await sleep(800)
+        const genA = nodesByTitle('出图')[0]
+        if (!genA) return 'ERR: 出图节点未创建'
+        setText(taIn(genA), '一只柴犬坐在窗边，扁平插画，简洁背景')
+        await sleep(300)
+        genIn(genA).click()
+        let t0 = Date.now()
+        while (Date.now() - t0 < 90000) { await sleep(2000); if (nodesByTitle('图片').length > 0) break }
+        if (!nodesByTitle('图片').length) return 'ERR: 底图未生成'
+        toolbar('出图').click()
+        await sleep(800)
+        const gens = nodesByTitle('出图')
+        const genC = gens[gens.length - 1]
+        const imgB = nodesByTitle('图片')[0]
+        const port = imgB.querySelector('.ivc-node-port')
+        if (!port) return 'ERR: 图片节点无端口'
+        const pr = port.getBoundingClientRect()
+        const cr = genC.getBoundingClientRect()
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 1, button: 0, buttons: 1 }))
+        await sleep(200)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cr.left + cr.width / 2, clientY: cr.top + 20, pointerId: 1, button: 0 }))
+        await sleep(700)
+        const refs = genC.querySelector('.ivc-gen-refs')
+        if (!refs || !refs.textContent.includes('参考图')) return 'ERR: 连线未生效'
+        setText(taIn(genC), '保持构图，改成水彩风格')
+        await sleep(300)
+        genIn(genC).click()
+        t0 = Date.now()
+        while (Date.now() - t0 < 120000) {
+          await sleep(2000)
+          if (nodesByTitle('图片').length >= 2) return 'OK:i2i_images=' + nodesByTitle('图片').length + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+        }
+        return 'ERR: i2i 未产出新图'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-i2i:', r)
+    check('canvas-i2i', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(

@@ -202,7 +202,8 @@ export async function runGenerateNode(genNodeId: string): Promise<void> {
       childNodeId: imgNodeId
     })
 
-    message.success(`生成完成，耗时 ${result.elapsed}s`)
+    // elapsed 为毫秒（主进程 Date.now()-t0），此处换算成秒显示
+    message.success(`生成完成，耗时 ${(result.elapsed / 1000).toFixed(1)} 秒`)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     canvasStore.updateNode(genNodeId, { metadata: { ...canvasStore.getState().nodes.find((n) => n.id === genNodeId)?.metadata, error: msg } })
