@@ -398,7 +398,7 @@ function createWindow(): void {
 }
 
 // ---------- 验收截图模式（与 aodl-pilot 的 TEST_MODE 同思路） ----------
-const VIEW_INDEX: Record<string, number> = { create: 0, compose: 1, library: 2, distill: 3, history: 4, settings: 5 }
+const VIEW_INDEX: Record<string, number> = { create: 0, canvas: 1, compose: 2, library: 3, distill: 4, history: 5, settings: 6 }
 
 /** smoke 断言：记录每个验收点的结果，ERR/异常计入失败，最终决定退出码 */
 let shotErrors = 0

@@ -90,8 +90,27 @@ export async function ensurePixelleBackend(): Promise<{ baseUrl: string }> {
   log(`starting backend on port ${port}`)
   const proc = spawn(
     'uv.exe',
-    ['run', 'python', 'api/app.py', '--host', '127.0.0.1', '--port', String(port)],
-    { cwd: backendDir(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
+    [
+      'run',
+      // Windows 实测两个必须项（否则后端会在渲染/渲染后的打印阶段直接崩）：
+      // 1) PYTHONUTF8/PYTHONIOENCODING：Python 默认按 GBK 编码 stdout，Pixelle 里
+      //    print("✓ …") 会抛 UnicodeEncodeError 打断管线（见下方 env）。
+      // 2) edge-tts>=7.3.1：仓库锁定 7.2.7，与微软 TTS 端点握手失效（403）；
+      //    7.3.1 正常。默认 TTS 走 DashScope Qwen-TTS，这里仅保证兜底路径可用。
+      '--with', 'edge-tts>=7.3.1',
+      'python',
+      'api/app.py',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(port)
+    ],
+    {
+      cwd: backendDir(),
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
+    }
   )
   state.proc = proc
   state.port = port
