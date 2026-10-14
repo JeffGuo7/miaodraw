@@ -694,6 +694,39 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas:', r)
     check('canvas', r)
   }
+  if (process.env.SHOT_CANVAS_GEN === '1') {
+    // 画布出图节点端到端自测：新建出图节点 → 填提示词 → 点生成 → 等图片卡落画布
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const genBtn = byText('出图')
+        if (!genBtn) return 'ERR: 工具条无出图按钮'
+        genBtn.click()
+        await sleep(600)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 出图节点无提示词输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '一只戴贝雷帽的柴犬，扁平插画风格，简洁背景')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(300)
+        const run = [...document.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成'))
+        if (!run) return 'ERR: 无生成按钮'
+        run.click()
+        const t0 = Date.now()
+        while (Date.now() - t0 < 70000) {
+          await sleep(2000)
+          const imgs = document.querySelectorAll('.ivc-img').length
+          if (imgs > 0) return 'OK:canvas_images=' + imgs + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+          const err = document.querySelector('.ivc-gen-error')
+          if (err) return 'ERR: ' + err.textContent.slice(0, 150)
+        }
+        return 'ERR: 70s 超时未出图'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-gen:', r)
+    check('canvas-gen', r)
+  }
   if (process.env.SHOT_KEY === '1') {
     // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
     const r = await w.webContents.executeJavaScript(
