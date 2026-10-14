@@ -48,6 +48,9 @@ const api = {
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   refsRead: (hash: string, ext: string): Promise<Uint8Array> => ipcRenderer.invoke('refs:read', hash, ext),
   canvasAssetInfo: (rel: string): Promise<unknown> => ipcRenderer.invoke('canvas:assetInfo', rel),
+  pixelleEnsure: (): Promise<{ baseUrl: string }> => ipcRenderer.invoke('pixelle:ensure'),
+  pixelleProxy: (args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }> =>
+    ipcRenderer.invoke('pixelle:proxy', args),
   imageEdit: (payload: {
     op: string
     name?: string

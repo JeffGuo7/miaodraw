@@ -6,13 +6,14 @@
  */
 import { useRef, useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
-import { Button, Input, Select, message } from 'antd'
+import { Button, Input, Progress, Select, message } from 'antd'
 import { PlayCircleOutlined } from '@ant-design/icons'
 
 import type { CanvasNodeData } from './types'
 import { NODE_SPECS } from './types'
 import { canvasStore } from './store'
 import { runGenerateNode } from './generation'
+import { runVideoNode, TEMPLATES } from './videoGeneration'
 
 interface CanvasNodeProps {
   node: CanvasNodeData
@@ -183,7 +184,7 @@ function renderBody(node: CanvasNodeData): JSX.Element {
     case 'image':
       return <ImageBody node={node} />
     case 'video':
-      return <div className="ivc-placeholder">视频节点 · M3 接 Pixelle 管线</div>
+      return <VideoBody node={node} />
     case 'audio':
       return <div className="ivc-placeholder">音频节点 · 待接入 TTS</div>
     case 'config':
@@ -254,6 +255,60 @@ function GenerateBody({ node }: { node: CanvasNodeData }): JSX.Element {
         </Button>
       </div>
       {node.metadata.error ? <div className="ivc-gen-error">{String(node.metadata.error)}</div> : null}
+    </div>
+  )
+}
+
+/** 视频生产节点主体（M3）：有产物内容时是视频卡片，否则是生产者配置面板 */
+function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
+  const content = String(node.metadata.content ?? '')
+  if (content) {
+    return (
+      <div className="ivc-video-wrap">
+        <video className="ivc-video" src={content} controls preload="metadata" />
+      </div>
+    )
+  }
+  const running = Boolean(node.metadata.running)
+  const status = node.metadata.status ? String(node.metadata.status) : ''
+  const progress = typeof node.metadata.progress === 'number' ? Math.round(node.metadata.progress * 100) : null
+  const upstreamText = canvasStore.upstreamOf(node.id).filter((n) => n.type === 'text' && String(n.metadata.content ?? '').trim())
+
+  return (
+    <div className="ivc-gen">
+      <Select
+        size="small"
+        value={node.metadata.mode === 'fixed' ? 'fixed' : 'generate'}
+        disabled={running}
+        options={[
+          { value: 'generate', label: 'AI 生成文案分镜' },
+          { value: 'fixed', label: '文案原文直出' }
+        ]}
+        onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, mode: v } })}
+      />
+      {upstreamText.length === 0 && (
+        <Input.TextArea
+          className="ivc-gen-prompt"
+          placeholder="输入视频文案（或连线一张文案卡）…"
+          value={String(node.metadata.prompt ?? '')}
+          disabled={running}
+          onChange={(e) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, prompt: e.target.value } })}
+        />
+      )}
+      {upstreamText.length > 0 && <div className="ivc-gen-refs">文案卡 ×{upstreamText.length}（已连线）</div>}
+      <Select
+        size="small"
+        value={String(node.metadata.template ?? TEMPLATES[0].value)}
+        disabled={running}
+        options={TEMPLATES}
+        onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, template: v } })}
+      />
+      <Button size="small" type="primary" icon={<PlayCircleOutlined />} loading={running} onClick={() => void runVideoNode(node.id)}>
+        {running ? status || '生成中…' : node.metadata.error ? '重试' : '生成成片'}
+      </Button>
+      {running && <Progress size="small" percent={progress != null ? progress : undefined} status="active" format={() => status} />}
+      {node.metadata.error ? <div className="ivc-gen-error">{String(node.metadata.error)}</div> : null}
+      {node.metadata.taskId && !running ? <div className="ivc-gen-refs">任务 {String(node.metadata.taskId)}</div> : null}
     </div>
   )
 }

@@ -32,6 +32,7 @@ import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
 import { registerCanvasAssetHandlers } from './canvasAssets'
+import { registerPixelleHandlers, pixelleOutputDir } from './pixelle'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -748,8 +749,12 @@ function registerIpc(): void {
   // ---------- 画布资产（M1 数据层：outputs/refs 只读取样，供 assets 索引） ----------
   registerCanvasAssetHandlers(handle, {
     outputsPath: () => OUT_DIR,
-    userDataPath: () => app.getPath('userData')
+    userDataPath: () => app.getPath('userData'),
+    pixelleOutputPath: () => pixelleOutputDir()
   })
+
+  // ---------- Pixelle 视频生产后端（M3：起停管理 + REST 代理） ----------
+  registerPixelleHandlers(handle)
 
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {

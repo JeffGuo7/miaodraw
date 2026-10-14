@@ -200,6 +200,20 @@
   word-break: break-all;
 }
 
+/* 视频产物卡 */
+.ivc-video-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #000;
+}
+
+.ivc-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* ── 工具条 ─────────────────────────────── */
 
 .ivc-toolbar {
