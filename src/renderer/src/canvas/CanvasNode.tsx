@@ -4,7 +4,7 @@
  * 原组件为 canvas-node.tsx（体量大、耦合生成/存储服务），M0 先落节点壳：
  * 六类内建节点 + 选中/拖拽/缩放，内容渲染在 M2/M3 逐类接能力。
  */
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 import { Button, Input, Progress, Select, message } from 'antd'
 import { PlayCircleOutlined } from '@ant-design/icons'
@@ -14,6 +14,9 @@ import { NODE_SPECS } from './types'
 import { canvasStore } from './store'
 import { runGenerateNode } from './generation'
 import { runVideoNode, TEMPLATES } from './videoGeneration'
+import { hitTestConnectionTarget, portAnchor, snapEndpoint } from './connection-hit'
+import { clientToWorld, invalidateCanvasRect } from './rect-cache'
+import { beginPending, endPending, updatePending } from './pending-connection'
 
 interface CanvasNodeProps {
   node: CanvasNodeData
@@ -25,90 +28,143 @@ const MIN_W = 120
 const MIN_H = 60
 
 export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Element {
-  const dragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null)
-  const resizeRef = useRef<{ startX: number; startY: number; ow: number; oh: number } | null>(null)
-  const [pendingFrom, setPendingFrom] = useState<{ x: number; y: number } | null>(null)
+  const [pending, setPending] = useState(false)
 
-  /** 从右侧连线端口拖出 → 落到目标节点上建立连线 */
-  const onPortPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    if (e.button !== 0) return
-    e.stopPropagation()
-    const worldStart = { x: node.x + node.width, y: node.y + node.height / 2 }
-    setPendingFrom(worldStart)
-    let last = worldStart
-    const move = (ev: PointerEvent): void => {
-      const st = canvasStore.getState().viewport
-      last = {
-        x: (ev.clientX - (containerLeft() ?? 0) - st.x) / st.k,
-        y: (ev.clientY - (containerTop() ?? 0) - st.y) / st.k
-      }
-      setPendingFrom({ ...last })
-    }
-    const up = (ev: PointerEvent): void => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      setPendingFrom(null)
-      const el = document.elementFromPoint(ev.clientX, ev.clientY)
-      const targetEl = el?.closest('[data-node-id]')
-      const targetId = targetEl?.getAttribute('data-node-id')
-      if (targetId && targetId !== node.id) {
-        canvasStore.addConnection(node.id, targetId)
-        message.success('已连线：上游内容将作为下游输入')
-      }
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-
+  /** 拖动（P0-1）：rAF 合并，每帧一次 emit；位置按「初始位置 + 增量」算，不累积漂移 */
   const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
     e.stopPropagation()
     canvasStore.select(node.id)
-    dragRef.current = { startX: e.clientX, startY: e.clientY, ox: node.x, oy: node.y }
+    const origin = { x: node.x, y: node.y }
+    const start = { x: e.clientX, y: e.clientY }
+    const k = scale > 0 ? scale : 1
+    let next = { x: node.x, y: node.y }
+    let frame: number | null = null
+
+    const flush = (): void => {
+      frame = null
+      // 每帧提交：拖动过程中位置可见（原实现只在 pointerup 提交，导致拖动期间不动）
+      canvasStore.applyNodeMove(node.id, Math.round(next.x), Math.round(next.y))
+    }
     const move = (ev: PointerEvent): void => {
-      if (!dragRef.current) return
-      canvasStore.moveNodeSilent(node.id, {
-        x: Math.round(dragRef.current.ox + (ev.clientX - dragRef.current.startX) / scale),
-        y: Math.round(dragRef.current.oy + (ev.clientY - dragRef.current.startY) / scale)
-      })
+      next = { x: origin.x + (ev.clientX - start.x) / k, y: origin.y + (ev.clientY - start.y) / k }
+      if (frame === null) frame = requestAnimationFrame(flush)
     }
     const up = (): void => {
-      dragRef.current = null
-      canvasStore.commit()
+      if (frame !== null) {
+        cancelAnimationFrame(frame)
+        frame = null
+      }
+      flush() // 收尾：确保末帧位置落库
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   }
 
+  /** 缩放（同源热路径） */
   const onResizePointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
     e.stopPropagation()
     canvasStore.select(node.id)
-    resizeRef.current = { startX: e.clientX, startY: e.clientY, ow: node.width, oh: node.height }
+    const origin = { w: node.width, h: node.height }
+    const start = { x: e.clientX, y: e.clientY }
+    const k = scale > 0 ? scale : 1
+    let next = { w: node.width, h: node.height }
+    let frame: number | null = null
+
+    const flush = (): void => {
+      frame = null
+      canvasStore.applyNodeResize(node.id, Math.max(MIN_W, Math.round(next.w)), Math.max(MIN_H, Math.round(next.h)))
+    }
     const move = (ev: PointerEvent): void => {
-      if (!resizeRef.current) return
-      canvasStore.moveNodeSilent(node.id, {
-        width: Math.max(MIN_W, Math.round(resizeRef.current.ow + (ev.clientX - resizeRef.current.startX) / scale)),
-        height: Math.max(MIN_H, Math.round(resizeRef.current.oh + (ev.clientY - resizeRef.current.startY) / scale))
-      })
+      next = { w: origin.w + (ev.clientX - start.x) / k, h: origin.h + (ev.clientY - start.y) / k }
+      if (frame === null) frame = requestAnimationFrame(flush)
     }
     const up = (): void => {
-      resizeRef.current = null
-      canvasStore.commit()
+      if (frame !== null) {
+        cancelAnimationFrame(frame)
+        frame = null
+      }
+      flush()
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+
+  /**
+   * 连线（P0-4 + P0-5）：
+   * - 起点用源节点端口真实世界坐标；终点吸附近处目标端口
+   * - 热路径只改 SVG 属性（pending-connection 直接写 DOM），不触发整卡重渲染
+   * - 命中判定走纯几何 hitTestConnectionTarget（屏幕像素按 1/k 补偿）
+   */
+  const onPortPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    // 手势开始先校准一次容器 rect：视图切换/窗口移动后缓存可能过期（热路径仍只做算术）
+    invalidateCanvasRect()
+    const from = portAnchor(node)
+    beginPending(node.id, from)
+    setPending(true)
+    let frame: number | null = null
+    let client = { x: e.clientX, y: e.clientY }
+
+    const flush = (): void => {
+      frame = null
+      const vp = canvasStore.getState().viewport
+      const world = clientToWorld(client.x, client.y, vp)
+      const hit = hitTestConnectionTarget(canvasStore.getState().nodes, world, { scale: vp.k, excludeId: node.id })
+      const end = snapEndpoint(world, hit)
+      updatePending({ x: end.x, y: end.y }, hit.nodeId)
+    }
+    const move = (ev: PointerEvent): void => {
+      client = { x: ev.clientX, y: ev.clientY }
+      if (frame === null) frame = requestAnimationFrame(flush)
+    }
+    const finish = (commit: boolean, ev?: PointerEvent): void => {
+      if (frame !== null) {
+        cancelAnimationFrame(frame)
+        frame = null
+      }
+      if (commit && ev) {
+        client = { x: ev.clientX, y: ev.clientY }
+        invalidateCanvasRect() // 落点判定前校准一次
+        flush()
+        const vp = canvasStore.getState().viewport
+        const world = clientToWorld(client.x, client.y, vp)
+        const hit = hitTestConnectionTarget(canvasStore.getState().nodes, world, { scale: vp.k, excludeId: node.id })
+        if (hit.nodeId) {
+          canvasStore.addConnection(node.id, hit.nodeId)
+        } else {
+          message.info('没落到节点上，已取消连线')
+        }
+      }
+      endPending()
+      setPending(false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', cancel)
+    }
+    const up = (ev: PointerEvent): void => finish(true, ev)
+    const cancel = (): void => finish(false)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', cancel)
   }
 
   return (
     <div
       data-node-id={node.id}
-      className={`ivc-node${selected ? ' ivc-node-selected' : ''}${node.type === 'group' ? ' ivc-node-group' : ''}`}
-      style={{ left: node.x, top: node.y, width: node.width, height: node.height, zIndex: node.zIndex }}
+      className={`ivc-node${selected ? ' ivc-node-selected' : ''}${node.type === 'group' ? ' ivc-node-group' : ''}${pending ? ' ivc-node-connecting' : ''}`}
+      style={{ transform: `translate3d(${node.x}px, ${node.y}px, 0)`, width: node.width, height: node.height, zIndex: node.zIndex }}
       onPointerDown={() => canvasStore.select(node.id)}
     >
       <div className="ivc-node-header ivc-no-zoom" onPointerDown={onHeaderPointerDown}>
@@ -134,39 +190,7 @@ export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Elem
         onPointerDown={onPortPointerDown}
         data-port-from={node.id}
       />
-      {pendingFrom && <PendingLine from={worldOrigin()} to={pendingFrom} />}
     </div>
-  )
-}
-
-function containerLeft(): number | null {
-  return document.querySelector<HTMLElement>('.ivc-root')?.getBoundingClientRect().left ?? null
-}
-function containerTop(): number | null {
-  return document.querySelector<HTMLElement>('.ivc-root')?.getBoundingClientRect().top ?? null
-}
-function worldOrigin(): { x: number; y: number } {
-  return { x: 0, y: 0 }
-}
-
-/** 拖拽中的临时连线（世界坐标层内的绝对定位线段，随节点层一起缩放） */
-function PendingLine({ from, to }: { from: { x: number; y: number }; to: { x: number; y: number } }): JSX.Element {
-  const x1 = Math.min(from.x, to.x)
-  const y1 = Math.min(from.y, to.y)
-  const w = Math.abs(to.x - from.x) || 1
-  const h = Math.abs(to.y - from.y) || 1
-  return (
-    <svg className="ivc-pending-line" style={{ left: x1, top: y1, width: w, height: h }}>
-      <line
-        x1={from.x <= to.x ? 0 : w}
-        y1={from.y <= to.y ? 0 : h}
-        x2={from.x <= to.x ? w : 0}
-        y2={from.y <= to.y ? h : 0}
-        stroke="#4096ff"
-        strokeWidth={2}
-        strokeDasharray="6 4"
-      />
-    </svg>
   )
 }
 

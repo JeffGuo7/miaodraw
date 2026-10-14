@@ -9,6 +9,7 @@ import type { JSX } from 'react'
 
 import type { ViewportTransform } from './types'
 import { canvasStore } from './store'
+import { attachCanvasRect } from './rect-cache'
 
 export type CanvasTool = 'select' | 'pan'
 
@@ -51,6 +52,12 @@ export function InfiniteCanvas({
   useEffect(() => {
     scaleRef.current = viewport.k
   }, [viewport.k])
+
+  // P0-3：容器 rect 由 ResizeObserver 缓存维护，拖动/连线热路径不再每帧查询 DOM
+  useEffect(() => {
+    attachCanvasRect(containerRef.current)
+    return () => attachCanvasRect(null)
+  }, [containerRef])
 
   useEffect(
     () => () => {

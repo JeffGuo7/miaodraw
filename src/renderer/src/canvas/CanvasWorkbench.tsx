@@ -20,6 +20,7 @@ import {
 import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
+import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
@@ -311,11 +312,23 @@ function MiniMap(): JSX.Element {
   )
 }
 
-/** 连线层：世界坐标系内一个大画布 SVG，节点间画贝塞尔线 */
+/** 连线层：世界坐标系内一个大画布 SVG，节点间画贝塞尔线 + pending 橡皮筋（P0-4） */
 function ConnectionLayer(): JSX.Element {
   const { nodes, connections } = useCanvasState()
+  const [pendingActive, setPendingActive] = useState(() => Boolean(getPending()))
+  const pathRef = useRef<SVGPathElement | null>(null)
+  const dotRef = useRef<SVGCircleElement | null>(null)
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const OFF = 100000
+
+  // pending 状态只在 begin/end 时通知（拖动过程直接改 DOM 属性，不触发重渲染）
+  useEffect(() => subscribePending(() => setPendingActive(Boolean(getPending()))), [])
+
+  useEffect(() => {
+    registerPendingElements(pathRef.current, dotRef.current)
+    return () => registerPendingElements(null, null)
+  }, [pendingActive])
+
   return (
     <svg
       style={{ position: 'absolute', left: -OFF, top: -OFF, width: OFF * 2, height: OFF * 2, pointerEvents: 'none', overflow: 'visible' }}
@@ -324,15 +337,11 @@ function ConnectionLayer(): JSX.Element {
         const a = byId.get(c.from)
         const b = byId.get(c.to)
         if (!a || !b) return null
-        const x1 = a.x + a.width
-        const y1 = a.y + a.height / 2
-        const x2 = b.x
-        const y2 = b.y + b.height / 2
-        const mx = (x1 + x2) / 2
+        const mx = (a.x + a.width + b.x) / 2
         return (
           <path
             key={c.id}
-            d={`M ${x1 + OFF} ${y1 + OFF} C ${mx + OFF} ${y1 + OFF}, ${mx + OFF} ${y2 + OFF}, ${x2 + OFF} ${y2 + OFF}`}
+            d={`M ${a.x + a.width + OFF} ${a.y + a.height / 2 + OFF} C ${mx + OFF} ${a.y + a.height / 2 + OFF}, ${mx + OFF} ${b.y + b.height / 2 + OFF}, ${b.x + OFF} ${b.y + b.height / 2 + OFF}`}
             stroke="#4096ff"
             strokeWidth={2}
             fill="none"
@@ -340,6 +349,12 @@ function ConnectionLayer(): JSX.Element {
           />
         )
       })}
+      {pendingActive && (
+        <>
+          <path ref={pathRef} stroke="#4096ff" strokeWidth={2} strokeDasharray="6 4" fill="none" opacity={0.9} />
+          <circle ref={dotRef} r={4} fill="#4096ff" opacity={0.9} />
+        </>
+      )}
     </svg>
   )
 }

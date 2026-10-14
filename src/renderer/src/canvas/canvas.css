@@ -25,13 +25,38 @@
 
 .ivc-node {
   position: absolute;
+  left: 0;
+  top: 0;
   display: flex;
   flex-direction: column;
   background: #ffffff;
   border: 1px solid #e2e6ee;
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  /* P0-2：位移走 transform（合成层），不再每帧改 left/top 触发布局 */
+  will-change: transform;
+  contain: layout style;
+  /* 端口挂在节点外侧，不能再整体裁剪（原 overflow:hidden 把端口外侧裁掉，命中区只剩一半） */
+  overflow: visible;
+  /* 只过渡阴影，不碰几何，避免拖动"拖影" */
+  transition: box-shadow 200ms ease;
+}
+
+/* 圆角裁剪下沉到内容层，视觉与原来一致 */
+.ivc-node-body {
+  border-radius: 0 0 9px 9px;
   overflow: hidden;
+}
+
+/* P0-5：连线落点高亮 */
+.ivc-node-drop {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 3px rgba(64, 150, 255, 0.35), 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+/* 正在连线的源节点 */
+.ivc-node-connecting {
+  border-color: #4096ff;
 }
 
 .ivc-node-selected {
@@ -142,7 +167,7 @@
   border-bottom-right-radius: 10px;
 }
 
-/* 连线端口：右侧中部小圆点 */
+/* 连线端口：右侧中部小圆点（overflow 已放开，外侧不再被裁） */
 .ivc-node-port {
   position: absolute;
   right: -7px;
@@ -154,18 +179,19 @@
   background: #fff;
   border: 2px solid #4096ff;
   cursor: crosshair;
-  z-index: 2;
+  z-index: 3;
+}
+
+/* 透明扩展热区（视觉尺寸不变，命中更稳） */
+.ivc-node-port::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
 }
 
 .ivc-node-port:hover {
   background: #4096ff;
-}
-
-/* 拖拽中的临时连线 */
-.ivc-pending-line {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
 }
 
 /* 出图节点 */

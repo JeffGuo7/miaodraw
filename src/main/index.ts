@@ -825,6 +825,11 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
         const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        // 探针自足：先切到画布视图。否则画布容器 display:none 时节点 getBoundingClientRect 恒为 0，
+        // 任何实现都会被测成「无位移」（基线那次 false 即由此放大，不能作为实现是否跟手的唯一判据）。
+        const canvasMenu = document.querySelectorAll('.ant-menu-item')[1]
+        if (canvasMenu) canvasMenu.click()
+        await sleep(1500)
         byText('文本').click()
         await sleep(700)
         const node = document.querySelector('[data-node-id]')

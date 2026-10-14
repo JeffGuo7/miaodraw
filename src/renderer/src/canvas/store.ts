@@ -75,6 +75,19 @@ export const canvasStore = {
     state = { ...state, nodes: state.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)) }
   },
 
+  /**
+   * 拖动热路径（P0-1）：rAF 内每帧调用一次，写完立即通知订阅者。
+   * 位置按「初始位置 + 本次拖动增量」计算，避免累积漂移。
+   */
+  applyNodeMove(id: string, x: number, y: number): void {
+    set({ nodes: state.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)) })
+  },
+
+  /** 缩放热路径（P0-1 同源）：每帧一次，立即通知 */
+  applyNodeResize(id: string, width: number, height: number): void {
+    set({ nodes: state.nodes.map((n) => (n.id === id ? { ...n, width, height } : n)) })
+  },
+
   commit(): void {
     emit()
   },
