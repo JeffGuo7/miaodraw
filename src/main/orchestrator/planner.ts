@@ -7,7 +7,7 @@
  */
 import type { PlanRecord, StageRecord, WorkflowSpec, WorkflowStageSpec, WorkItem } from '../../shared/plan-types'
 
-import { applyAction, nextStageToAuthor } from './state'
+import { applyAction, nextStageToAuthor } from './state.ts'
 
 let seq = 0
 function newId(prefix: string): string {

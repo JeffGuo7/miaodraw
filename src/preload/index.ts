@@ -53,6 +53,25 @@ const api = {
     ipcRenderer.invoke('pixelle:checkEnv'),
   pixelleProxy: (args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }> =>
     ipcRenderer.invoke('pixelle:proxy', args),
+  // ── 编排（O1）：计划/阶段 + 状态机推进 + plan:changed 事件 ──
+  planCreate: (payload: { prompt: string; canvasContext?: Record<string, unknown> }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:create', payload),
+  planAuthored: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:authored', { planId }),
+  planList: (): Promise<unknown> => ipcRenderer.invoke('plan:list'),
+  planAuthorStage: (payload: { planId: string; stageOrder?: number; expectedRevision?: number }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:authorStage', payload),
+  planPatchStage: (payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:patchStage', payload),
+  planAdvance: (payload: { planId: string; stageId: string; action: string; expectedRevision: number }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:advance', payload),
+  planReplan: (payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: unknown[] }): Promise<unknown> =>
+    ipcRenderer.invoke('plan:replan', payload),
+  planDelete: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:delete', { planId }),
+  onPlanChanged: (cb: (payload: unknown) => void): (() => void) => {
+    const h = (_e: unknown, payload: unknown): void => cb(payload)
+    ipcRenderer.on('plan:changed', h)
+    return () => ipcRenderer.removeListener('plan:changed', h)
+  },
   imageEdit: (payload: {
     op: string
     name?: string

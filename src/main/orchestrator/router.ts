@@ -5,9 +5,9 @@
  */
 import type { RoutingCapsule, WorkflowId, WorkflowSpec } from '../../shared/plan-types'
 
-import singleImage from './workflows/single-image.json'
-import imageToVideo from './workflows/image-to-video.json'
-import docToVideo from './workflows/doc-to-video.json'
+import singleImage from './workflows/single-image.json' with { type: 'json' }
+import imageToVideo from './workflows/image-to-video.json' with { type: 'json' }
+import docToVideo from './workflows/doc-to-video.json' with { type: 'json' }
 
 export const WORKFLOWS: WorkflowSpec[] = [singleImage, imageToVideo, docToVideo] as unknown as WorkflowSpec[]
 
@@ -45,7 +45,8 @@ export function classify(prompt: string, ctx: RouteContext = {}): RoutingCapsule
 
   // 视频流程：先判断素材条件，条件不足就问用户，不猜
   if (strong > 0 || v2v > 0 || d2v > 0) {
-    if (!ctx.pixelleReady) {
+    // 只有显式 false（已知不可用）才降级；未传（未知）按可用处理，执行前闸门再兜
+    if (ctx.pixelleReady === false) {
       return {
         route_kind: 'workflow',
         workflow_id: 'single-image',

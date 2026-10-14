@@ -311,6 +311,25 @@ export interface Api {
   pixelleEnsure(): Promise<{ baseUrl: string }>
   /** Pixelle 环境预检（uv/后端目录），缺失时给可执行指引 */
   pixelleCheckEnv(): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }>
+  // ── 编排（O1）：计划/阶段读写 + 状态机推进 + plan:changed 事件 ──
+  /** 建计划：立即返回 drafting（route_kind=direct 时不建计划） */
+  planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; pixelleReady?: boolean } }): Promise<
+    | { kind: 'direct' | 'ask'; direct?: boolean; capsule: unknown }
+    | { kind: 'plan'; planId: string; status: string; workflow_id: string; stage_outline: unknown[]; capsule: unknown }
+  >
+  /** 读全量（看板渲染用） */
+  planAuthored(planId: string): Promise<unknown>
+  planList(): Promise<unknown>
+  /** 一次只 author 当前阶段 */
+  planAuthorStage(payload: { planId: string; stageOrder?: number; expectedRevision?: number }): Promise<unknown>
+  /** 乐观锁内容编辑：revision 不匹配返回 conflict */
+  planPatchStage(payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown>
+  /** 状态机唯一入口：confirm_plan / execution_done / confirm_result / retry / block / unblock */
+  planAdvance(payload: { planId: string; stageId: string; action: string; expectedRevision: number }): Promise<unknown>
+  planReplan(payload: { planId: string; requestId: string; preserveThroughStageId?: string; ops?: unknown[] }): Promise<unknown>
+  planDelete(planId: string): Promise<unknown>
+  /** 计划变更事件（主进程 → 渲染层） */
+  onPlanChanged(cb: (payload: unknown) => void): () => void
   /** Pixelle REST 代理（主进程转发，规避 CORS） */
   pixelleProxy(args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */

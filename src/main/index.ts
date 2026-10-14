@@ -33,6 +33,7 @@ import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
 import { registerCanvasAssetHandlers } from './canvasAssets'
 import { registerPixelleHandlers, pixelleOutputDir, stopPixelleBackend } from './pixelle'
+import { registerOrchestratorHandlers } from './orchestrator'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -819,6 +820,62 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-i2i:', r)
     check('canvas-i2i', r)
   }
+  if (process.env.SHOT_PLAN_O1 === '1') {
+    // 编排 O1 端到端：plan:create 立即返回 drafting → 事件推进首阶段 → 状态机走完 → IndexedDB 落盘
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({
+          prompt: '帮我做一条带货短视频，要有分镜和口播',
+          canvasContext: { pixelleReady: true }
+        })
+        if (created.kind !== 'plan') return 'ERR: 未建成计划 ' + JSON.stringify(created)
+        const immediateDrafting = created.status === 'drafting'
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(150)
+          snap = await window.api.planAuthored(planId)
+          if (snap && snap.stages && snap.stages.length > 0) break
+        }
+        if (!snap || !snap.stages || snap.stages.length === 0) return 'ERR: 首阶段未物化'
+        const first = snap.stages[0]
+        const gate = first.status === 'waiting_user' && first.waiting_reason === 'plan_review'
+        const outline = snap.plan.stage_outline.length
+
+        const a1 = await window.api.planAdvance({ planId, stageId: first.id, action: 'confirm_plan', expectedRevision: first.revision })
+        const a2 = await window.api.planAdvance({ planId, stageId: first.id, action: 'execution_done', expectedRevision: a1.stage.revision })
+        const a3 = await window.api.planAdvance({ planId, stageId: first.id, action: 'confirm_result', expectedRevision: a2.stage.revision })
+        const chain = a1.stage.status === 'doing' && a2.stage.waiting_reason === 'result_review' && a3.stage.status === 'done'
+
+        const stale = await window.api.planAdvance({ planId, stageId: first.id, action: 'retry', expectedRevision: first.revision })
+        const conflict = stale.ok === false && stale.conflict === true
+
+        await sleep(400)
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        const count = (store) => new Promise((res, rej) => {
+          const tx = db.transaction(store, 'readonly')
+          const rq = tx.objectStore(store).count()
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        const plans = await count('plans')
+        const stages = await count('stages')
+        const stores = Array.from(db.objectStoreNames)
+        const ok = immediateDrafting && gate && chain && conflict && plans >= 1 && stages >= 1
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ immediateDrafting, outline, gate, chain, conflict, plans, stages, stores })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-o1:', r)
+    check('plan-o1', r)
+  }
   if (process.env.SHOT_CANVAS_CONNECT === '1') {
     // 连线反馈可断言探针（不做截图验收）：橡皮筋在画布层 + 起点=真实端口中心(±1px) + 目标高亮
     const r = await w.webContents.executeJavaScript(
@@ -1045,6 +1102,11 @@ function registerIpc(): void {
 
   // ---------- Pixelle 视频生产后端（M3：起停管理 + REST 代理） ----------
   registerPixelleHandlers(handle)
+
+  // ---------- 编排（O1：计划/阶段 IPC + plan:changed 事件） ----------
+  registerOrchestratorHandlers(handle, (channel, payload) => {
+    if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+  })
 
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {

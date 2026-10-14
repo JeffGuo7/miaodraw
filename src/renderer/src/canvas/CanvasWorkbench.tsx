@@ -22,6 +22,7 @@ import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { CANVAS_SVG_OFFSET } from './connection-hit'
+import { attachPlanPersistence } from './plan-persistence'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
@@ -99,6 +100,9 @@ export default function CanvasWorkbench(): JSX.Element {
   const setViewport = useCallback((vp: ViewportTransform): void => {
     canvasStore.setViewport(vp)
   }, [])
+
+  // 编排（O1）：订阅 plan:changed 落 IndexedDB + 迁移断言（plan 是真相源，画布只是视图）
+  useEffect(() => attachPlanPersistence(), [])
 
   const zoomBy = useCallback(
     (factor: number): void => {
