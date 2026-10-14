@@ -672,6 +672,28 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] compose:', r)
   }
+  if (process.env.SHOT_CANVAS === '1') {
+    // 画布工作台自测：点工具条新建三类节点，断言 DOM 中真的出现节点卡片
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const made = []
+        for (const t of ['文本', '图片', '视频']) {
+          const b = byText(t)
+          if (!b) return 'ERR: toolbutton ' + t + ' not found'
+          b.click()
+          made.push(t)
+          await new Promise(r => setTimeout(r, 400))
+        }
+        await new Promise(r => setTimeout(r, 800))
+        const nodes = document.querySelectorAll('[data-node-id]').length
+        const toolbar = document.querySelector('.ivc-toolbar') ? 1 : 0
+        return nodes >= 3 ? 'OK:nodes=' + nodes + ',toolbar=' + toolbar + ',clicked=' + made.join('/') : 'ERR:nodes=' + nodes
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas:', r)
+    check('canvas', r)
+  }
   if (process.env.SHOT_KEY === '1') {
     // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
     const r = await w.webContents.executeJavaScript(
