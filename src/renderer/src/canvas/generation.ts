@@ -24,7 +24,8 @@ async function resolveActiveModel(): Promise<ActiveModel> {
   } catch {
     // 走默认
   }
-  return { provider: 'bailian', model: 'qwen-image-3.0-pro' }
+  // 省钱档：兜底默认走最便宜的打样模型（用户设置里显式选了别的仍以设置为准）
+  return { provider: 'bailian', model: 'z-image-turbo' }
 }
 
 /** 图片节点内容 → ArrayBuffer（media:// 走 imageRead IPC，dataURL 直接 fetch） */
