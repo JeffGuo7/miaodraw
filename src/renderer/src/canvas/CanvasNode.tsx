@@ -28,6 +28,11 @@ const MIN_W = 120
 const MIN_H = 60
 
 export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Element {
+  // 渲染打点（C1 验收：对话滚动/收发时画布节点渲染增量必须为 0）
+  if (typeof window !== 'undefined') {
+    const w = window as unknown as { __canvasNodeRenders?: number }
+    w.__canvasNodeRenders = (w.__canvasNodeRenders ?? 0) + 1
+  }
   const [pending, setPending] = useState(false)
 
   /** 拖动（P0-1）：rAF 合并，每帧一次 emit；位置按「初始位置 + 增量」算，不累积漂移 */

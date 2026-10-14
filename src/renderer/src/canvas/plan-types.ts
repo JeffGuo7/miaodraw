@@ -3,6 +3,8 @@
  * 保留本文件是为了让画布代码沿用设计稿里的 `canvas/plan-types` 路径。
  */
 export type {
+  ChatMessage,
+  ChatRole,
   ExecutionLocks,
   PlanConflict,
   PlanEvent,

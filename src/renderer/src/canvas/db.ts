@@ -3,7 +3,7 @@
  * 结构依据 docs/m1-migration-plan.md，参照 minimax-reference-pack 01 思路自写实现。
  * 原生 IndexedDB API，零新依赖。
  */
-import type { PlanEvent, PlanRecord, StageRecord } from './plan-types'
+import type { ChatMessage, PlanEvent, PlanRecord, StageRecord } from './plan-types'
 
 export interface AssetRecord {
   id: string
@@ -49,8 +49,10 @@ export interface MigrationState {
 }
 
 const DB_NAME = 'miaodraw-canvas'
-/** v2：plans/stages（编排 O1）；v3：plan_events（B 批审计） */
-const DB_VERSION = 3
+/** v2：plans/stages（O1）；v3：plan_events（B 批审计）；v4：messages（C1 对话面板）
+ *  注意：任务卡写的「DB_VERSION→3」按当时假设；B 批已把 plan_events 落在 v3，故 messages 顺延 v4。
+ *  v1→v2 的 superseded_by 回填与 assertAssetsMigrated() 一直保留、不短路。 */
+const DB_VERSION = 4
 
 export const SCHEMA_VERSION = DB_VERSION
 
@@ -99,6 +101,12 @@ export function openCanvasDB(): Promise<IDBDatabase> {
           const events = db.createObjectStore('plan_events', { keyPath: 'id', autoIncrement: true })
           events.createIndex('plan_id', 'plan_id')
           events.createIndex('created_at', 'created_at')
+        }
+        // ── v4（C1）：对话消息（按 plan_id 索引，created_at 排序） ──
+        if (!db.objectStoreNames.contains('messages')) {
+          const messages = db.createObjectStore('messages', { keyPath: 'id' })
+          messages.createIndex('plan_id', 'plan_id')
+          messages.createIndex('created_at', 'created_at')
         }
 
         // 旧资产补 superseded_by=null（重跑留档字段），并做迁移断言
@@ -317,5 +325,52 @@ export async function listPlanEvents(planId: string, limit = 200): Promise<PlanE
       cursor.continue()
     }
     req.onerror = () => reject(req.error ?? new Error('plan events list failed'))
+  })
+}
+
+// ---------- messages（C1：对话面板，按 plan_id 索引） ----------
+
+export async function putMessage(message: ChatMessage): Promise<void> {
+  await tx('messages', 'readwrite', (s) => s.put(message))
+}
+
+/** 取某计划的消息（按 created_at 升序，只取最近 limit 条） */
+export async function listMessagesByPlan(planId: string, limit = 50): Promise<ChatMessage[]> {
+  const db = await openCanvasDB()
+  return new Promise((resolve, reject) => {
+    const all: ChatMessage[] = []
+    const t = db.transaction('messages', 'readonly')
+    const req = t.objectStore('messages').index('plan_id').openCursor(IDBKeyRange.only(planId))
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (!cursor) {
+        resolve(all.sort((a, b) => a.created_at - b.created_at).slice(-limit))
+        return
+      }
+      all.push(cursor.value as ChatMessage)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error ?? new Error('messages list failed'))
+  })
+}
+
+/** 全部消息里仍存在的 plan_id（重启恢复单计划面板用） */
+export async function listChatPlanIds(): Promise<string[]> {
+  const db = await openCanvasDB()
+  return new Promise((resolve, reject) => {
+    const ids = new Set<string>()
+    const t = db.transaction('messages', 'readonly')
+    const req = t.objectStore('messages').openCursor()
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (!cursor) {
+        resolve([...ids])
+        return
+      }
+      const pid = (cursor.value as ChatMessage).plan_id
+      if (pid) ids.add(pid)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error ?? new Error('messages scan failed'))
   })
 }

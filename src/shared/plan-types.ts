@@ -147,8 +147,7 @@ export interface PlanConflict {
 }
 
 /** 审计事件（append-only；source_message_id 回溯源话） */
-export interface PlanEvent {
-  id?: number
+export interface PlanEvent {  id?: number
   plan_id: string
   /** 事件类型：create / author_stage / advance / patch_stage / replan / cancel */
   event: string
@@ -159,5 +158,22 @@ export interface PlanEvent {
   request_id: string | null
   source_message_id: string | null
   detail?: string
+  created_at: number
+}
+
+// ── 对话（C 批） ──
+
+export type ChatRole = 'user' | 'agent' | 'tool' | 'system'
+
+export interface ChatMessage {
+  id: string
+  /** 所属计划（首条消息建计划前为 null） */
+  plan_id: string | null
+  role: ChatRole
+  content: string
+  /** 镜像消息溯源：卡片动作生成的等价消息带源消息 id，用于去重 */
+  source_message_id: string | null
+  /** 幂等键（与 plan:replan 的 request_id 对齐） */
+  request_id?: string | null
   created_at: number
 }

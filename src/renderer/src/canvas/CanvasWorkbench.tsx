@@ -14,6 +14,7 @@ import {
   SettingOutlined,
   GroupOutlined,
   DragOutlined,
+  MessageOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
 
@@ -23,6 +24,7 @@ import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { CANVAS_SVG_OFFSET } from './connection-hit'
 import { attachPlanPersistence } from './plan-persistence'
+import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
@@ -96,6 +98,7 @@ export default function CanvasWorkbench(): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [tool, setTool] = useState<'select' | 'pan'>('select')
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
 
   const setViewport = useCallback((vp: ViewportTransform): void => {
     canvasStore.setViewport(vp)
@@ -183,6 +186,11 @@ export default function CanvasWorkbench(): JSX.Element {
           <Button size="small" type={tool === 'pan' ? 'primary' : 'default'} icon={<BgColorsOutlined />} onClick={() => setTool('pan')} />
         </Tooltip>
         <span style={{ width: 1, height: 16, background: '#e2e6ee', display: 'inline-block' }} />
+        <Tooltip title="计划对话（说需求 → 自动搭流程）">
+          <Button size="small" type={chatOpen ? 'primary' : 'default'} icon={<MessageOutlined />} onClick={() => setChatOpen((v) => !v)}>
+            对话
+          </Button>
+        </Tooltip>
         {ADD_BUTTONS.map((b) => (
           <Button key={b.type} size="small" icon={b.icon} onClick={() => canvasStore.addNode(b.type)}>
             {b.label}
@@ -236,6 +244,8 @@ export default function CanvasWorkbench(): JSX.Element {
       )}
 
       <MiniMap />
+
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
       <MigrationOverlay />
     </div>

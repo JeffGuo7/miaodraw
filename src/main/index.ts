@@ -854,6 +854,141 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] p0-prompt:', (ok ? 'OK:' : 'ERR:') + summary)
     check('p0-prompt', (ok ? 'OK:' : 'ERR:') + summary)
   }
+  if (process.env.SHOT_PLAN_CHAT === '1') {
+    // C1 对话面板：落消息 + drafting 即时返回 + 重启可恢复（IndexedDB）+ 输入不阻塞画布 + 迁移断言仍在跑
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const chatBtn = byText('对话')
+        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + ' | body=' + (document.body.innerText || '').slice(0, 160).replace(/\\n+/g, ' / ') + '）'
+        chatBtn.click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        if (!panel) return 'ERR: 面板未打开'
+        const ta = panel.querySelector('textarea')
+        if (!ta) return 'ERR: 面板无输入框'
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        const sendBtn = [...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送'))
+        if (!sendBtn) return 'ERR: 未找到发送按钮（buttons=' + [...panel.querySelectorAll('button')].map(b => b.textContent).join('/') + '）'
+        sendBtn.click()
+        // 发送应立即返回（drafting），不等计划落定
+        const t0 = Date.now()
+        let lastCreate = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(100)
+          lastCreate = window.__canvasChat?.getLastCreateResult?.() ?? null
+          if (lastCreate) break
+        }
+        const sendLatency = Date.now() - t0
+        const drafting = lastCreate?.kind === 'plan' && lastCreate?.status === 'drafting'
+
+        // 输入不阻塞画布：立刻拖一次节点，断言位移发生
+        const node = document.querySelector('[data-node-id]')
+        let dragOk = null
+        if (node) {
+          const header = node.querySelector('.ivc-node-header') || node
+          const before = node.getBoundingClientRect()
+          const r0 = header.getBoundingClientRect()
+          header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r0.left + 30, clientY: r0.top + 8, pointerId: 9, button: 0, buttons: 1 }))
+          for (let i = 1; i <= 4; i++) {
+            window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r0.left + 30 + i * 10, clientY: r0.top + 8 + i * 4, pointerId: 9, buttons: 1 }))
+            await sleep(30)
+          }
+          const mid = node.getBoundingClientRect()
+          dragOk = Math.abs(mid.left - before.left) > 1
+          window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r0.left + 70, clientY: r0.top + 24, pointerId: 9, button: 0 }))
+        } else {
+          dragOk = 'no-node'
+        }
+
+        // 持久化 + 迁移断言：读 messages / meta / plans
+        await sleep(600)
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const readAll = (store) => new Promise((res, rej) => {
+          const tx = db.transaction(store, 'readonly')
+          const rq = tx.objectStore(store).getAll()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const messages = await readAll('messages')
+        const userRows = messages.filter(m => m.role === 'user')
+        const meta = await readAll('meta')
+        const schema = meta.find(m => m.key === 'schema')?.value ?? null
+        const plans = await window.api.planList()
+        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version === 4 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          drafting, sendLatency, userRows: userRows.length, dragOk,
+          schemaVersion: schema?.version ?? null, assetsChecked: schema?.assetsChecked ?? null,
+          plans: Array.isArray(plans) ? plans.length : null,
+          stores: Array.from(db.objectStoreNames)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat:', r)
+    check('plan-chat', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_RERENDER === '1') {
+    // C1 硬约束：滚动对话 + 收发各 5 条时，画布节点渲染增量必须为 0
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        // 建两个画布节点，确保有节点可被重渲染
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click(); await sleep(300)
+        byText('图片').click(); await sleep(300)
+        byText('对话').click(); await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        if (!panel) return 'ERR: 面板未打开'
+        window.__canvasNodeRenders = 0
+        await sleep(200)
+        const before = window.__canvasNodeRenders
+        // 先建计划（首条消息），此后只做聊天收发
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频')
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        await sleep(1500) // 等首阶段事件（会带来一轮计划刷新，先计入基线之后重取）
+        const baseline = window.__canvasNodeRenders
+        // 滚动对话 500px
+        const list = panel.querySelector('[data-testid="chat-list"]')
+        list.scrollTop = 500
+        await sleep(200)
+        // 收发各 5 条（走 store 注入，模拟消息到达/发送）
+        for (let i = 1; i <= 5; i++) {
+          window.__canvasChatInject?.('user', '用户消息 ' + i)
+          await sleep(60)
+          window.__canvasChatInject?.('agent', '助手回复 ' + i)
+          await sleep(60)
+        }
+        await sleep(400)
+        const after = window.__canvasNodeRenders
+        const delta = after - baseline
+        const ok = delta === 0
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ baseline, after, delta, nodes: document.querySelectorAll('[data-node-id]').length })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-rerender:', r)
+    check('plan-chat-rerender', r)
+  }
   if (process.env.SHOT_PLAN_B === '1') {
     // B 批增量协议端到端：replan 增量 + 冻结前缀 + 幂等重放 + CAS 冲突 + 原子性 + 审计落盘 + cancel
     const r = await w.webContents.executeJavaScript(
