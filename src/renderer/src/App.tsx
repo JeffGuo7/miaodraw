@@ -6,10 +6,12 @@ import {
   BlockOutlined,
   EditOutlined,
   HistoryOutlined,
+  PictureOutlined,
   ScanOutlined,
   SettingOutlined
 } from '@ant-design/icons'
 import CreateView from './views/CreateView'
+import CanvasWorkbench from './canvas/CanvasWorkbench'
 import ComposeView from './views/ComposeView'
 import LibraryView from './views/LibraryView'
 import DistillView from './views/DistillView'
@@ -42,6 +44,7 @@ interface DistillSeed {
 
 const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
   { key: 'create', icon: <EditOutlined />, label: '创 作' },
+  { key: 'canvas', icon: <PictureOutlined />, label: '画布' },
   { key: 'compose', icon: <BlockOutlined />, label: '合成' },
   { key: 'library', icon: <AppstoreOutlined />, label: '灵感库' },
   { key: 'distill', icon: <ScanOutlined />, label: '提示词反推' },
@@ -51,13 +54,14 @@ const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
 
 // 侧栏视觉分组：保持 NAV 原顺序渲染（自动验收钩子依赖 .ant-menu-item 的扁平顺序）
 const NAV_GROUPS: Array<{ title: string; keys: ViewKey[] }> = [
-  { title: '工作台', keys: ['create', 'compose'] },
+  { title: '工作台', keys: ['create', 'canvas', 'compose'] },
   { title: '素材与工具', keys: ['library', 'distill'] },
   { title: '记录与设置', keys: ['history', 'settings'] }
 ]
 
 const TITLES: Record<ViewKey, string> = {
   create: '创作',
+  canvas: '画布工作台',
   compose: '合成画布',
   library: '灵感库',
   distill: '提示词反推',
@@ -67,6 +71,7 @@ const TITLES: Record<ViewKey, string> = {
 
 const SUBTITLES: Record<ViewKey, string> = {
   create: '描述画面或拖入参考图，一键生成',
+  canvas: '无限画布 · 节点化创作（引擎基于 infinite-canvas，MIT）',
   compose: '图层拼合 · 智能抠图 · 导出成品',
   library: '上千个精选提示词案例，点卡片即用',
   distill: '任意图片反推通用提示词',
@@ -241,6 +246,9 @@ export default function App(): JSX.Element {
               onGenerated={() => setHistoryVersion((v) => v + 1)}
               onOpenSettings={() => setView('settings')}
             />
+          </div>
+          <div style={{ display: view === 'canvas' ? 'block' : 'none', height: '100%' }}>
+            <CanvasWorkbench />
           </div>
           <div style={{ display: view === 'compose' ? 'block' : 'none' }}>
             <ComposeView
