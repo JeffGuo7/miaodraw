@@ -32,7 +32,7 @@ import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
 import { registerCanvasAssetHandlers } from './canvasAssets'
-import { registerPixelleHandlers, pixelleOutputDir } from './pixelle'
+import { registerPixelleHandlers, pixelleOutputDir, stopPixelleBackend } from './pixelle'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -416,7 +416,8 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
   w.webContents.on('console-message', (_e, _level, message) => {
     if (message.toLowerCase().includes('error')) console.log('[renderer]', message.slice(0, 300))
   })
-  // 整体看门狗：无论卡在哪，90s 后强制截图退出（超时计为失败）
+  // 整体看门狗：默认 90s 后强制截图退出（超时计为失败）；短视频/长任务可用 SHOT_WATCHDOG_MS 延长
+  const watchdogMs = Number(process.env.SHOT_WATCHDOG_MS || 0) || 90000
   const watchdog = setTimeout(
     () => {
       console.log('[shot] watchdog fired')
@@ -424,9 +425,14 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         .capturePage()
         .then((img) => fs.writeFileSync(process.env.SHOT_PATH || path.join(APP_ROOT, 'screenshot-client.png'), img.toPNG()))
         .catch(() => undefined)
-        .finally(() => app.exit(1))
+        // app.exit 不会触发 before-quit：这里必须手动收掉 Pixelle 后端子进程树，否则残留 python 占住管道
+        .finally(() => {
+          void stopPixelleBackend()
+            .catch(() => undefined)
+            .finally(() => app.exit(1))
+        })
     },
-    90000
+    watchdogMs
   )
   await new Promise((r) => setTimeout(r, 3000))
   const view = process.env.SHOT_VIEW
@@ -727,6 +733,39 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-gen:', r)
     check('canvas-gen', r)
   }
+  if (process.env.SHOT_CANVAS_VIDEO === '1') {
+    // 画布视频节点端到端自测：新建视频节点 → 填文案 → 生成成片 → 等视频卡（需 Pixelle 后端，耗时数分钟）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const btn = byText('视频')
+        if (!btn) return 'ERR: 工具条无视频按钮'
+        btn.click()
+        await sleep(700)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 视频节点无文案输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '秋日午后，一只戴贝雷帽的柴犬坐在窗边看落叶')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(300)
+        const run = [...document.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成成片'))
+        if (!run) return 'ERR: 无生成成片按钮'
+        run.click()
+        const t0 = Date.now()
+        while (Date.now() - t0 < 360000) {
+          await sleep(5000)
+          const vid = document.querySelectorAll('video.ivc-video').length
+          if (vid > 0) return 'OK:canvas_videos=' + vid + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+          const err = document.querySelector('.ivc-gen-error')
+          if (err) return 'ERR: ' + err.textContent.slice(0, 200)
+        }
+        return 'ERR: 360s 超时未出片'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-video:', r)
+    check('canvas-video', r)
+  }
   if (process.env.SHOT_KEY === '1') {
     // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
     const r = await w.webContents.executeJavaScript(
@@ -776,6 +815,8 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     shotErrors++
   }
   // 有断言失败则以非零退出，让 CI / smoke 脚本能感知
+  // 注意：app.exit 不触发 before-quit，需先手动收掉 Pixelle 后端子进程树
+  await stopPixelleBackend().catch(() => undefined)
   app.exit(shotErrors > 0 ? 1 : 0)
 }
 
