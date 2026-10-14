@@ -601,3 +601,28 @@
   display: flex;
   gap: 6px;
 }
+
+/* ── C6：规划中骨架 / 规划中断重试 ── */
+.ivc-plancard-skeleton {
+  margin: 6px 0 2px;
+  padding: 8px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  color: #8c8c8c;
+  font-size: 12px;
+  background: #fafafa;
+}
+
+.ivc-plancard-stale {
+  margin: 6px 0 2px;
+  padding: 8px;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  background: #fff2f0;
+  color: #a8071a;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

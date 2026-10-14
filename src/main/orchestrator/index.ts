@@ -100,5 +100,12 @@ export function registerOrchestratorHandlers(
     return { ok: removed }
   })
 
+  // 探针专用（C6）：仅截图模式下暴露，用来构造「规划中断」异常态
+  if (process.env.TEST_MODE === 'screenshot') {
+    handle('plan:debugInterrupt', (_e, payload: { planId: string; ageMs?: number }) =>
+      registry.debugInterrupt(payload?.planId, payload?.ageMs ?? 120_000)
+    )
+  }
+
   return { registry }
 }

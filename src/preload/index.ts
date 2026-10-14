@@ -77,6 +77,8 @@ const api = {
   planSetAutoAdvance: (payload: { planId: string; enabled: boolean; expectedRevision?: number }): Promise<unknown> =>
     ipcRenderer.invoke('plan:setAutoAdvance', payload),
   planEvents: (planId?: string): Promise<unknown> => ipcRenderer.invoke('plan:events', { planId }),
+  /** C6 探针专用：构造「规划中断」异常态（仅截图模式注册，产品路径不用） */
+  planDebugInterrupt: (payload: { planId: string; ageMs?: number }): Promise<unknown> => ipcRenderer.invoke('plan:debugInterrupt', payload),
   planDelete: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:delete', { planId }),
   onPlanChanged: (cb: (payload: unknown) => void): (() => void) => {
     const h = (_e: unknown, payload: unknown): void => cb(payload)

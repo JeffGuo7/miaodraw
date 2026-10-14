@@ -342,6 +342,8 @@ export interface Api {
   planSetAutoAdvance(payload: { planId: string; enabled: boolean; expectedRevision?: number }): Promise<unknown>
   /** 审计事件（append-only，含 source_message_id 溯源） */
   planEvents(planId?: string): Promise<unknown>
+  /** C6 探针专用：构造「规划中断」异常态（仅截图模式注册） */
+  planDebugInterrupt(payload: { planId: string; ageMs?: number }): Promise<unknown>
   planDelete(planId: string): Promise<unknown>
   /** 计划变更事件（主进程 → 渲染层） */
   onPlanChanged(cb: (payload: unknown) => void): () => void

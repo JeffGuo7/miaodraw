@@ -160,6 +160,28 @@ export class PlanRegistry {
   }
 
   /**
+   * 探针专用（仅 TEST_MODE=screenshot 时经 IPC 暴露）：模拟「规划中断」。
+   * 把计划退回 drafting + 未物化任何阶段，并把 updated_at 往回拨 ageMs，
+   * 使渲染层能真实走到 C6 的 stale 分支（重试按钮 → authorFirstStage 重新推进）。
+   */
+  debugInterrupt(planId: string, ageMs = 120_000, now: number = Date.now()): ActionResult<PlanSnapshot> {
+    const snap = this.get(planId)
+    if (!snap) return { ok: false, error: `计划不存在：${planId}` }
+    const plan: PlanRecord = {
+      ...snap.plan,
+      status: 'drafting',
+      revision: snap.plan.revision + 1,
+      updated_at: now - Math.max(0, ageMs)
+    }
+    const stages: StageRecord[] = []
+    this.plans.set(planId, plan)
+    this.stages.set(planId, stages)
+    this.record({ plan_id: planId, event: 'debug_interrupt', actor: 'auto', stage_id: null, before_revision: snap.plan.revision, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+    this.emit({ plan, stages })
+    return { ok: true, value: { plan, stages } }
+  }
+
+  /**
    * 增量更新（B 批核心）：原子更新后缀，冻结已确认前缀。
    * - 幂等：同 requestId + 同 payload → 回放既有结果
    * - CAS：expectedRevision 与 plan.revision 不符 → 结构化冲突

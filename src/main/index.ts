@@ -1014,6 +1014,86 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] plan-chat-freeze:', r)
     check('plan-chat-freeze', r)
   }
+  if (process.env.SHOT_PLAN_CHAT_RECOVER === '1') {
+    // C6 空态/异常态/断线恢复：drafting 骨架 → stale 重试 → 丢一次事件后全量重拉（卡片/真相源/IndexedDB 三方一致）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(120)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        const cardEl = () => document.querySelector('[data-plan-id="' + planId + '"]')
+
+        // ① 空态：drafting + 零物化（未到阈值）→ 骨架卡，且不得误标 stale
+        const i1 = await window.api.planDebugInterrupt({ planId, ageMs: 0 })
+        if (!i1?.ok) return 'ERR: 构造空态失败 ' + JSON.stringify(i1)
+        await sleep(600)
+        const skeleton = !!cardEl()?.querySelector('[data-skeleton="true"]')
+        const staleWhenFresh = cardEl()?.getAttribute('data-stale') === 'true'
+
+        // ② 异常态：同状态但 120s 无进展 → stale + 重试入口；点重试必须能重新推进
+        const i2 = await window.api.planDebugInterrupt({ planId, ageMs: 120000 })
+        if (!i2?.ok) return 'ERR: 构造中断失败 ' + JSON.stringify(i2)
+        await sleep(600)
+        const stale = cardEl()?.getAttribute('data-stale') === 'true'
+        const retryBtn = cardEl()?.querySelector('[data-stale-retry="true"]')
+        if (retryBtn) retryBtn.click()
+        await sleep(1000)
+        const staleAfterRetry = cardEl()?.getAttribute('data-stale') === 'true'
+        const stagesAfterRetry = cardEl() ? cardEl().querySelectorAll('[data-stage-id]').length : 0
+        const retryWorked = staleAfterRetry === false && stagesAfterRetry >= 1
+
+        // ③ 断线恢复：丢一次事件 → 下一次 revision 跳变 → 全量重拉，卡片追平真相源与 IndexedDB
+        const refreshesBefore = window.__planRecover.stats(planId).refreshes
+        window.__planRecover.dropNext(planId)
+        let snap = await window.api.planAuthored(planId)
+        const s1 = snap.stages[0]
+        await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision, actor: 'ui' }) // 这次推送被丢
+        await sleep(300)
+        const droppedCount = window.__planRecover.stats(planId).dropped
+        const mid = await window.api.planAuthored(planId)
+        const a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: mid.stages[0].revision, actor: 'ui' })
+        await sleep(1200)
+        const stats = window.__planRecover.stats(planId)
+        const truth = await window.api.planAuthored(planId)
+        const truthStatus = truth.stages.map(s => s.id + '=' + s.status).sort().join(',')
+        const domStatus = [...cardEl().querySelectorAll('[data-stage-id]')].map(el => el.getAttribute('data-stage-id') + '=' + el.getAttribute('data-status')).sort().join(',')
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const rows = await new Promise((res, rej) => {
+          const tx = db.transaction('stages', 'readonly')
+          const rq = tx.objectStore('stages').getAll()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const dbStatus = rows.filter(s => s.plan_id === planId).map(s => s.id + '=' + s.status).sort().join(',')
+        const consistent = domStatus === truthStatus && dbStatus === truthStatus
+        const recovered = stats.refreshes > refreshesBefore
+        const ok = skeleton && !staleWhenFresh && stale && retryWorked && droppedCount === 1 && recovered && consistent
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ skeleton, staleWhenFresh, stale, retryWorked, stagesAfterRetry, droppedCount, refreshesBefore, refreshes: stats.refreshes, reasons: stats.reasons, recovered, consistent, domStatus, truthStatus, dbStatus, advanced: a2?.ok === true })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-recover:', r)
+    check('plan-chat-recover', r)
+  }
   if (process.env.SHOT_PLAN_CHAT_AUTO === '1') {
     // C4 自动推进：开启后无需 confirm_plan 即过闸门（actor=auto）；blocked → 自动置 false 并有提示
     const r = await w.webContents.executeJavaScript(
