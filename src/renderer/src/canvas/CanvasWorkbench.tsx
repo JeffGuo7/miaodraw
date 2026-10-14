@@ -107,6 +107,20 @@ export default function CanvasWorkbench(): JSX.Element {
   // 编排（O1）：订阅 plan:changed 落 IndexedDB + 迁移断言（plan 是真相源，画布只是视图）
   useEffect(() => attachPlanPersistence(), [])
 
+  // C2：计划建立后自动落一张计划卡（唯一新增节点类型），已存在则复用
+  useEffect(() => {
+    const off = window.api.onPlanChanged((raw) => {
+      const snap = raw as { plan?: { id?: string; title?: string } } | undefined
+      const planId = snap?.plan?.id
+      if (!planId) return
+      const existing = canvasStore.getState().nodes.find((n) => n.type === 'plan' && n.metadata.planId === planId)
+      if (existing) return
+      const id = canvasStore.addNode('plan', { x: 24, y: 24 })
+      canvasStore.updateNode(id, { metadata: { planId } })
+    })
+    return off
+  }, [])
+
   const zoomBy = useCallback(
     (factor: number): void => {
       const vp = canvasStore.getState().viewport

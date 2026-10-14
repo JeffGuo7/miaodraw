@@ -954,6 +954,116 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] plan-chat:', r)
     check('plan-chat', r)
   }
+  if (process.env.SHOT_PLAN_CHAT_GATE === '1') {
+    // C2 双向等价确认：卡片按钮(actor=ui) 与 聊天消息(actor=chat) 走同一状态机；
+    // 镜像消息按 source_message_id 去重（先判重再写事件 → 无幽灵记录）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+
+        // 等计划卡出现（plan:changed 自动落卡）
+        let card = null
+        for (let i = 0; i < 40; i++) {
+          await sleep(200)
+          card = document.querySelector('[data-plan-id]')
+          if (card) break
+        }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+
+        // —— 路径 A：卡片按钮走完整序列（actor=ui）——
+        let btn = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(200)
+          btn = [...card.querySelectorAll('button')].find(b => b.textContent.includes('确认计划'))
+          if (btn) break
+        }
+        if (!btn) return 'ERR: 卡片未出现确认按钮'
+        btn.click()
+        await sleep(500)
+        btn.click() // 重复点击：镜像去重，不得产生第二条事件
+        await sleep(500)
+        let snap = await window.api.planAuthored(planId)
+        const s1Doing = snap.stages.find(s => s.order === 1)?.status === 'doing'
+        let s1 = snap.stages.find(s => s.order === 1)
+        const d1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: s1.revision, actor: 'auto' })
+        await sleep(500)
+        // 卡片此时应出现「通过」按钮（result_review）
+        let passBtn = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(200)
+          passBtn = [...document.querySelectorAll('[data-plan-id] button')].find(b => (b.textContent || '').replace(/\\s+/g, '') === '通过')
+          if (passBtn) break
+        }
+        if (!passBtn) {
+          const cards = [...document.querySelectorAll('[data-plan-id]')]
+          return 'ERR: 卡片未出现通过按钮（cards=' + cards.length + ' stages=' + JSON.stringify((await window.api.planAuthored(planId)).stages.map(s => s.status + '/' + s.waiting_reason)) + ' buttons=' + cards.map(c => [...c.querySelectorAll('button')].map(b => b.textContent.trim()).join('|')).join(' ; ') + '）'
+        }
+        passBtn.click()
+        await sleep(600)
+        snap = await window.api.planAuthored(planId)
+        const s1Done = snap.stages.find(s => s.order === 1)?.status === 'done'
+
+        // —— 路径 B：聊天消息走完整序列（actor=chat）——
+        await window.api.planAuthorStage({ planId })
+        await sleep(500)
+        const sendChat = async (msg) => {
+          setVal(ta, msg)
+          await sleep(120)
+          ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+          await sleep(500)
+        }
+        await sendChat('确认')
+        snap = await window.api.planAuthored(planId)
+        let s2 = snap.stages.find(s => s.order === 2)
+        const s2Doing = s2?.status === 'doing'
+        const d2 = await window.api.planAdvance({ planId, stageId: s2.id, action: 'execution_done', expectedRevision: s2.revision, actor: 'auto' })
+        await sleep(300)
+        await sendChat('确认')
+        await sleep(400)
+        snap = await window.api.planAuthored(planId)
+        const s2Done = snap.stages.find(s => s.order === 2)?.status === 'done'
+
+        const events = await window.api.planEvents(planId)
+        const uiEvents = events.filter(e => e.actor === 'ui' && String(e.event).startsWith('advance:'))
+        const chatEvents = events.filter(e => e.actor === 'chat' && String(e.event).startsWith('advance:'))
+        const mirrorMsgs = window.__canvasChat.getMessages(planId).filter(m => m.source_message_id && m.source_message_id.startsWith('mirror:'))
+        const mirrorIds = mirrorMsgs.map(m => m.source_message_id)
+        const perMirror = {}
+        for (const id of mirrorIds) perMirror[id] = (perMirror[id] || 0) + 1
+        const mirrorUnique = Object.values(perMirror).every(v => v === 1)
+        // 幽灵记录：卡片「确认计划」按钮点了两次 → 同 (stage1, confirm_plan) 只能 1 条镜像消息 + 1 条事件
+        const s1PlanMirror = mirrorIds.filter(id => id.includes(s1.id) && id.endsWith(':confirm_plan')).length
+        const s1PlanEvents = events.filter(e => e.event === 'advance:confirm_plan' && e.stage_id === s1.id).length
+        const ghostFree = s1PlanMirror === 1 && s1PlanEvents === 1
+        const bothEquivalent = s1Done && s2Done && s1Doing && s2Doing
+        const ok = bothEquivalent && uiEvents.length >= 2 && chatEvents.length >= 2 && mirrorUnique && ghostFree
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          bothEquivalent, s1Done, s2Done, s1Doing, s2Doing,
+          uiEvents: uiEvents.length, chatEvents: chatEvents.length,
+          mirrorMessages: mirrorMsgs.length, mirrorUnique, ghostFree
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-gate:', r)
+    check('plan-chat-gate', r)
+  }
   if (process.env.SHOT_PLAN_CHAT_RERENDER === '1') {
     // C1 硬约束：滚动对话 + 收发各 5 条时，画布节点渲染增量必须为 0
     const r = await w.webContents.executeJavaScript(

@@ -7,7 +7,7 @@
 
 export type ViewportTransform = { x: number; y: number; k: number }
 
-export type CanvasNodeType = 'text' | 'image' | 'video' | 'audio' | 'config' | 'group' | 'generate'
+export type CanvasNodeType = 'text' | 'image' | 'video' | 'audio' | 'config' | 'group' | 'generate' | 'plan'
 
 export interface CanvasNodeData {
   id: string
@@ -29,7 +29,9 @@ export const NODE_SPECS: Record<CanvasNodeType, { width: number; height: number;
   audio: { width: 300, height: 90, title: '音频', metadata: { content: '' } },
   config: { width: 280, height: 220, title: '配置', metadata: {} },
   group: { width: 480, height: 360, title: '分组', metadata: {} },
-  generate: { width: 320, height: 300, title: '出图', metadata: { prompt: '', size: '1024x1024' } }
+  generate: { width: 320, height: 300, title: '出图', metadata: { prompt: '', size: '1024x1024' } },
+  // C2：计划卡（唯一新增节点类型；阶段在卡内纵向渲染，不落子节点）
+  plan: { width: 420, height: 520, title: '计划', metadata: { planId: '' } }
 }
 
 /** 节点连线：from 的产物/内容作为 to 的输入（如 image → generate 作为参考图） */

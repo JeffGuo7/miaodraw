@@ -409,3 +409,83 @@
   padding: 8px;
   border-top: 1px solid #eceff4;
 }
+
+/* ── C2：计划卡（plan 节点内部渲染） ── */
+.ivc-plancard {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.ivc-plancard-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eceff4;
+}
+
+.ivc-plancard-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.ivc-plancard-progress {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.ivc-plancard-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ivc-plancard-stage {
+  border: 1px solid #eceff4;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fcfdff;
+}
+
+.ivc-plancard-stage[data-frozen='true'] {
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.ivc-plancard-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ivc-plancard-order {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e6ee;
+  color: #475569;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ivc-plancard-name {
+  flex: 1;
+}
+
+.ivc-plancard-actions {
+  margin-top: 6px;
+}
+
+.ivc-plancard-pending {
+  font-size: 12px;
+  color: #94a3b8;
+}

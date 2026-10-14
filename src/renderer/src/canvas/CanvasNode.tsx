@@ -17,6 +17,7 @@ import { runVideoNode, TEMPLATES } from './videoGeneration'
 import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
 import { clientToWorld, invalidateCanvasRect } from './rect-cache'
 import { beginPending, endPending, updatePending } from './pending-connection'
+import PlanCard from './PlanCard'
 
 interface CanvasNodeProps {
   node: CanvasNodeData
@@ -222,6 +223,8 @@ function renderBody(node: CanvasNodeData): JSX.Element {
       return <GenerateBody node={node} />
     case 'group':
       return <div className="ivc-placeholder">分组容器 · 拖入内容自动归组（后续）</div>
+    case 'plan':
+      return String(node.metadata.planId ?? '') ? <PlanCard planId={String(node.metadata.planId)} /> : <div className="ivc-placeholder">计划卡（未绑定计划）</div>
     default:
       return <div className="ivc-placeholder">未知节点</div>
   }

@@ -14,6 +14,7 @@ import { CloseOutlined, MessageOutlined, SendOutlined } from '@ant-design/icons'
 import type { ChatMessage, StageRecord } from './plan-types'
 
 import { appendMessage, loadMessages, setLastCreateResult, useChatMessages } from './chat-store'
+import { actViaChat } from './plan-actions'
 
 interface Props {
   open: boolean
@@ -97,8 +98,13 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
           await appendMessage({ planId: null, role: 'system', content: '这个需求不需要建流程，已按直连出图处理。' })
         }
       } else {
-        // 已有计划：C2 会接 plan:chat 三档分类；C1 只落消息
-        await appendMessage({ planId, role: 'user', content })
+        // 已有计划：C2 起确认/重试类消息走与计划卡同一条 IPC（actor=chat）
+        const stages = ((await window.api.planAuthored(planId)) as { stages?: StageRecord[] } | undefined)?.stages ?? []
+        const outcome = await actViaChat(planId, content, stages)
+        if (outcome.status === 'skipped') {
+          await appendMessage({ planId, role: 'user', content })
+          await appendMessage({ planId, role: 'agent', content: '收到。修改计划的能力（增量重排）在 C3/C5 接上后生效。' })
+        }
       }
     } catch (e) {
       await appendMessage({ planId, role: 'system', content: `发送失败：${e instanceof Error ? e.message : String(e)}` })
