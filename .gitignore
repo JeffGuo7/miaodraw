@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 out/
 dist/
 vendor/
@@ -17,3 +17,6 @@ assets/logo/logo-D-*.png
 assets/logo-run.log
 assets/icon-status.txt
 assets/key.tmp
+# Pixelle 后端运行时 pid 文件（起停管理产生，不入库）
+*.pid
+pixelle.pid

@@ -11,7 +11,7 @@ import {
   SettingOutlined
 } from '@ant-design/icons'
 
-export type ViewKey = 'create' | 'compose' | 'library' | 'distill' | 'history' | 'settings'
+export type ViewKey = 'create' | 'canvas' | 'compose' | 'library' | 'distill' | 'history' | 'settings'
 
 interface PaletteItem {
   key: string
@@ -30,6 +30,7 @@ interface Props {
 
 const NAV_ITEMS: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
   { key: 'create', icon: <EditOutlined />, label: '打开：创作' },
+  { key: 'canvas', icon: <PictureOutlined />, label: '打开：画布工作台' },
   { key: 'library', icon: <AppstoreOutlined />, label: '打开：灵感库' },
   { key: 'distill', icon: <ScanOutlined />, label: '打开：提示词反推' },
   { key: 'history', icon: <HistoryOutlined />, label: '打开：历史记录' },

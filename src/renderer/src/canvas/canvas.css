@@ -1,0 +1,628 @@
+/* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构 */
+
+.ivc-root {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  background: #f7f8fa;
+}
+
+.ivc-grid {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+}
+
+.ivc-world {
+  position: absolute;
+  transform-origin: top left;
+}
+
+/* ── 节点 ─────────────────────────────── */
+
+.ivc-node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e6ee;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  /* P0-2：位移走 transform（合成层），不再每帧改 left/top 触发布局 */
+  will-change: transform;
+  contain: layout style;
+  /* 端口挂在节点外侧，不能再整体裁剪（原 overflow:hidden 把端口外侧裁掉，命中区只剩一半） */
+  overflow: visible;
+  /* 只过渡阴影，不碰几何，避免拖动"拖影" */
+  transition: box-shadow 200ms ease;
+}
+
+/* 圆角裁剪下沉到内容层，视觉与原来一致 */
+.ivc-node-body {
+  border-radius: 0 0 9px 9px;
+  overflow: hidden;
+}
+
+/* P0-5：连线落点高亮 */
+.ivc-node-drop {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 3px rgba(64, 150, 255, 0.35), 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+/* 正在连线的源节点 */
+.ivc-node-connecting {
+  border-color: #4096ff;
+}
+
+.ivc-node-selected {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(64, 150, 255, 0.25), 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+.ivc-node-group {
+  background: rgba(148, 163, 184, 0.08);
+  border-style: dashed;
+}
+
+.ivc-node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #f2f4f8;
+  border-bottom: 1px solid #eceff4;
+  cursor: grab;
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: #475569;
+}
+
+.ivc-node-header:active {
+  cursor: grabbing;
+}
+
+.ivc-node-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.ivc-node-dot[data-type='image'] { background: #10b981; }
+.ivc-node-dot[data-type='video'] { background: #f97316; }
+.ivc-node-dot[data-type='audio'] { background: #a855f7; }
+.ivc-node-dot[data-type='config'] { background: #60a5fa; }
+.ivc-node-dot[data-type='group'] { background: #94a3b8; }
+
+.ivc-node-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.ivc-node-del {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.ivc-node-del:hover {
+  color: #ef4444;
+}
+
+.ivc-node-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.ivc-textarea {
+  flex: 1;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 8px;
+  font-size: 13px;
+  background: transparent;
+}
+
+.ivc-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ivc-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 8px;
+  text-align: center;
+}
+
+.ivc-upload {
+  cursor: pointer;
+}
+
+.ivc-node-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(64, 150, 255, 0.5) 50%);
+  border-bottom-right-radius: 10px;
+}
+
+/* 连线端口：右侧中部小圆点（overflow 已放开，外侧不再被裁） */
+.ivc-node-port {
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #4096ff;
+  cursor: crosshair;
+  z-index: 3;
+}
+
+/* 透明扩展热区（视觉尺寸不变，命中更稳） */
+.ivc-node-port::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+}
+
+.ivc-node-port:hover {
+  background: #4096ff;
+}
+
+/* 出图节点 */
+.ivc-gen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  min-height: 0;
+}
+
+.ivc-gen-prompt {
+  flex: 1;
+  min-height: 0;
+}
+
+.ivc-gen-refs {
+  font-size: 12px;
+  color: #10b981;
+}
+
+.ivc-gen-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ivc-gen-error {
+  font-size: 12px;
+  color: #ef4444;
+  word-break: break-all;
+}
+
+/* 视频产物卡 */
+.ivc-video-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #000;
+}
+
+.ivc-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 右键菜单 */
+.ivc-ctxmenu {
+  position: absolute;
+  z-index: 30;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ivc-ctxmenu button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.ivc-ctxmenu button:hover {
+  background: #f1f5f9;
+}
+
+/* 小地图 */
+.ivc-minimap {  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  padding: 4px;
+  width: 176px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+/* ── 工具条 ─────────────────────────────── */
+
+.ivc-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  padding: 6px 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.ivc-zoomctrl {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e6ee;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* 迁移浮层 */
+.ivc-migration-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247, 248, 250, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.ivc-migration-card {
+  width: 380px;
+  background: #fff;
+  border: 1px solid #e2e6ee;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  color: #334155;
+}
+
+/* ── C1：计划对话面板（画布级 overlay，不落节点） ── */
+.ivc-chatpanel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 56px;
+  width: 340px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e2e6ee;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.ivc-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eceff4;
+  background: #f7f9fc;
+  font-size: 13px;
+  color: #334155;
+}
+
+.ivc-chat-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.ivc-chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ivc-chat-msg {
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.ivc-chat-role {
+  font-size: 11px;
+}
+
+.ivc-chat-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ivc-chat-input {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px;
+  border-top: 1px solid #eceff4;
+}
+
+/* ── C2：计划卡（plan 节点内部渲染） ── */
+.ivc-plancard {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.ivc-plancard-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eceff4;
+}
+
+.ivc-plancard-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.ivc-plancard-progress {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.ivc-plancard-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ivc-plancard-stage {
+  border: 1px solid #eceff4;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fcfdff;
+}
+
+.ivc-plancard-stage[data-frozen='true'] {
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.ivc-plancard-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ivc-plancard-order {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e6ee;
+  color: #475569;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ivc-plancard-name {
+  flex: 1;
+}
+
+.ivc-plancard-actions {
+  margin-top: 6px;
+}
+
+.ivc-plancard-pending {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ── C3：闸门审阅卡（聊天流内锚定） ── */
+.ivc-reviewcard {
+  border: 1px solid #e2e6ee;
+  border-left: 3px solid #4096ff;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 6px;
+  background: #ffffff;
+  font-size: 12px;
+  color: #334155;
+}
+
+.ivc-reviewcard[data-conflict='true'] {
+  border-left-color: #ef4444;
+  background: #fff8f8;
+}
+
+.ivc-reviewcard-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ivc-reviewcard-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.ivc-reviewcard-meta {
+  color: #94a3b8;
+}
+
+.ivc-reviewcard-checks {
+  margin-top: 6px;
+  color: #64748b;
+}
+
+.ivc-reviewcard-check {
+  line-height: 1.6;
+}
+
+.ivc-reviewcard-body {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ivc-reviewcard-locks {
+  color: #64748b;
+}
+
+.ivc-reviewcard-item {
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.ivc-reviewcard-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ivc-reviewcard-refs {
+  color: #94a3b8;
+}
+
+.ivc-reviewcard-prompt-readonly {
+  white-space: pre-wrap;
+  color: #475569;
+}
+
+.ivc-reviewcard-product {
+  margin-top: 4px;
+  color: #10b981;
+}
+
+.ivc-reviewcard-conflict {
+  color: #ef4444;
+}
+
+.ivc-reviewcard-actions {
+  margin-top: 4px;
+}
+
+/* ── C5：冻结区范围确认卡 ── */
+.ivc-frozen-confirm {
+  border: 1px solid #ffd591;
+  background: #fffbe6;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px;
+  font-size: 12px;
+  color: #7c4a03;
+}
+
+.ivc-frozen-title {
+  font-weight: 600;
+}
+
+.ivc-frozen-desc {
+  margin: 4px 0 6px;
+}
+
+.ivc-frozen-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── C6：规划中骨架 / 规划中断重试 ── */
+.ivc-plancard-skeleton {
+  margin: 6px 0 2px;
+  padding: 8px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  color: #8c8c8c;
+  font-size: 12px;
+  background: #fafafa;
+}
+
+.ivc-plancard-stale {
+  margin: 6px 0 2px;
+  padding: 8px;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  background: #fff2f0;
+  color: #a8071a;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

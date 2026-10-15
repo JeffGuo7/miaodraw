@@ -22,6 +22,7 @@ export const PROVIDERS: ProviderDef[] = [
     note: 'HTTP 直连 · 生图 / 改图 / 文本 / 视觉全覆盖',
     i2i: true,
     models: [
+      { model: 'z-image-turbo', label: 'Z-Image Turbo（打样·最便宜）', price: '¥0.1' },
       { model: 'wan2.7-image', label: 'Wan 2.7 Image（推荐 · 可融合 9 张素材）', price: '¥0.2' },
       { model: 'wan2.7-image-pro', label: 'Wan 2.7 Image Pro（4K 文生图 · 9 张素材）', price: '按量' },
       { model: 'qwen-image-3.0', label: 'Qwen-Image 3.0（可融合 3 张素材）', price: '按量' },

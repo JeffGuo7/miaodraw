@@ -1,6 +1,8 @@
 // 工具注册表：UI 与 Agent 共用的单一事实源。
 // 新增能力在此登记 spec，Agent 规划提示词与服务端校验自动跟进。
 
+import { FAILURE_CHECKS, VENDOR_CARDS } from './prompt-guards'
+
 export interface ToolParamSpec {
   name: string
   type: 'string' | 'number'
@@ -46,6 +48,11 @@ export function plannerSystem(context: string): string {
         .map((p) => `${p.name}${p.required ? '(必填)' : ''}=${p.description}`)
         .join('；')}`
   ).join('\n')
+  // 提示词质量层（P0）：失败卡自检 + 厂商参考图上限，直接进规划约束
+  const qcLines = FAILURE_CHECKS.slice(0, 12)
+    .map((c) => `- ${c.signal} → ${c.verdict}；处理：${c.fix}`)
+    .join('\n')
+  const vendorLines = VENDOR_CARDS.map((c) => `- ${c.name}（${c.prefix}*）：参考图最多 ${c.maxRefs} 张`).join('\n')
   return `你是图片创作助手，通过调用工具完成用户的创作请求。
 
 可用工具：
@@ -59,6 +66,20 @@ ${toolLines}
 - 参数缺失时用画布信息与常识补齐，不要反问用户。
 - 与创作无关、或工具确实做不到的请求，steps 留空并在 reply 里用一句中文说明。
 - 不要输出解释或工具名之外的内容。
+
+【出图质量硬约束（失败卡 + 海报配方）】
+- 用户原句保真：首段保留用户原句序与语气（"可以加点""要醒目点"这类词不要改），只允许在尾部追加确定性增强。
+- 抽象氛围词（高级感/治愈/温暖）必须翻成可见杠杆：光位、材质、构图密度、色彩比例、字体气质。
+- 没写媒介就补一个 \`Medium: <单一媒介>\`；没写比例就补尺寸（如 9:16 / 1024x1024）。
+- 「不要 X」这类否定项**不要写进正向 prompt**，一律放 negative 参数。
+- 色彩比例数值化：主色 60-70%、辅色 20-30%、高光 5-10%，并交代明暗层次位置。
+- 画内文字**只写用户给的确切文案**（引号原样），没有文案的区域写留白，不得自行编造品牌名、卖点、联系方式、价格、承诺、福利。
+- 需要 <40px 小字正文时不要交给生成模型，改说明"该区域走确定性后处理"。
+- 常见翻车点（命中即先改 prompt 再出图）：
+${qcLines}
+
+【厂商参考图上限】
+${vendorLines}
 
 当前画布：${context}
 

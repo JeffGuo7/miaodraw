@@ -31,6 +31,10 @@ import { loadLibrary, libraryRoot } from './library'
 import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
+import { registerCanvasAssetHandlers } from './canvasAssets'
+import { registerPixelleHandlers, pixelleOutputDir, stopPixelleBackend } from './pixelle'
+import { registerOrchestratorHandlers } from './orchestrator'
+import { auditPlannedPrompt, buildImagePrompt } from './prompt-guards'
 
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
@@ -396,7 +400,7 @@ function createWindow(): void {
 }
 
 // ---------- 验收截图模式（与 aodl-pilot 的 TEST_MODE 同思路） ----------
-const VIEW_INDEX: Record<string, number> = { create: 0, compose: 1, library: 2, distill: 3, history: 4, settings: 5 }
+const VIEW_INDEX: Record<string, number> = { create: 0, canvas: 1, compose: 2, library: 3, distill: 4, history: 5, settings: 6 }
 
 /** smoke 断言：记录每个验收点的结果，ERR/异常计入失败，最终决定退出码 */
 let shotErrors = 0
@@ -414,7 +418,8 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
   w.webContents.on('console-message', (_e, _level, message) => {
     if (message.toLowerCase().includes('error')) console.log('[renderer]', message.slice(0, 300))
   })
-  // 整体看门狗：无论卡在哪，90s 后强制截图退出（超时计为失败）
+  // 整体看门狗：默认 90s 后强制截图退出（超时计为失败）；短视频/长任务可用 SHOT_WATCHDOG_MS 延长
+  const watchdogMs = Number(process.env.SHOT_WATCHDOG_MS || 0) || 90000
   const watchdog = setTimeout(
     () => {
       console.log('[shot] watchdog fired')
@@ -422,9 +427,14 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         .capturePage()
         .then((img) => fs.writeFileSync(process.env.SHOT_PATH || path.join(APP_ROOT, 'screenshot-client.png'), img.toPNG()))
         .catch(() => undefined)
-        .finally(() => app.exit(1))
+        // app.exit 不会触发 before-quit：这里必须手动收掉 Pixelle 后端子进程树，否则残留 python 占住管道
+        .finally(() => {
+          void stopPixelleBackend()
+            .catch(() => undefined)
+            .finally(() => app.exit(1))
+        })
     },
-    90000
+    watchdogMs
   )
   await new Promise((r) => setTimeout(r, 3000))
   const view = process.env.SHOT_VIEW
@@ -670,6 +680,995 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] compose:', r)
   }
+  if (process.env.SHOT_CANVAS === '1') {
+    // 画布工作台自测：点工具条新建三类节点，断言 DOM 中真的出现节点卡片
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const made = []
+        for (const t of ['文本', '图片', '视频']) {
+          const b = byText(t)
+          if (!b) return 'ERR: toolbutton ' + t + ' not found'
+          b.click()
+          made.push(t)
+          await new Promise(r => setTimeout(r, 400))
+        }
+        await new Promise(r => setTimeout(r, 800))
+        const nodes = document.querySelectorAll('[data-node-id]').length
+        const toolbar = document.querySelector('.ivc-toolbar') ? 1 : 0
+        return nodes >= 3 ? 'OK:nodes=' + nodes + ',toolbar=' + toolbar + ',clicked=' + made.join('/') : 'ERR:nodes=' + nodes
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas:', r)
+    check('canvas', r)
+  }
+  if (process.env.SHOT_CANVAS_GEN === '1') {
+    // 画布出图节点端到端自测：新建出图节点 → 填提示词 → 点生成 → 等图片卡落画布
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const genBtn = byText('出图')
+        if (!genBtn) return 'ERR: 工具条无出图按钮'
+        genBtn.click()
+        await sleep(600)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 出图节点无提示词输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '一只戴贝雷帽的柴犬，扁平插画风格，简洁背景')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(300)
+        const run = [...document.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成'))
+        if (!run) return 'ERR: 无生成按钮'
+        run.click()
+        const t0 = Date.now()
+        while (Date.now() - t0 < 70000) {
+          await sleep(2000)
+          const imgs = document.querySelectorAll('.ivc-img').length
+          if (imgs > 0) return 'OK:canvas_images=' + imgs + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+          const err = document.querySelector('.ivc-gen-error')
+          if (err) return 'ERR: ' + err.textContent.slice(0, 150)
+        }
+        return 'ERR: 70s 超时未出图'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-gen:', r)
+    check('canvas-gen', r)
+  }
+  if (process.env.SHOT_CANVAS_VIDEO === '1') {
+    // 画布视频节点端到端自测：新建视频节点 → 填文案 → 生成成片 → 等视频卡（需 Pixelle 后端，耗时数分钟）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const btn = byText('视频')
+        if (!btn) return 'ERR: 工具条无视频按钮'
+        btn.click()
+        await sleep(700)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 视频节点无文案输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '秋日午后，一只戴贝雷帽的柴犬坐在窗边看落叶')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(300)
+        const run = [...document.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成成片'))
+        if (!run) return 'ERR: 无生成成片按钮'
+        run.click()
+        const t0 = Date.now()
+        while (Date.now() - t0 < 360000) {
+          await sleep(5000)
+          const vid = document.querySelectorAll('video.ivc-video').length
+          if (vid > 0) return 'OK:canvas_videos=' + vid + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+          const err = document.querySelector('.ivc-gen-error')
+          if (err) return 'ERR: ' + err.textContent.slice(0, 200)
+        }
+        return 'ERR: 360s 超时未出片'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-video:', r)
+    check('canvas-video', r)
+  }
+  if (process.env.SHOT_CANVAS_I2I === '1') {
+    // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
+        const setText = (ta, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(ta, v)
+          ta.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        const taIn = (n) => n.querySelector('.ivc-gen-prompt')
+        const genIn = (n) => [...n.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成'))
+        toolbar('出图').click()
+        await sleep(800)
+        const genA = nodesByTitle('出图')[0]
+        if (!genA) return 'ERR: 出图节点未创建'
+        setText(taIn(genA), '一只柴犬坐在窗边，扁平插画，简洁背景')
+        await sleep(300)
+        genIn(genA).click()
+        let t0 = Date.now()
+        while (Date.now() - t0 < 90000) { await sleep(2000); if (nodesByTitle('图片').length > 0) break }
+        if (!nodesByTitle('图片').length) return 'ERR: 底图未生成'
+        toolbar('出图').click()
+        await sleep(800)
+        const gens = nodesByTitle('出图')
+        const genC = gens[gens.length - 1]
+        const imgB = nodesByTitle('图片')[0]
+        const port = imgB.querySelector('.ivc-node-port')
+        if (!port) return 'ERR: 图片节点无端口'
+        const pr = port.getBoundingClientRect()
+        const cr = genC.getBoundingClientRect()
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 1, button: 0, buttons: 1 }))
+        await sleep(200)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cr.left + cr.width / 2, clientY: cr.top + 20, pointerId: 1, button: 0 }))
+        await sleep(700)
+        const refs = genC.querySelector('.ivc-gen-refs')
+        if (!refs || !refs.textContent.includes('参考图')) return 'ERR: 连线未生效'
+        setText(taIn(genC), '保持构图，改成水彩风格')
+        await sleep(300)
+        genIn(genC).click()
+        t0 = Date.now()
+        while (Date.now() - t0 < 120000) {
+          await sleep(2000)
+          if (nodesByTitle('图片').length >= 2) return 'OK:i2i_images=' + nodesByTitle('图片').length + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+        }
+        return 'ERR: i2i 未产出新图'
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-i2i:', r)
+    check('canvas-i2i', r)
+  }
+  if (process.env.SHOT_P0_PROMPT === '1') {
+    // 提示词质量层 P0 端到端：组装 → 审计（含编造负例）→ z-image-turbo 真实出图（¥0.1）
+    const brief = '新中式茶馆春季招募海报，可以加点暖色，要醒目点'
+    const assembled = buildImagePrompt(brief, {
+      size: '1024x1024',
+      medium: '平面设计海报',
+      palette: { main: '茶汤琥珀', accent: '宣纸米白', highlight: '金色描边' },
+      layout: '信息阶梯',
+      onImageText: ['春水煎茶', '招募茶艺师']
+    })
+    const audit = auditPlannedPrompt(assembled, brief, { needsText: true })
+    // 负例（零成本）：Painter A/B 实测里模型编造的那段
+    const badDraft = '隐山·茶事 春季招聘 联系电话 010-8888-6666 邮箱 hr@yinshan.com 地址 杭州西湖区龙井路 18 号 五险一金 月薪 8000 元'
+    const badAudit = auditPlannedPrompt(badDraft, brief)
+    const noFalsePositive = audit.findings.fabrications.length === 0 && audit.findings.missingPhrases.length === 0
+    const detectsFabrication = badAudit.findings.fabrications.length >= 4
+    const gen = await w.webContents.executeJavaScript(
+      `window.api.generate({
+        prompt: ${JSON.stringify(assembled)},
+        model: 'z-image-turbo', provider: 'bailian', w: 1024, h: 1024
+      }).then(x => 'OK:' + x.file).catch(e => 'ERR:' + e.message)`
+    )
+    const ok = noFalsePositive && detectsFabrication && String(gen).startsWith('OK:')
+    const summary = JSON.stringify({
+      noFalsePositive,
+      detectsFabrication,
+      fabricationKinds: badAudit.findings.fabrications.map((f) => f.kind),
+      promptLen: assembled.length,
+      gen
+    })
+    console.log('[shot] p0-prompt:', (ok ? 'OK:' : 'ERR:') + summary)
+    check('p0-prompt', (ok ? 'OK:' : 'ERR:') + summary)
+  }
+  if (process.env.SHOT_PLAN_CHAT === '1') {
+    // C1 对话面板：落消息 + drafting 即时返回 + 重启可恢复（IndexedDB）+ 输入不阻塞画布 + 迁移断言仍在跑
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const chatBtn = byText('对话')
+        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + '）'
+        // 先建一个画布节点：后面要断言"发送后画布不被阻塞（可拖动）"
+        byText('文本').click()
+        await sleep(500)
+        chatBtn.click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        if (!panel) return 'ERR: 面板未打开'
+        const ta = panel.querySelector('textarea')
+        if (!ta) return 'ERR: 面板无输入框'
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        const sendBtn = [...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送'))
+        if (!sendBtn) return 'ERR: 未找到发送按钮（buttons=' + [...panel.querySelectorAll('button')].map(b => b.textContent).join('/') + '）'
+        sendBtn.click()
+        // 发送应立即返回（drafting），不等计划落定
+        const t0 = Date.now()
+        let lastCreate = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(100)
+          lastCreate = window.__canvasChat?.getLastCreateResult?.() ?? null
+          if (lastCreate) break
+        }
+        const sendLatency = Date.now() - t0
+        const drafting = lastCreate?.kind === 'plan' && lastCreate?.status === 'drafting'
+
+        // 输入不阻塞画布：立刻拖一次节点，断言位移发生
+        const node = document.querySelector('[data-node-id]')
+        let dragOk = null
+        if (node) {
+          const header = node.querySelector('.ivc-node-header') || node
+          const before = node.getBoundingClientRect()
+          const r0 = header.getBoundingClientRect()
+          header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r0.left + 30, clientY: r0.top + 8, pointerId: 9, button: 0, buttons: 1 }))
+          for (let i = 1; i <= 4; i++) {
+            window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r0.left + 30 + i * 10, clientY: r0.top + 8 + i * 4, pointerId: 9, buttons: 1 }))
+            await sleep(30)
+          }
+          const mid = node.getBoundingClientRect()
+          dragOk = Math.abs(mid.left - before.left) > 1
+          window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r0.left + 70, clientY: r0.top + 24, pointerId: 9, button: 0 }))
+        } else {
+          dragOk = 'no-node'
+        }
+
+        // 持久化 + 迁移断言：读 messages / meta / plans（meta 写入是异步的，轮询最多 3s）
+        let schema = null
+        let db = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(100)
+          if (!db) {
+            db = await new Promise((res, rej) => {
+              const rq = indexedDB.open('miaodraw-canvas')
+              rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+            })
+          }
+          const meta = await new Promise((res, rej) => {
+            const tx = db.transaction('meta', 'readonly')
+            const rq = tx.objectStore('meta').get('schema')
+            rq.onsuccess = () => res(rq.result?.value ?? null); rq.onerror = () => rej(rq.error)
+          })
+          schema = meta
+          if (schema?.version === 4) break
+        }
+        const messages = await new Promise((res, rej) => {
+          const tx = db.transaction('messages', 'readonly')
+          const rq = tx.objectStore('messages').getAll()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const userRows = messages.filter(m => m.role === 'user')
+        const plans = await window.api.planList()
+        // #185 类回归守卫：getSnapshot 对未知 key 必须返回稳定引用（否则 useSyncExternalStore 无限重渲染→白屏）
+        const stableSnapshot = window.__canvasChat.getMessages('__nope__') === window.__canvasChat.getMessages('__nope__')
+        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version === 4 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1 && stableSnapshot
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          drafting, sendLatency, userRows: userRows.length, dragOk, stableSnapshot,
+          schemaVersion: schema?.version ?? null, assetsChecked: schema?.assetsChecked ?? null,
+          plans: Array.isArray(plans) ? plans.length : null,
+          stores: Array.from(db.objectStoreNames)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat:', r)
+    check('plan-chat', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_FREEZE === '1') {
+    // C5 冻结边界：已完成阶段标 frozen 且不可 patch；聊天改冻结区 → 先出范围确认卡，未确认不落库
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        const send = async (msg) => {
+          setVal(ta, msg)
+          await sleep(120)
+          ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+          await sleep(600)
+        }
+        await send('做一条带货短视频，要有分镜和口播')
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        // 走完阶段 1（冻结它）
+        let snap = await window.api.planAuthored(planId)
+        let s1 = snap.stages[0]
+        const a1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision, actor: 'ui' })
+        const a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: a1.stage.revision, actor: 'auto' })
+        await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_result', expectedRevision: a2.stage.revision, actor: 'ui' })
+        await sleep(500)
+        // ① 卡片标 frozen + patch 被拒
+        const stageEl = document.querySelector('[data-plan-id] [data-stage-id="' + s1.id + '"]')
+        const frozenMark = stageEl?.getAttribute('data-frozen') === 'true'
+        snap = await window.api.planAuthored(planId)
+        const s1Now = snap.stages.find(s => s.id === s1.id)
+        const patchRejected = (await window.api.planPatchStage({ planId, stageId: s1.id, patch: { goal: '偷改冻结阶段' }, expectedRevision: s1Now.revision }))
+        const rejectedOk = patchRejected.ok === false && String(patchRejected.error || '').includes('冻结')
+        // ② 聊天改冻结区 → 出现范围确认卡，且事件数不变（未落库）
+        const eventsBefore = (await window.api.planEvents(planId)).length
+        await send('把第一步改成横屏')
+        await sleep(400)
+        const confirmCard = panel.querySelector('[data-frozen-confirm="true"]')
+        // 卡片必须给出两种处理方式（任务卡：新建计划 / 从当前阶段重排），否则用户无从选
+        const confirmOptions = confirmCard ? [...confirmCard.querySelectorAll('button')].map((b) => (b.textContent || '').replace(/\s+/g, '')) : []
+        const hasOptions = confirmOptions.some((t) => t.includes('重排')) && confirmOptions.some((t) => t.includes('新建计划'))
+        const eventsAfter = (await window.api.planEvents(planId)).length
+        const noCommit = eventsAfter === eventsBefore
+        const ok = frozenMark && rejectedOk && !!confirmCard && hasOptions && noCommit
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ frozenMark, rejectedOk, confirmCard: !!confirmCard, hasOptions, confirmOptions, noCommit, eventsBefore, eventsAfter })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-freeze:', r)
+    check('plan-chat-freeze', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_RECOVER === '1') {
+    // C6 空态/异常态/断线恢复：drafting 骨架 → stale 重试 → 丢一次事件后全量重拉（卡片/真相源/IndexedDB 三方一致）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(120)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        const cardEl = () => document.querySelector('[data-plan-id="' + planId + '"]')
+
+        // ① 空态：drafting + 零物化（未到阈值）→ 骨架卡，且不得误标 stale
+        const i1 = await window.api.planDebugInterrupt({ planId, ageMs: 0 })
+        if (!i1?.ok) return 'ERR: 构造空态失败 ' + JSON.stringify(i1)
+        await sleep(600)
+        const skeleton = !!cardEl()?.querySelector('[data-skeleton="true"]')
+        const staleWhenFresh = cardEl()?.getAttribute('data-stale') === 'true'
+
+        // ② 异常态：同状态但 120s 无进展 → stale + 重试入口；点重试必须能重新推进
+        const i2 = await window.api.planDebugInterrupt({ planId, ageMs: 120000 })
+        if (!i2?.ok) return 'ERR: 构造中断失败 ' + JSON.stringify(i2)
+        await sleep(600)
+        const stale = cardEl()?.getAttribute('data-stale') === 'true'
+        const retryBtn = cardEl()?.querySelector('[data-stale-retry="true"]')
+        if (retryBtn) retryBtn.click()
+        await sleep(1000)
+        const staleAfterRetry = cardEl()?.getAttribute('data-stale') === 'true'
+        const stagesAfterRetry = cardEl() ? cardEl().querySelectorAll('[data-stage-id]').length : 0
+        const retryWorked = staleAfterRetry === false && stagesAfterRetry >= 1
+
+        // ③ 断线恢复：丢一次事件 → 下一次 revision 跳变 → 全量重拉，卡片追平真相源与 IndexedDB
+        const refreshesBefore = window.__planRecover.stats(planId).refreshes
+        window.__planRecover.dropNext(planId)
+        let snap = await window.api.planAuthored(planId)
+        const s1 = snap.stages[0]
+        await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision, actor: 'ui' }) // 这次推送被丢
+        await sleep(300)
+        const droppedCount = window.__planRecover.stats(planId).dropped
+        const mid = await window.api.planAuthored(planId)
+        const a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: mid.stages[0].revision, actor: 'ui' })
+        await sleep(1200)
+        const stats = window.__planRecover.stats(planId)
+        const truth = await window.api.planAuthored(planId)
+        const truthStatus = truth.stages.map(s => s.id + '=' + s.status).sort().join(',')
+        const domStatus = [...cardEl().querySelectorAll('[data-stage-id]')].map(el => el.getAttribute('data-stage-id') + '=' + el.getAttribute('data-status')).sort().join(',')
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const rows = await new Promise((res, rej) => {
+          const tx = db.transaction('stages', 'readonly')
+          const rq = tx.objectStore('stages').getAll()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const dbStatus = rows.filter(s => s.plan_id === planId).map(s => s.id + '=' + s.status).sort().join(',')
+        const consistent = domStatus === truthStatus && dbStatus === truthStatus
+        const recovered = stats.refreshes > refreshesBefore
+        const ok = skeleton && !staleWhenFresh && stale && retryWorked && droppedCount === 1 && recovered && consistent
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ skeleton, staleWhenFresh, stale, retryWorked, stagesAfterRetry, droppedCount, refreshesBefore, refreshes: stats.refreshes, reasons: stats.reasons, recovered, consistent, domStatus, truthStatus, dbStatus, advanced: a2?.ok === true })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-recover:', r)
+    check('plan-chat-recover', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_AUTO === '1') {
+    // C4 自动推进：开启后无需 confirm_plan 即过闸门（actor=auto）；blocked → 自动置 false 并有提示
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 30; i++) { await sleep(150); snap = await window.api.planAuthored(planId); if (snap?.stages?.length) break }
+        if (!snap?.stages?.length) return 'ERR: 首阶段未物化'
+        // 开启自动推进：阶段 1 应自动过 plan_review（actor=auto）
+        const on = await window.api.planSetAutoAdvance({ planId, enabled: true, expectedRevision: snap.plan.revision })
+        await sleep(500)
+        snap = await window.api.planAuthored(planId)
+        const s1 = snap.stages[0]
+        const autoConfirmed = s1.status === 'doing' || s1.status === 'waiting_user'
+        const autoEvents = (await window.api.planEvents(planId)).filter(e => e.actor === 'auto')
+        const planFlag = (await window.api.planAuthored(planId)).plan.auto_advance === true
+        // 执行器代跑：execution_done → 自动过 result_review → done
+        const d = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: s1.revision, actor: 'auto' })
+        await sleep(600)
+        snap = await window.api.planAuthored(planId)
+        const s1Done = snap.stages.find(s => s.id === s1.id)?.status === 'done'
+        const autoEvents2 = (await window.api.planEvents(planId)).filter(e => e.actor === 'auto')
+        const autoGates = autoEvents2.filter(e => String(e.event).includes('confirm_')).length
+
+        // blocked：新计划 → 开启自动 → 把阶段置 blocked → 驱动一次 → 应自动转手动
+        const created2 = await window.api.planCreate({ prompt: '再来一条短视频', canvasContext: { pixelleReady: true } })
+        const pid2 = created2.planId
+        let s2 = null
+        for (let i = 0; i < 30; i++) { await sleep(150); const x = await window.api.planAuthored(pid2); s2 = x.stages?.[0] ?? null; if (s2) break }
+        if (!s2) return 'ERR: 第二个计划首阶段未物化'
+        await window.api.planSetAutoAdvance({ planId: pid2, enabled: true, expectedRevision: (await window.api.planAuthored(pid2)).plan.revision })
+        await sleep(300)
+        const cur = (await window.api.planAuthored(pid2)).stages[0]
+        await window.api.planAdvance({ planId: pid2, stageId: cur.id, action: 'block', expectedRevision: cur.revision, actor: 'auto' })
+        await sleep(300)
+        // 触发一次机器（切换开关即会 drive）
+        await window.api.planSetAutoAdvance({ planId: pid2, enabled: true, expectedRevision: (await window.api.planAuthored(pid2)).plan.revision })
+        await sleep(500)
+        const snap2 = await window.api.planAuthored(pid2)
+        const blockedOff = snap2.plan.auto_advance === false
+        const blockEvent = (await window.api.planEvents(pid2)).some(e => e.event === 'auto_advance_off_blocked')
+
+        const ok = on.ok === true && planFlag && autoConfirmed && autoEvents.length >= 1 && s1Done && autoGates >= 2 && blockedOff && blockEvent
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          flagOn: planFlag, autoConfirmed, s1Done, autoGates, blockedOff, blockEvent,
+          stages1: snap.stages.map(s => s.status)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-auto:', r)
+    check('plan-chat-auto', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_REVIEW === '1') {
+    // C3 闸门审阅卡：渲染 prompt/检查项；行内编辑走 patchStage（revision+1）；过期 revision → data-conflict 且草稿保留
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        // 打开审阅卡（点标题展开）
+        let review = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(200)
+          review = panel.querySelector('[data-review-stage]')
+          if (review) break
+        }
+        if (!review) return 'ERR: 审阅卡未渲染'
+        review.querySelector('.ivc-reviewcard-head').click()
+        await sleep(300)
+        const promptArea = review.querySelector('textarea')
+        const hasPrompt = !!promptArea && (promptArea.value || '').length > 0
+        const checksText = (review.querySelector('.ivc-reviewcard-checks')?.textContent || '').length > 0
+        const snap0 = await window.api.planAuthored(planId)
+        const rev0 = snap0.stages[0].revision
+
+        // 行内编辑 → 保存
+        setVal(promptArea, '改好的提示词：简洁背景，商品居中，柔光')
+        await sleep(150)
+        ;[...review.querySelectorAll('button')].find(b => b.textContent.includes('保存提示词')).click()
+        await sleep(600)
+        const snap1 = await window.api.planAuthored(planId)
+        const editedOk = snap1.stages[0].work_items.some(w => String(w.prompt).includes('改好的提示词')) && snap1.stages[0].revision === rev0 + 1
+
+        // 冲突：先在背后用当前 revision 成功推进一次（卡片仍持旧 revision，且不会被通知到 —— 事件会刷新卡片，
+        // 因此这里直接改 stage 快照之外的路径：用 patchGoal 推进 revision，然后立刻让卡片保存）
+        const behind = await window.api.planPatchStage({ planId, stageId: snap1.stages[0].id, patch: { goal: '后台改一次' }, expectedRevision: snap1.stages[0].revision })
+        await sleep(150)
+        setVal(promptArea, '冲突期间编辑的草稿不应丢')
+        await sleep(150)
+        ;[...review.querySelectorAll('button')].find(b => b.textContent.includes('保存提示词')).click()
+        await sleep(800)
+        const conflictFlag = review.getAttribute('data-conflict') === 'true'
+        const draftKept = (review.querySelector('textarea')?.value || '').includes('草稿不应丢')
+        const ok = hasPrompt && checksText && editedOk && behind.ok === true && conflictFlag && draftKept
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ hasPrompt, checksText, editedOk, behindOk: behind.ok, conflictFlag, draftKept, rev0, rev1: snap1.stages[0].revision })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-review:', r)
+    check('plan-chat-review', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_GATE === '1') {
+    // C2 双向等价确认：卡片按钮(actor=ui) 与 聊天消息(actor=chat) 走同一状态机；
+    // 镜像消息按 source_message_id 去重（先判重再写事件 → 无幽灵记录）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频，要有分镜和口播')
+        await sleep(150)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+
+        // 等计划卡出现（plan:changed 自动落卡）
+        let card = null
+        for (let i = 0; i < 40; i++) {
+          await sleep(200)
+          card = document.querySelector('[data-plan-id]')
+          if (card) break
+        }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+
+        // —— 路径 A：卡片按钮走完整序列（actor=ui）——
+        let btn = null
+        for (let i = 0; i < 30; i++) {
+          await sleep(200)
+          btn = [...card.querySelectorAll('button')].find(b => b.textContent.includes('确认计划'))
+          if (btn) break
+        }
+        if (!btn) return 'ERR: 卡片未出现确认按钮'
+        btn.click()
+        await sleep(500)
+        btn.click() // 重复点击：镜像去重，不得产生第二条事件
+        await sleep(500)
+        let snap = await window.api.planAuthored(planId)
+        const s1Doing = snap.stages.find(s => s.order === 1)?.status === 'doing'
+        let s1 = snap.stages.find(s => s.order === 1)
+        const d1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: s1.revision, actor: 'auto' })
+        await sleep(500)
+        // 卡片此时应出现「通过」按钮（result_review）
+        let passBtn = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(200)
+          passBtn = [...document.querySelectorAll('[data-plan-id] button')].find(b => (b.textContent || '').replace(/\\s+/g, '') === '通过')
+          if (passBtn) break
+        }
+        if (!passBtn) {
+          const cards = [...document.querySelectorAll('[data-plan-id]')]
+          return 'ERR: 卡片未出现通过按钮（cards=' + cards.length + ' stages=' + JSON.stringify((await window.api.planAuthored(planId)).stages.map(s => s.status + '/' + s.waiting_reason)) + ' buttons=' + cards.map(c => [...c.querySelectorAll('button')].map(b => b.textContent.trim()).join('|')).join(' ; ') + '）'
+        }
+        passBtn.click()
+        await sleep(600)
+        snap = await window.api.planAuthored(planId)
+        const s1Done = snap.stages.find(s => s.order === 1)?.status === 'done'
+
+        // —— 路径 B：聊天消息走完整序列（actor=chat）——
+        await window.api.planAuthorStage({ planId })
+        await sleep(500)
+        const sendChat = async (msg) => {
+          setVal(ta, msg)
+          await sleep(120)
+          ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+          await sleep(500)
+        }
+        await sendChat('确认')
+        snap = await window.api.planAuthored(planId)
+        let s2 = snap.stages.find(s => s.order === 2)
+        const s2Doing = s2?.status === 'doing'
+        const d2 = await window.api.planAdvance({ planId, stageId: s2.id, action: 'execution_done', expectedRevision: s2.revision, actor: 'auto' })
+        await sleep(300)
+        await sendChat('确认')
+        await sleep(400)
+        snap = await window.api.planAuthored(planId)
+        const s2Done = snap.stages.find(s => s.order === 2)?.status === 'done'
+
+        const events = await window.api.planEvents(planId)
+        const uiEvents = events.filter(e => e.actor === 'ui' && String(e.event).startsWith('advance:'))
+        const chatEvents = events.filter(e => e.actor === 'chat' && String(e.event).startsWith('advance:'))
+        const mirrorMsgs = window.__canvasChat.getMessages(planId).filter(m => m.source_message_id && m.source_message_id.startsWith('mirror:'))
+        const mirrorIds = mirrorMsgs.map(m => m.source_message_id)
+        const perMirror = {}
+        for (const id of mirrorIds) perMirror[id] = (perMirror[id] || 0) + 1
+        const mirrorUnique = Object.values(perMirror).every(v => v === 1)
+        // 幽灵记录：卡片「确认计划」按钮点了两次 → 同 (stage1, confirm_plan) 只能 1 条镜像消息 + 1 条事件
+        const s1PlanMirror = mirrorIds.filter(id => id.includes(s1.id) && id.endsWith(':confirm_plan')).length
+        const s1PlanEvents = events.filter(e => e.event === 'advance:confirm_plan' && e.stage_id === s1.id).length
+        const ghostFree = s1PlanMirror === 1 && s1PlanEvents === 1
+        const bothEquivalent = s1Done && s2Done && s1Doing && s2Doing
+        const ok = bothEquivalent && uiEvents.length >= 2 && chatEvents.length >= 2 && mirrorUnique && ghostFree
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          bothEquivalent, s1Done, s2Done, s1Doing, s2Doing,
+          uiEvents: uiEvents.length, chatEvents: chatEvents.length,
+          mirrorMessages: mirrorMsgs.length, mirrorUnique, ghostFree
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-gate:', r)
+    check('plan-chat-gate', r)
+  }
+  if (process.env.SHOT_PLAN_CHAT_RERENDER === '1') {
+    // C1 硬约束：滚动对话 + 收发各 5 条时，画布节点渲染增量必须为 0
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        // 建两个画布节点，确保有节点可被重渲染
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click(); await sleep(300)
+        byText('图片').click(); await sleep(300)
+        byText('对话').click(); await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        if (!panel) return 'ERR: 面板未打开'
+        window.__canvasNodeRenders = 0
+        await sleep(200)
+        const before = window.__canvasNodeRenders
+        // 先建计划（首条消息），此后只做聊天收发
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => {
+          const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          s.call(el, v)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+        setVal(ta, '做一条带货短视频')
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        await sleep(1500) // 等首阶段事件（会带来一轮计划刷新，先计入基线之后重取）
+        const baseline = window.__canvasNodeRenders
+        // 滚动对话 500px
+        const list = panel.querySelector('[data-testid="chat-list"]')
+        list.scrollTop = 500
+        await sleep(200)
+        // 收发各 5 条（走 store 注入，模拟消息到达/发送）
+        for (let i = 1; i <= 5; i++) {
+          window.__canvasChatInject?.('user', '用户消息 ' + i)
+          await sleep(60)
+          window.__canvasChatInject?.('agent', '助手回复 ' + i)
+          await sleep(60)
+        }
+        await sleep(400)
+        const after = window.__canvasNodeRenders
+        const delta = after - baseline
+        const ok = delta === 0
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ baseline, after, delta, nodes: document.querySelectorAll('[data-node-id]').length })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-chat-rerender:', r)
+    check('plan-chat-rerender', r)
+  }
+  if (process.env.SHOT_PLAN_B === '1') {
+    // B 批增量协议端到端：replan 增量 + 冻结前缀 + 幂等重放 + CAS 冲突 + 原子性 + 审计落盘 + cancel
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        if (created.kind !== 'plan') return 'ERR: 未建成计划'
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 20; i++) { await sleep(150); snap = await window.api.planAuthored(planId); if (snap?.stages?.length) break }
+        if (!snap?.stages?.length) return 'ERR: 首阶段未物化'
+        // 走完阶段 1（冻结前缀）
+        let s1 = snap.stages[0]
+        let a1 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_plan', expectedRevision: s1.revision })
+        let a2 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'execution_done', expectedRevision: a1.stage.revision })
+        let a3 = await window.api.planAdvance({ planId, stageId: s1.id, action: 'confirm_result', expectedRevision: a2.stage.revision, actor: 'chat' })
+        const done1 = a3.stage.status === 'done'
+        // author 阶段 2
+        await window.api.planAuthorStage({ planId })
+        await sleep(200)
+        snap = await window.api.planAuthored(planId)
+        const s2 = snap.stages.find(s => s.order === 2)
+        if (!s2) return 'ERR: 阶段 2 未物化'
+        const revBefore = snap.plan.revision
+        const s1RevBefore = snap.stages.find(s => s.id === s1.id).revision
+        // 增量：改阶段 2 + 追加 outline（带冻结前缀与溯源消息）
+        const increment = await window.api.planReplan({
+          planId, requestId: 'req-probe-1', preserveThroughStageId: s1.id, expectedRevision: revBefore,
+          actor: 'chat', sourceMessageId: 'msg_probe_1',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { goal: '按新需求重写画面方向' } },
+            { kind: 'insert_stage_outline', entry: { id: planId + '_s9', order: 9, name: '加映花絮' } }
+          ]
+        })
+        const incOk = increment.ok === true && increment.frozen_through === s1.id && increment.revision === revBefore + 1
+        const frozenIntact = (await window.api.planAuthored(planId)).stages.find(s => s.id === s1.id).revision === s1RevBefore
+
+        // 幂等重放
+        const replay = await window.api.planReplan({
+          planId, requestId: 'req-probe-1', preserveThroughStageId: s1.id, expectedRevision: revBefore,
+          actor: 'chat', sourceMessageId: 'msg_probe_1',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { goal: '按新需求重写画面方向' } },
+            { kind: 'insert_stage_outline', entry: { id: planId + '_s9', order: 9, name: '加映花絮' } }
+          ]
+        })
+        const replayOk = replay.ok === true && replay.replayed === true
+        const revAfterReplay = (await window.api.planAuthored(planId)).plan.revision
+
+        // CAS 冲突（用过期的 revision）
+        const cas = await window.api.planReplan({ planId, requestId: 'req-probe-cas', expectedRevision: revBefore, ops: [] })
+        const casOk = cas.ok === false && cas.conflict?.code === 'PLAN_REVISION_CONFLICT' && cas.conflict.current_state.actual_revision >= revBefore + 1
+
+        // 原子性：合法 + 非法 op 混合 → 全不生效
+        const beforeAtomic = JSON.stringify(await window.api.planAuthored(planId))
+        const atomic = await window.api.planReplan({
+          planId, requestId: 'req-probe-atomic',
+          ops: [
+            { kind: 'revise_stage', stage_id: s2.id, patch: { name: '本次不应生效' } },
+            { kind: 'revise_stage', stage_id: 'not-exist', patch: { name: 'x' } }
+          ]
+        })
+        const atomicOk = atomic.ok === false && JSON.stringify(await window.api.planAuthored(planId)) === beforeAtomic
+
+        // 审计事件（IPC + IndexedDB）
+        const events = await window.api.planEvents(planId)
+        const auditOk = Array.isArray(events) && events.some(e => e.event === 'replan' && e.request_id === 'req-probe-1' && e.source_message_id === 'msg_probe_1')
+        await sleep(300)
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+        const persisted = await new Promise((res, rej) => {
+          const tx = db.transaction('plan_events', 'readonly')
+          const rq = tx.objectStore('plan_events').count()
+          rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error)
+        })
+
+        // cancel
+        const cancel = await window.api.planCancel(planId)
+        const cancelled = cancel.ok === true && (await window.api.planAuthored(planId)).plan.status === 'cancelled'
+
+        const ok = done1 && incOk && frozenIntact && replayOk && casOk && atomicOk && auditOk && persisted >= 1 && cancelled
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          done1, incOk, frozenIntact, replayOk, revAfterReplay, casOk, atomicOk, auditOk,
+          persistedEvents: persisted, cancelled, stores: Array.from(db.objectStoreNames)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-b:', r)
+    check('plan-b', r)
+  }
+  if (process.env.SHOT_PLAN_O1 === '1') {
+    // 编排 O1 端到端：plan:create 立即返回 drafting → 事件推进首阶段 → 状态机走完 → IndexedDB 落盘
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const created = await window.api.planCreate({
+          prompt: '帮我做一条带货短视频，要有分镜和口播',
+          canvasContext: { pixelleReady: true }
+        })
+        if (created.kind !== 'plan') return 'ERR: 未建成计划 ' + JSON.stringify(created)
+        const immediateDrafting = created.status === 'drafting'
+        const planId = created.planId
+        let snap = null
+        for (let i = 0; i < 20; i++) {
+          await sleep(150)
+          snap = await window.api.planAuthored(planId)
+          if (snap && snap.stages && snap.stages.length > 0) break
+        }
+        if (!snap || !snap.stages || snap.stages.length === 0) return 'ERR: 首阶段未物化'
+        const first = snap.stages[0]
+        const gate = first.status === 'waiting_user' && first.waiting_reason === 'plan_review'
+        const outline = snap.plan.stage_outline.length
+
+        const a1 = await window.api.planAdvance({ planId, stageId: first.id, action: 'confirm_plan', expectedRevision: first.revision })
+        const a2 = await window.api.planAdvance({ planId, stageId: first.id, action: 'execution_done', expectedRevision: a1.stage.revision })
+        const a3 = await window.api.planAdvance({ planId, stageId: first.id, action: 'confirm_result', expectedRevision: a2.stage.revision })
+        const chain = a1.stage.status === 'doing' && a2.stage.waiting_reason === 'result_review' && a3.stage.status === 'done'
+
+        const stale = await window.api.planAdvance({ planId, stageId: first.id, action: 'retry', expectedRevision: first.revision })
+        const conflict = stale.ok === false && stale.conflict === true
+
+        await sleep(400)
+        const db = await new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        const count = (store) => new Promise((res, rej) => {
+          const tx = db.transaction(store, 'readonly')
+          const rq = tx.objectStore(store).count()
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        const plans = await count('plans')
+        const stages = await count('stages')
+        const stores = Array.from(db.objectStoreNames)
+        const ok = immediateDrafting && gate && chain && conflict && plans >= 1 && stages >= 1
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ immediateDrafting, outline, gate, chain, conflict, plans, stages, stores })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] plan-o1:', r)
+    check('plan-o1', r)
+  }
+  if (process.env.SHOT_CANVAS_CONNECT === '1') {
+    // 连线反馈可断言探针（不做截图验收）：橡皮筋在画布层 + 起点=真实端口中心(±1px) + 目标高亮
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
+        toolbar('图片').click(); await sleep(600)
+        toolbar('出图').click(); await sleep(600)
+        const img = nodesByTitle('图片')[0]
+        const gen = nodesByTitle('出图')[0]
+        if (!img || !gen) return 'ERR: 节点未创建'
+        const port = img.querySelector('.ivc-node-port')
+        if (!port) return 'ERR: 图片节点无端口'
+        const pr = port.getBoundingClientRect()
+        const portCx = pr.left + pr.width / 2
+        const portCy = pr.top + pr.height / 2
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: portCx, clientY: portCy, pointerId: 3, button: 0, buttons: 1 }))
+        await sleep(120)
+        const gr = gen.getBoundingClientRect()
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, buttons: 1 }))
+        await sleep(220)
+        const path = document.querySelector('[data-pending-line]')
+        if (!path) return 'ERR: 橡皮筋未渲染'
+        const inCanvasLayer = !!path.closest('.ivc-root') && !path.closest('[data-node-id]')
+        const highlighted = gen.className.includes('ivc-node-drop')
+        const d = path.getAttribute('d') || ''
+        const m = d.match(/M\\s+(-?[\\d.]+)\\s+(-?[\\d.]+)/)
+        if (!m) return 'ERR: path d 解析失败: ' + d
+        const OFF = 100000
+        const world = document.querySelector('.ivc-world')
+        const tm = (world.style.transform || '').match(/translate\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px\\)\\s*scale\\(([\\d.]+)\\)/)
+        const k = tm ? Number(tm[3]) : 1
+        const vx = tm ? Number(tm[1]) : 0
+        const vy = tm ? Number(tm[2]) : 0
+        const rootRect = document.querySelector('.ivc-root').getBoundingClientRect()
+        const startX = rootRect.left + vx + (Number(m[1]) - OFF) * k
+        const startY = rootRect.top + vy + (Number(m[2]) - OFF) * k
+        const dx = Math.abs(startX - portCx)
+        const dy = Math.abs(startY - portCy)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, button: 0 }))
+        await sleep(300)
+        const ok = inCanvasLayer && highlighted && dx <= 1 && dy <= 1
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ inCanvasLayer, highlighted, startDx: +dx.toFixed(2), startDy: +dy.toFixed(2), scale: k })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-connect:', r)
+    check('canvas-connect', r)
+  }
+  if (process.env.SHOT_CANVAS_DRAG === '1') {
+    // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        // 探针自足：先切到画布视图。否则画布容器 display:none 时节点 getBoundingClientRect 恒为 0，
+        // 任何实现都会被测成「无位移」（基线那次 false 即由此放大，不能作为实现是否跟手的唯一判据）。
+        const canvasMenu = document.querySelectorAll('.ant-menu-item')[1]
+        if (canvasMenu) canvasMenu.click()
+        await sleep(1500)
+        byText('文本').click()
+        await sleep(700)
+        const node = document.querySelector('[data-node-id]')
+        if (!node) return 'ERR: 节点未创建'
+        const header = node.querySelector('.ivc-node-header') || node
+        const before = node.getBoundingClientRect()
+        const r0 = header.getBoundingClientRect()
+        const cx = r0.left + 40, cy = r0.top + 10
+        header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 7, button: 0, buttons: 1 }))
+        await sleep(80)
+        for (let i = 1; i <= 10; i++) {
+          window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: cx + i * 12, clientY: cy + i * 6, pointerId: 7, buttons: 1 }))
+          await sleep(30)
+        }
+        const mid = node.getBoundingClientRect()
+        const during = (Math.abs(mid.left - before.left) > 1 || Math.abs(mid.top - before.top) > 1)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx + 120, clientY: cy + 60, pointerId: 7, button: 0 }))
+        await sleep(400)
+        const after = node.getBoundingClientRect()
+        return JSON.stringify({
+          liveFeedbackWhileDragging: during,
+          movedAfterRelease: (Math.abs(after.left - before.left) > 1 || Math.abs(after.top - before.top) > 1),
+          dx: Math.round(after.left - before.left),
+          dy: Math.round(after.top - before.top)
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-drag:', r)
+  }
+  if (process.env.SHOT_CANVAS_ASSETS === '1') {
+    // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const openDb = () => new Promise((res, rej) => {
+          const rq = indexedDB.open('miaodraw-canvas')
+          rq.onsuccess = () => res(rq.result)
+          rq.onerror = () => rej(rq.error)
+        })
+        try {
+          const db = await openDb()
+          const all = (store) => new Promise((res, rej) => {
+            const tx = db.transaction(store, 'readonly')
+            const rq = tx.objectStore(store).getAll()
+            rq.onsuccess = () => res(rq.result)
+            rq.onerror = () => rej(rq.error)
+          })
+          const assets = await all('assets')
+          const deps = await all('asset_dependencies')
+          const px = assets.filter(a => String(a.path || '').startsWith('pixelle/'))
+          const meta = assets.filter(a => a.metadata && String(JSON.stringify(a.metadata)).includes('source'))
+          const withQuick = assets.filter(a => a.quick_hash && String(a.quick_hash).length > 8)
+          const byHash = {}
+          for (const a of withQuick) byHash[a.quick_hash] = (byHash[a.quick_hash] || 0) + 1
+          const dupHashes = Object.keys(byHash).filter(k => byHash[k] > 1)
+          const dupDetail = dupHashes.slice(0, 3).map(k => ({
+            hash: String(k).slice(0, 10),
+            paths: withQuick.filter(a => a.quick_hash === k).map(a => a.path)
+          }))
+          const withFull = assets.filter(a => a.full_hash && String(a.full_hash).length > 8)
+          return JSON.stringify({
+            assets: assets.length,
+            pixelle: px.length,
+            lastPixelle: px.slice(-2).map(a => a.path),
+            deps: deps.length,
+            lastDeps: deps.slice(-2).map(d => ({ role: d.role, op: d.operation })),
+            withMeta: meta.length,
+            quickHash: withQuick.length,
+            fullHash: withFull.length,
+            dupHashGroups: dupHashes.length,
+            dupDetail,
+            statusMissing: assets.filter(a => a.status === 'missing').length
+          })
+        } catch (e) { return 'ERR:' + e.message }
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-assets:', r)
+    check('canvas-assets', r)
+  }
   if (process.env.SHOT_KEY === '1') {
     // 百炼密钥全链路自测：读取 → （已有则不动，避免覆盖真实密钥）→ 类型/掩码断言
     const r = await w.webContents.executeJavaScript(
@@ -719,6 +1718,8 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     shotErrors++
   }
   // 有断言失败则以非零退出，让 CI / smoke 脚本能感知
+  // 注意：app.exit 不触发 before-quit，需先手动收掉 Pixelle 后端子进程树
+  await stopPixelleBackend().catch(() => undefined)
   app.exit(shotErrors > 0 ? 1 : 0)
 }
 
@@ -744,6 +1745,21 @@ async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; rol
 }
 
 function registerIpc(): void {
+  // ---------- 画布资产（M1 数据层：outputs/refs 只读取样，供 assets 索引） ----------
+  registerCanvasAssetHandlers(handle, {
+    outputsPath: () => OUT_DIR,
+    userDataPath: () => app.getPath('userData'),
+    pixelleOutputPath: () => pixelleOutputDir()
+  })
+
+  // ---------- Pixelle 视频生产后端（M3：起停管理 + REST 代理） ----------
+  registerPixelleHandlers(handle)
+
+  // ---------- 编排（O1：计划/阶段 IPC + plan:changed 事件） ----------
+  registerOrchestratorHandlers(handle, (channel, payload) => {
+    if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+  })
+
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {
     ipcMain.handle(channel, (e, ...args: unknown[]) => {

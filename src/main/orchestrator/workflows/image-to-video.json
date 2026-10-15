@@ -1,0 +1,37 @@
+{
+  "id": "image-to-video",
+  "title": "图生视频",
+  "match": {
+    "keywords": ["让这张动起来", "图生视频", "动起来", "做个视频", "加动效"],
+    "requires": ["image"]
+  },
+  "stages": [
+    {
+      "id": "frame",
+      "name": "画面整理",
+      "goal": "确认首帧画面与画幅（需要用户提供或连线参考图）",
+      "work_items": [
+        { "id": "frame_src", "name": "首帧", "modality": "image", "prompt_hint": "描述首帧画面；若用户已给参考图，写清保留哪些特征" }
+      ],
+      "review": {
+        "before_execution": ["确认首帧与画幅"],
+        "after_execution": ["确认首帧可用"]
+      },
+      "execution_locks": { "aspect_ratio": "9:16" }
+    },
+    {
+      "id": "clip",
+      "name": "视频生成",
+      "goal": "用首帧 + 文案生成视频片段",
+      "paid": true,
+      "work_items": [
+        { "id": "clip_main", "name": "视频片段", "modality": "video", "prompt_hint": "写清动作节拍与时长目标（4-6 秒 3-4 拍）" }
+      ],
+      "review": {
+        "before_execution": ["确认画幅、时长与模型（会调用付费视频模型）"],
+        "after_execution": ["确认成片可用"]
+      },
+      "execution_locks": { "aspect_ratio": "9:16", "resolution": "720P" }
+    }
+  ]
+}

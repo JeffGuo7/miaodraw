@@ -297,6 +297,60 @@ export interface Api {
   imageRead(url: string): Promise<Uint8Array>
   /** 读取素材留档（内容寻址）；历史「复现」还原素材托盘用 */
   refsRead(hash: string, ext: string): Promise<Uint8Array>
+  /** 画布资产信息（M1）：outputs/refs 只读取样（size/哈希/宽高），供 assets 索引 */
+  canvasAssetInfo(rel: string): Promise<{
+    size: number
+    mtimeMs: number
+    quickHash: string
+    fullHash: string
+    width: number | null
+    height: number | null
+    mime: string
+  }>
+  /** Pixelle 视频后端（M3）：确保后端已启动，返回 baseUrl */
+  pixelleEnsure(): Promise<{ baseUrl: string }>
+  /** Pixelle 环境预检（uv/后端目录），缺失时给可执行指引 */
+  pixelleCheckEnv(): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }>
+  // ── 编排（O1）：计划/阶段读写 + 状态机推进 + plan:changed 事件 ──
+  /** 建计划：立即返回 drafting（route_kind=direct 时不建计划） */
+  planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; pixelleReady?: boolean } }): Promise<
+    | { kind: 'direct' | 'ask'; direct?: boolean; capsule: unknown }
+    | { kind: 'plan'; planId: string; status: string; workflow_id: string; stage_outline: unknown[]; capsule: unknown }
+  >
+  /** 读全量（看板渲染用） */
+  planAuthored(planId: string): Promise<unknown>
+  planList(): Promise<unknown>
+  /** 一次只 author 当前阶段 */
+  planAuthorStage(payload: { planId: string; stageOrder?: number; expectedRevision?: number }): Promise<unknown>
+  /** 乐观锁内容编辑：revision 不匹配返回 conflict */
+  planPatchStage(payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown>
+  /** 状态机唯一入口：confirm_plan / execution_done / confirm_result / retry / block / unblock */
+  planAdvance(payload: { planId: string; stageId: string; action: string; expectedRevision: number; actor?: 'chat' | 'ui' | 'auto' }): Promise<unknown>
+  /** 增量协议（B 批）：stage_patch 走 patchStage；replan 为原子后缀更新 + 冻结前缀；换流程用 planCreate 新建 */
+  planReplan(payload: {
+    planId: string
+    requestId: string
+    preserveThroughStageId?: string
+    ops?: unknown[]
+    expectedRevision?: number
+    actor?: 'chat' | 'ui' | 'auto'
+    sourceMessageId?: string
+  }): Promise<unknown>
+  /** 取消计划（终态，可重开） */
+  planCancel(planId: string): Promise<unknown>
+  /** C4：自动推进开关（CAS + blocked 自动转手动） */
+  planSetAutoAdvance(payload: { planId: string; enabled: boolean; expectedRevision?: number }): Promise<unknown>
+  /** 审计事件（append-only，含 source_message_id 溯源） */
+  planEvents(planId?: string): Promise<unknown>
+  /** C6 探针专用：构造「规划中断」异常态（仅截图模式注册） */
+  planDebugInterrupt(payload: { planId: string; ageMs?: number }): Promise<unknown>
+  planDelete(planId: string): Promise<unknown>
+  /** 计划变更事件（主进程 → 渲染层） */
+  onPlanChanged(cb: (payload: unknown) => void): () => void
+  /** 审计事件推送（主进程 → 渲染层） */
+  onPlanEvent(cb: (payload: unknown) => void): () => void
+  /** Pixelle REST 代理（主进程转发，规避 CORS） */
+  pixelleProxy(args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */
   imageEdit(payload: {
     op: ImageEditOp

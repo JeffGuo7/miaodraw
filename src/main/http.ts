@@ -1,6 +1,7 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { log } from './logger'
+import { vendorCardFor } from './prompt-guards'
 
 /**
  * HTTP 直连层（Cherry Studio 式架构：API Key + Base URL + 模型，纯 HTTP，无外部进程依赖）。
@@ -217,10 +218,14 @@ export interface ImageCapability {
 /** 生图模型能力注册表（与渲染层 models.ts 的 refLimit 保持同规则，改一处要同步另一处） */
 export function imageCapability(model: string): ImageCapability {
   const m = (model || '').toLowerCase()
-  if (m.startsWith('wan2.')) return { protocol: 'dashscope-multimodal', maxRefs: 9 }
-  if (m.startsWith('qwen-image-3')) return { protocol: 'openai-images', maxRefs: 3 }
-  if (m.startsWith('qwen-image')) return { protocol: 'dashscope-multimodal', maxRefs: 3 }
-  return { protocol: 'dashscope-multimodal', maxRefs: 1 }
+  // 参考图上限统一取厂商卡（P0 提示词质量层），避免两处硬编码漂移
+  const cap = vendorCardFor(m)?.maxRefs ?? 1
+  if (m.startsWith('wan2.')) return { protocol: 'dashscope-multimodal', maxRefs: cap }
+  if (m.startsWith('qwen-image-3')) return { protocol: 'openai-images', maxRefs: cap }
+  if (m.startsWith('qwen-image')) return { protocol: 'dashscope-multimodal', maxRefs: cap }
+  if (m.startsWith('doubao-seedream')) return { protocol: 'openai-images', maxRefs: cap }
+  if (m.startsWith('gpt-image')) return { protocol: 'openai-images', maxRefs: cap }
+  return { protocol: 'dashscope-multimodal', maxRefs: cap }
 }
 
 /** 超出模型上限时截断，并给出可读提示 */
@@ -326,9 +331,10 @@ export async function httpBailianImage(o: HttpImageOpts): Promise<HttpImageResul
       | { choices?: Array<{ message?: { content?: Array<{ type?: string; image?: string; text?: string }> } }> }
       | undefined
     const parts = output?.choices?.[0]?.message?.content ?? []
-    const imageUrls = parts.filter((p) => p.type === 'image' && p.image).map((p) => String(p.image))
+    // 兼容两种返回形态：wan 系带 type:'image'，z-image-turbo 只给 {image:url}（无 type）
+    const imageUrls = parts.filter((p) => p.image).map((p) => String(p.image))
     if (!imageUrls.length) {
-      const t = parts.find((p) => p.type === 'text' && p.text)?.text
+      const t = parts.find((p) => p.text)?.text
       throw new Error(t ? `模型未返回图片：${t.slice(0, 200)}` : '服务商未返回图片')
     }
     o.onProgress?.('save', imageUrls.length > 1 ? `下载 ${imageUrls.length} 张结果` : '下载生成结果')
