@@ -36,6 +36,7 @@ import { generateVideoJob } from './bailianVideo'
 import { estimateVideoCost, normalizeVideoSpec, type VideoSpecInput } from './video-protocol'
 
 import { registerOrchestratorHandlers } from './orchestrator'
+import { registerVideoHandlers } from './video'
 import { auditPlannedPrompt, buildImagePrompt } from './prompt-guards'
 
 // ---------- 路径 ----------
@@ -150,6 +151,8 @@ interface Settings {
   bailianBaseUrl?: string
   /** 自定义更新源（返回 {version,url,notes} 的 JSON；留空则用 GitHub Releases） */
   updateFeed?: string
+  /** 视频管线累计预算（元，V1 成本护栏硬上限）；未设置时默认 ¥20 */
+  videoBudget?: number
 }
 function readSettings(): Settings {
   try {
@@ -884,6 +887,86 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] video-lineage:', r)
     check('video-lineage', r)
+  }
+  if (process.env.SHOT_VIDEO_JOBS === '1') {
+    // V1 地基（零成本）：video_jobs 幂等（硬约束①）+ 成本护栏 fail-closed（硬约束②）+ 记账落库 + IndexedDB 落盘
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const api = window.api
+        const P = 'probe-plan-v1', S = 'stage-shots'
+        const ITEMS = [{ kind: 'image', price_key: 'z-image-turbo', qty: 3 }]
+        const keyOf = (wi) => P + '|' + S + '|' + wi
+
+        // ① 幂等：同三键 ensure 两次只有一条，且不覆盖已有进度
+        const j1 = await api.videoDebugEnsure({ planId: P, stageId: S, workItemId: 'wi_a', kind: 'image', paid: true, shotIndex: 0 })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_a', action: 'running' })
+        const j1again = await api.videoDebugEnsure({ planId: P, stageId: S, workItemId: 'wi_a', kind: 'image', paid: true, shotIndex: 0 })
+        const jobsAfterEnsure = await api.videoJobs({ planId: P, stageId: S })
+        const idempotent = j1.id === keyOf('wi_a') && j1again.status === 'running' && jobsAfterEnsure.filter(x => x.id === keyOf('wi_a')).length === 1
+
+        // ② done → 复用产物（绝不重复付费）
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_a', action: 'done', assetId: 'asset_a', costCny: 0.3 })
+        const reuse = await api.videoDebugDecide({ planId: P, stageId: S, workItemId: 'wi_a' })
+
+        // ③ 重试上限：连续失败 2 次 → blocked
+        await api.videoDebugEnsure({ planId: P, stageId: S, workItemId: 'wi_b', kind: 'image', paid: true, shotIndex: 1 })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_b', action: 'running' })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_b', action: 'failed', error: 'e1' })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_b', action: 'running' })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_b', action: 'failed', error: 'e2' })
+        const capped = await api.videoDebugDecide({ planId: P, stageId: S, workItemId: 'wi_b' })
+
+        // ④ running → 先对账（不直接重提）
+        await api.videoDebugEnsure({ planId: P, stageId: S, workItemId: 'wi_c', kind: 'tts', paid: false, shotIndex: 2 })
+        await api.videoDebugAdvance({ planId: P, stageId: S, workItemId: 'wi_c', action: 'running' })
+        const running = await api.videoDebugDecide({ planId: P, stageId: S, workItemId: 'wi_c' })
+
+        // ⑤ 成本闸门：无凭证拒 / 有凭证过且作废 / 重放拒 / revision 漂移拒 / 超硬上限拒 / 价格缺失拒
+        const noToken = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 1, items: ITEMS })
+        const token = await api.videoDebugIssueToken({ planId: P, stageId: S, revision: 1, items: ITEMS })
+        const okAuth = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 1, items: ITEMS })
+        const replay = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 1, items: ITEMS, tokenOverride: token })
+        // 每个负例都用新签发的凭证（已消费的凭证会先被一次性语义拦下，测不到后面的分支）
+        await api.videoDebugIssueToken({ planId: P, stageId: S, revision: 1, items: ITEMS })
+        const drifted = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 2, items: ITEMS })
+        const bigItems = [{ kind: 'video', price_key: 'wan2.7-t2v@720P', seconds: 12 }]
+        await api.videoDebugIssueToken({ planId: P, stageId: S, revision: 3, items: bigItems })
+        const tooBig = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 3, items: bigItems })
+        const unknownItems = [{ kind: 'video', price_key: 'kling-v9' }]
+        await api.videoDebugIssueToken({ planId: P, stageId: S, revision: 3, items: unknownItems })
+        const unpriced = await api.videoDebugAuthorize({ planId: P, stageId: S, revision: 3, items: unknownItems })
+
+        // ⑥ 记账 + 审计：¥0.3 已入账，plan_events 有 video_paid
+        const cost = await api.videoCost({ planId: P })
+        const events = await api.planEvents(P)
+        const auditOk = Array.isArray(events) && events.some(e => e.event === 'video_paid' && String(e.detail || '').includes('0.3'))
+
+        // ⑦ 落盘：video_jobs 在 IndexedDB 里且条数与主进程一致
+        const db = await new Promise((res, rej) => { const rq = indexedDB.open('miaodraw-canvas'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+        const rows = await new Promise((res, rej) => { const tx = db.transaction('video_jobs', 'readonly'); const rq = tx.objectStore('video_jobs').getAll(); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+        const mine = rows.filter(x => x.plan_id === P)
+        const stores = Array.from(db.objectStoreNames)
+        const persisted = stores.includes('video_jobs') && mine.length === jobsAfterEnsure.length + 2
+
+        const ok = idempotent && reuse.action === 'reuse' && reuse.output_asset_id === 'asset_a' &&
+          capped.action === 'blocked' && running.action === 'reconcile' &&
+          noToken.code === 'COST_GATE_REQUIRED' && okAuth.ok === true && okAuth.tokenUsed === true &&
+          replay.code === 'TOKEN_USED' && drifted.code === 'TOKEN_MISMATCH' && tooBig.code === 'BUDGET_EXCEEDED' &&
+          unpriced.code === 'UNPRICED_REQUIRES_CONSENT' && cost.spent === 0.3 && auditOk && persisted
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          idempotent, reuse: reuse.action, reuseAsset: reuse.output_asset_id, capped: capped.action, running: running.action,
+          noToken: noToken.code, okAuth: okAuth.ok, tokenUsed: okAuth.tokenUsed, replay: replay.code, drifted: drifted.code,
+          tooBig: tooBig.code, unpriced: unpriced.code, spent: cost.spent, remaining: cost.remaining, budget: cost.budget,
+          auditOk, persisted, rows: mine.length, stores: stores.filter(s => s.startsWith('video'))
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-jobs:', r)
+    check('video-jobs', r)
   }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
@@ -1914,9 +1997,33 @@ function registerIpc(): void {
   }
 
   // ---------- 编排（O1：计划/阶段 IPC + plan:changed 事件） ----------
-  registerOrchestratorHandlers(handle, (channel, payload) => {
+  const orch = registerOrchestratorHandlers(handle, (channel, payload) => {
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
   })
+
+  // ---------- 视频管线（V1：video_jobs 幂等 + 成本护栏 fail-closed；script/tts/shots/compose 逐期接入） ----------
+  registerVideoHandlers(
+    handle,
+    (channel, payload) => {
+      if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+    },
+    {
+      budgetCny: () => {
+        const v = Number(readSettings().videoBudget)
+        return Number.isFinite(v) && v > 0 ? v : 20
+      },
+      // 记账留痕：每次付费进 plan_events（actor=auto，含金额与 request_id）
+      audit: (e) =>
+        orch.registry.recordAudit({
+          plan_id: e.plan_id,
+          event: 'video_paid',
+          actor: 'auto',
+          stage_id: e.stage_id,
+          request_id: e.request_id ?? null,
+          detail: `${e.detail ?? '视频作业记账'}：¥${e.cny}（job=${e.job_id}）`
+        })
+    }
+  )
 
   /** 统一入口守卫：仅接受本应用窗口 webContents 的调用，其它来源一律拒绝 */
   function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown): void {

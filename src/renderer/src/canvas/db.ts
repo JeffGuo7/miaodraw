@@ -4,6 +4,7 @@
  * 原生 IndexedDB API，零新依赖。
  */
 import type { ChatMessage, PlanEvent, PlanRecord, StageRecord } from './plan-types'
+import type { VideoJobRecord } from '../../../main/video/jobs'
 
 export interface AssetRecord {
   id: string
@@ -49,10 +50,10 @@ export interface MigrationState {
 }
 
 const DB_NAME = 'miaodraw-canvas'
-/** v2：plans/stages（O1）；v3：plan_events（B 批审计）；v4：messages（C1 对话面板）
- *  注意：任务卡写的「DB_VERSION→3」按当时假设；B 批已把 plan_events 落在 v3，故 messages 顺延 v4。
+/** v2：plans/stages（O1）；v3：plan_events（B 批审计）；v4：messages（C1 对话面板）；v5：video_jobs（V1 视频作业幂等）
+ *  注意：任务卡写的「DB_VERSION→3」按当时假设；B 批已把 plan_events 落在 v3，故 messages 顺延 v4、video_jobs 顺延 v5。
  *  v1→v2 的 superseded_by 回填与 assertAssetsMigrated() 一直保留、不短路。 */
-const DB_VERSION = 4
+const DB_VERSION = 5
 
 export const SCHEMA_VERSION = DB_VERSION
 
@@ -107,6 +108,14 @@ export function openCanvasDB(): Promise<IDBDatabase> {
           const messages = db.createObjectStore('messages', { keyPath: 'id' })
           messages.createIndex('plan_id', 'plan_id')
           messages.createIndex('created_at', 'created_at')
+        }
+        // ── v5（V1 视频管线）：作业表（job key = plan_id|stage_id|work_item_id，天然幂等） ──
+        if (!db.objectStoreNames.contains('video_jobs')) {
+          const jobs = db.createObjectStore('video_jobs', { keyPath: 'id' })
+          jobs.createIndex('plan_id', 'plan_id')
+          jobs.createIndex('stage_id', 'stage_id')
+          jobs.createIndex('plan_stage', ['plan_id', 'stage_id'])
+          jobs.createIndex('status', 'status')
         }
 
         // 旧资产补 superseded_by=null（重跑留档字段），并做迁移断言
@@ -387,4 +396,78 @@ export async function listChatPlanIds(): Promise<string[]> {
     }
     req.onerror = () => reject(req.error ?? new Error('messages scan failed'))
   })
+}
+
+// ── v5：视频作业（job key = plan_id|stage_id|work_item_id，put 覆盖即幂等） ──
+
+/** 单条作业落盘（重复调用不产生第二条） */
+export async function putVideoJob(job: VideoJobRecord): Promise<void> {
+  const db = await openCanvasDB()
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction('video_jobs', 'readwrite')
+    t.objectStore('video_jobs').put(job)
+    t.oncomplete = () => resolve()
+    t.onerror = () => reject(t.error ?? new Error('video_jobs put failed'))
+  })
+}
+
+export async function putVideoJobBatch(jobs: VideoJobRecord[]): Promise<void> {
+  if (!jobs.length) return
+  const db = await openCanvasDB()
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction('video_jobs', 'readwrite')
+    const store = t.objectStore('video_jobs')
+    jobs.forEach((j) => store.put(j))
+    t.oncomplete = () => resolve()
+    t.onerror = () => reject(t.error ?? new Error('video_jobs putBatch failed'))
+  })
+}
+
+/** 某计划（可限定阶段）的全部作业：按 shot_index / work_item_id 升序 */
+export async function listVideoJobs(planId: string, stageId?: string): Promise<VideoJobRecord[]> {
+  const db = await openCanvasDB()
+  return new Promise((resolve, reject) => {
+    const out: VideoJobRecord[] = []
+    const t = db.transaction('video_jobs', 'readonly')
+    const range = stageId ? IDBKeyRange.only([planId, stageId]) : IDBKeyRange.bound([planId, ''], [planId, '\uffff'])
+    const req = t.objectStore('video_jobs').index('plan_stage').openCursor(range)
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (!cursor) {
+        resolve(out.sort((a, b) => a.shot_index - b.shot_index || a.work_item_id.localeCompare(b.work_item_id)))
+        return
+      }
+      out.push(cursor.value as VideoJobRecord)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error ?? new Error('video_jobs list failed'))
+  })
+}
+
+/** 重启续跑用：待处理（failed/running）的作业 */
+export async function listResumableVideoJobs(planId?: string): Promise<VideoJobRecord[]> {
+  const all = planId ? await listVideoJobs(planId) : await (async (): Promise<VideoJobRecord[]> => {
+    const db = await openCanvasDB()
+    return new Promise((resolve, reject) => {
+      const out: VideoJobRecord[] = []
+      const t = db.transaction('video_jobs', 'readonly')
+      const req = t.objectStore('video_jobs').openCursor()
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (!cursor) return resolve(out)
+        out.push(cursor.value as VideoJobRecord)
+        cursor.continue()
+      }
+      req.onerror = () => reject(req.error ?? new Error('video_jobs scan failed'))
+    })
+  })()
+  return all.filter((j) => j.status === 'failed' || j.status === 'running')
+}
+
+/** 记账对账：从已落盘作业里恢复历史花费（重启后 CostLedger.seed 用） */
+export async function listVideoLedger(planId: string): Promise<Array<{ plan_id: string; stage_id: string; job_id: string; kind: string; cny: number; at: number }>> {
+  const jobs = await listVideoJobs(planId)
+  return jobs
+    .filter((j) => typeof j.cost_cny === 'number' && (j.cost_cny ?? 0) > 0)
+    .map((j) => ({ plan_id: j.plan_id, stage_id: j.stage_id, job_id: j.id, kind: j.kind, cny: j.cost_cny as number, at: j.finished_at ?? j.started_at ?? 0 }))
 }

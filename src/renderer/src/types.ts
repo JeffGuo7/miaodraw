@@ -328,6 +328,20 @@ export interface Api {
   onVideoProgress(cb: (payload: unknown) => void): () => void
   /** 探针专用（仅截图模式注册）：零成本 stub 成片结果 */
   videoDebugStub(): Promise<unknown>
+  // ── 视频管线（V1）：作业表 + 成本账本 ──
+  /** 查作业（job key = planId|stageId|workItemId，天然幂等） */
+  videoJobs(payload: { planId: string; stageId?: string }): Promise<unknown>
+  /** 查花费（spent/remaining/byStage，用于成本卡与硬上限） */
+  videoCost(payload: { planId: string }): Promise<{ planId: string; budget: number; spent: number; remaining: number; byStage: Record<string, number>; currency: 'CNY' }>
+  /** 作业变更（主进程 → 渲染层，落 IndexedDB） */
+  onVideoJob(cb: (payload: unknown) => void): () => void
+  /** 探针专用：幂等 / 成本闸门断言（仅截图模式注册） */
+  videoDebugEnsure(payload: unknown): Promise<unknown>
+  videoDebugDecide(payload: unknown): Promise<unknown>
+  videoDebugAdvance(payload: unknown): Promise<unknown>
+  videoDebugIssueToken(payload: unknown): Promise<unknown>
+  videoDebugAuthorize(payload: unknown): Promise<unknown>
+  videoDebugSeedLedger(payload: unknown): Promise<unknown>
   // ── 编排（O1）：计划/阶段读写 + 状态机推进 + plan:changed 事件 ──
   /** 建计划：立即返回 drafting（route_kind=direct 时不建计划） */
   planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; videoReady?: boolean; pixelleReady?: boolean } }): Promise<

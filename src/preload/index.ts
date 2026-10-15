@@ -57,6 +57,21 @@ const api = {
   },
   /** 探针专用（仅截图模式注册）：零成本 stub 成片结果，端到端验证落卡/入库/血统边 */
   videoDebugStub: (): Promise<unknown> => ipcRenderer.invoke('video:debugStub'),
+  // ── 视频管线（V1）：作业表（幂等）+ 成本账本 ──
+  videoJobs: (payload: { planId: string; stageId?: string }): Promise<unknown> => ipcRenderer.invoke('video:jobs', payload),
+  videoCost: (payload: { planId: string }): Promise<unknown> => ipcRenderer.invoke('video:cost', payload),
+  onVideoJob: (cb: (payload: unknown) => void): (() => void) => {
+    const h = (_e: unknown, payload: unknown): void => cb(payload)
+    ipcRenderer.on('video:job', h)
+    return () => ipcRenderer.removeListener('video:job', h)
+  },
+  /** 探针专用（仅截图模式注册）：幂等/成本闸门零成本断言 */
+  videoDebugEnsure: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugEnsure', payload),
+  videoDebugDecide: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugDecide', payload),
+  videoDebugAdvance: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugAdvance', payload),
+  videoDebugIssueToken: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugIssueToken', payload),
+  videoDebugAuthorize: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugAuthorize', payload),
+  videoDebugSeedLedger: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugSeedLedger', payload),
   // ── 编排（O1）：计划/阶段 + 状态机推进 + plan:changed 事件 ──
   planCreate: (payload: { prompt: string; canvasContext?: Record<string, unknown> }): Promise<unknown> =>
     ipcRenderer.invoke('plan:create', payload),

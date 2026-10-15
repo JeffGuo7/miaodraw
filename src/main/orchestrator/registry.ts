@@ -160,6 +160,35 @@ export class PlanRegistry {
   }
 
   /**
+   * 外部执行器（视频管线）写审计事件（V1）：记账/降级/重试都要留痕，可追溯到 plan。
+   */
+  recordAudit(input: {
+    plan_id: string
+    event: string
+    actor?: 'chat' | 'ui' | 'auto'
+    stage_id?: string | null
+    request_id?: string | null
+    source_message_id?: string | null
+    detail?: string
+  }): PlanEvent {
+    const snap = this.get(input.plan_id)
+    const revision = snap?.plan.revision ?? 0
+    this.record({
+      plan_id: input.plan_id,
+      event: input.event,
+      actor: input.actor ?? 'auto',
+      stage_id: input.stage_id ?? null,
+      before_revision: revision,
+      after_revision: revision,
+      request_id: input.request_id ?? null,
+      source_message_id: input.source_message_id ?? null,
+      detail: input.detail,
+      created_at: Date.now()
+    })
+    return this.events[this.events.length - 1]
+  }
+
+  /**
    * 探针专用（仅 TEST_MODE=screenshot 时经 IPC 暴露）：模拟「规划中断」。
    * 把计划退回 drafting + 未物化任何阶段，并把 updated_at 往回拨 ageMs，
    * 使渲染层能真实走到 C6 的 stale 分支（重试按钮 → authorFirstStage 重新推进）。

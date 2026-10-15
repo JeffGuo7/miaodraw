@@ -24,6 +24,7 @@ import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { CANVAS_SVG_OFFSET } from './connection-hit'
 import { attachPlanPersistence } from './plan-persistence'
+import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
@@ -106,6 +107,9 @@ export default function CanvasWorkbench(): JSX.Element {
 
   // 编排（O1）：订阅 plan:changed 落 IndexedDB + 迁移断言（plan 是真相源，画布只是视图）
   useEffect(() => attachPlanPersistence(), [])
+
+  // 视频管线（V1）：订阅 video:job 落 IndexedDB（job key 幂等，重复事件覆盖不新增）
+  useEffect(() => attachVideoJobPersistence(), [])
 
   // C2：计划建立后自动落一张计划卡（唯一新增节点类型），已存在则复用
   useEffect(() => {
