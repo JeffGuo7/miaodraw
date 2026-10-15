@@ -22,8 +22,28 @@ export function buildTtsBody(text: string, voice = TTS_DEFAULT_VOICE): TtsReques
   return { model: TTS_MODEL, input: { text: String(text ?? '').trim(), voice } }
 }
 
-export function buildTtsUrl(origin: string): string {
-  return `${String(origin ?? '').replace(/\/+$/, '')}/services/aigc/multimodal-generation/generation`
+/**
+ * 百炼 TTS 端点。**实测（2026-10-15）**：工作区 MaaS 域（llm-xxx.cn-beijing.maas.aliyuncs.com）
+ * 对该接口返回 400 空体；同一把 key 打官方域 200 正常出音频 → TTS 固定走官方域，可用环境变量覆盖。
+ */
+export const TTS_DEFAULT_BASE_URL = 'https://dashscope.aliyuncs.com/api/v1'
+
+export function buildTtsUrl(baseUrl?: string): string {
+  const base = String(baseUrl || process.env.MIAODRAW_TTS_BASE_URL || TTS_DEFAULT_BASE_URL).replace(/\/+$/, '')
+  const withApi = /\/api\/v1$/.test(base) ? base : `${base}/api/v1`
+  return `${withApi}/services/aigc/multimodal-generation/generation`
+}
+
+/** TTS 返回的音频地址实测为 http://dashscope-result-*.oss-*.aliyuncs.com；只放行阿里云产物域（https 或 http 均可） */
+export function isAllowedAudioUrl(raw: string): boolean {
+  try {
+    const u = new URL(String(raw ?? ''))
+    const host = u.hostname.toLowerCase()
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+    return ['aliyuncs.com', 'aliyuncs.com.cn', 'aliyun.com', 'alibaba.com', 'alicdn.com'].some((s) => host === s || host.endsWith(`.${s}`))
+  } catch {
+    return false
+  }
 }
 
 /** 从响应里取音频 URL（容忍多种字段形态；取不到返回空串由调用方报错） */

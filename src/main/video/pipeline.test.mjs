@@ -14,6 +14,7 @@ import {
   dimensions,
   distributeByAudio,
   estimateSpeechSeconds,
+  isAllowedAudioUrl,
   parseProbeDuration,
   parseTtsResponse
 } from './media.ts'
@@ -79,7 +80,13 @@ test('画面提示词：尾部只追加确定性增强，没有上屏文字就�
 test('TTS：请求体与 URL 对齐实测规格（qwen3-tts-flash / Cherry）', () => {
   const body = buildTtsBody('  秋天的午后  ')
   assert.deepEqual(body, { model: TTS_MODEL, input: { text: '秋天的午后', voice: 'Cherry' } })
-  assert.equal(buildTtsUrl('https://x.maas.aliyuncs.com/'), 'https://x.maas.aliyuncs.com/services/aigc/multimodal-generation/generation')
+  assert.equal(buildTtsUrl(), 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', 'TTS 固定走官方域（工作区 MaaS 域实测 400）')
+  assert.equal(buildTtsUrl('https://x.example.com'), 'https://x.example.com/api/v1/services/aigc/multimodal-generation/generation')
+  // 音频下载白名单：实测为 http://dashscope-result-*.oss-*.aliyuncs.com
+  assert.equal(isAllowedAudioUrl('http://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/a.wav'), true)
+  assert.equal(isAllowedAudioUrl('https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/a.wav'), true)
+  assert.equal(isAllowedAudioUrl('http://evil.example.com/a.wav'), false)
+  assert.equal(isAllowedAudioUrl('file:///c:/a.wav'), false)
 })
 
 test('TTS 响应解析：容忍 audio.url / output.audio_url / choices[].message.content[].audio', () => {

@@ -62,7 +62,20 @@ const api = {
   videoCost: (payload: { planId: string }): Promise<unknown> => ipcRenderer.invoke('video:cost', payload),
   /** 只预估不执行（设计稿 §2.5）：返回 jobs/预估成本/modelMix，不写注册表不计账 */
   videoPlan: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:plan', payload),
+  /** 真正执行（付费闸门 fail-closed：confirmToken 绑定 stageId+revision+付费项） */
+  videoRun: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:run', payload),
+  videoCancel: (payload: { planId: string; stageId: string }): Promise<unknown> => ipcRenderer.invoke('video:cancel', payload),
+  videoResume: (payload: { planId: string; stageId: string }): Promise<unknown> => ipcRenderer.invoke('video:resume', payload),
+  /** 阶段级进度（video:progress；与单节点出片的 runId 事件同通道，按字段区分） */
+  onVideoStageProgress: (cb: (payload: unknown) => void): (() => void) => {
+    const h = (_e: unknown, payload: unknown): void => cb(payload)
+    ipcRenderer.on('video:progress', h)
+    return () => ipcRenderer.removeListener('video:progress', h)
+  },
+  /** 探针专用：签发一次性确认凭证（真实 UI 走闸门后由主进程签发） */
+  videoDebugIssueConfirmToken: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugIssueToken', payload),
   videoDebugParseScript: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugParseScript', payload),
+  videoDebugTtsProbe: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugTtsProbe', payload),
   onVideoJob: (cb: (payload: unknown) => void): (() => void) => {
     const h = (_e: unknown, payload: unknown): void => cb(payload)
     ipcRenderer.on('video:job', h)

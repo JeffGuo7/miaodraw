@@ -16,6 +16,7 @@ import { VideoJobRegistry, decideSubmit, markDone, markFailed, markRunning, mark
 import { CostLedger, authorizePaidSubmit, estimateCost, issueConfirmToken, paidItemsHash, type ConfirmToken, type CostItem, type PaidSubmitAuth } from './cost.ts'
 import { planStageJobs, type PlanStageInput } from './planning.ts'
 import { parseScript } from './script.ts'
+import { runStage, prepareStage } from './executor.ts'
 
 type HandleFn = (channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown) => void
 
@@ -41,13 +42,27 @@ export interface VideoHandle {
 export interface VideoOptions {
   /** 预算（元）：settings.videoBudget，默认 ¥20 */
   budgetCny: () => number
-  /** 审计/记账落库（写 plan_events；由 orchestrator 提供） */
-  audit?: (event: { plan_id: string; stage_id: string; job_id: string; kind: string; cny: number; request_id?: string; at: number; detail?: string }) => void
+  /** 审计/记账落库（写 plan_events；event 由调用方给定：video_script/video_paid/video_compose/…） */
+  audit?: (event: { plan_id: string; stage_id: string; event?: string; job_id?: string; kind?: string; cny?: number; request_id?: string | null; at?: number; detail?: string }) => void
+  /** V1 executor 需要的目录与凭证（由主进程注入，模块本身不读 electron） */
+  paths?: { imageDir: () => string; videoDir: () => string; tmpDir: () => string }
+  bailian?: { origin: () => string; apiKey: () => string }
 }
 
 /** 一次性凭证暂存（按 planId:stageId 存最新一张；用后作废） */
 const tokens = new Map<string, ConfirmToken>()
 const tokenKey = (planId: string, stageId: string): string => `${planId}|${stageId}`
+
+/** 诊断用：从任意响应体里尽力取音频 URL（失败返回空串） */
+function parseTtsResponseLike(raw: string): string {
+  try {
+    const j = JSON.parse(raw)
+    const out = (j && j.output) || {}
+    return String((out.audio && out.audio.url) || out.audio_url || '')
+  } catch {
+    return ''
+  }
+}
 
 export function registerVideoHandlers(
   handle: HandleFn,
@@ -60,6 +75,8 @@ export function registerVideoHandlers(
 
   /** 已消费凭证（主进程权威记录）：同一凭证字符串永不复用 */
   const usedTokens = new Set<string>()
+  /** 协作式取消标记 */
+  const cancelled = new Set<string>()
 
   /**
    * 付费执行唯一入口：预算 → 一次性凭证；成功后把凭证记为已消费（重放一律拒）。
@@ -99,10 +116,153 @@ export function registerVideoHandlers(
   })
 
   /**
+   * `video:run`：真正执行（付费闸门 fail-closed）。返回最终的 jobs / 成片路径 / 实际花费。
+   * 不通过闸门 → 直接返回 COST_GATE_REQUIRED，**不发任何付费请求**。
+   */
+  handle('video:run', async (_e, payload: {
+    planId: string
+    stageId: string
+    revision: number
+    brief: string
+    shotCount?: number
+    shotSeconds?: number
+    onScreenText?: string
+    imageModel?: string
+    ratio?: string
+    resolution?: string
+    voice?: string
+    confirmToken?: ConfirmToken | null
+    acceptUnpriced?: boolean
+    onlyWorkItems?: string[]
+    /** 复用预估阶段的分镜（保证与确认凭证绑定的付费项一致） */
+    prepared?: { narration: string; shots: Array<{ workItemId: string; imagePrompt: string }> }
+  }) => {
+    const planId = String(payload?.planId ?? '')
+    const stageId = String(payload?.stageId ?? '')
+    if (!planId || !stageId) throw new Error('缺少 planId / stageId')
+    const key = tokenKey(planId, stageId)
+    if (cancelled.has(key)) return { ok: false, code: 'CANCELLED', reason: '该阶段已取消，重新执行请先清除取消标记' }
+    if (!opts.paths || !opts.bailian) throw new Error('视频执行器未注入目录/凭证')
+    const spentBefore = ledger.spentOf(planId)
+    // 一次性凭证：**执行开始时即消费**（同一凭证不可能再跑第二次 → 杜绝重复付费）
+    const usedToken = payload?.confirmToken ?? tokens.get(key) ?? null
+    if (usedToken) {
+      if (usedTokens.has(usedToken.token)) {
+        return { ok: false, code: 'TOKEN_USED', reason: '该确认凭证已使用过，请重新确认后再执行', spentTotal: spentBefore }
+      }
+      usedTokens.add(usedToken.token)
+    }
+    const res = await runStage(
+      {
+        planId,
+        stageId,
+        revision: Number(payload?.revision) || 0,
+        brief: String(payload?.brief ?? ''),
+        shotCount: payload?.shotCount,
+        shotSeconds: payload?.shotSeconds,
+        onScreenText: payload?.onScreenText,
+        imageModel: payload?.imageModel,
+        ratio: payload?.ratio,
+        resolution: payload?.resolution,
+        voice: payload?.voice,
+        imageDir: opts.paths.imageDir(),
+        videoDir: opts.paths.videoDir(),
+        tmpDir: opts.paths.tmpDir(),
+        origin: opts.bailian.origin(),
+        apiKey: opts.bailian.apiKey(),
+        budgetCny: opts.budgetCny(),
+        spentCny: spentBefore,
+        confirmToken: payload?.confirmToken ?? tokens.get(key) ?? null,
+        acceptUnpriced: payload?.acceptUnpriced,
+        onlyWorkItems: payload?.onlyWorkItems,
+        prepared: payload?.prepared
+          ? {
+              script: { title: '', narration: payload.prepared.narration, shots: payload.prepared.shots.map((s, i) => ({ index: i + 1, narration: '', image_prompt: s.imagePrompt })), issues: [], blacklistHits: [], budget: { min: 0, max: 0 } },
+              shots: payload.prepared.shots.map((s, i) => ({ workItemId: s.workItemId || `shot_${i + 1}`, imagePrompt: s.imagePrompt }))
+            }
+          : undefined,
+        shouldCancel: () => cancelled.has(key),
+        audit: (e) => opts.audit?.(e),
+        onProgress: (p) => send('video:progress', { planId, ...p })
+      },
+      {
+        get: (p, s, w) => jobs.get(p, s, w),
+        ensure: (j) => jobs.ensure(j),
+        put: (j) => put(j)
+      }
+    )
+
+    // 记账落库（内存账本 + plan_events 审计）；凭证仅在成功走完闸门后消费
+    const at = Date.now()
+    for (const c of res.charges) {
+      ledger.record({ plan_id: planId, stage_id: stageId, job_id: c.jobId, kind: 'image', cny: c.cny, request_id: c.request_id, at })
+      opts.audit?.({ plan_id: planId, stage_id: stageId, event: 'video_paid', job_id: c.jobId, kind: c.kind, cny: c.cny, request_id: c.request_id, at, detail: 'video run 记账' })
+    }
+    if (res.ok) {
+      const tok = payload?.confirmToken ?? tokens.get(key)
+      if (tok) usedTokens.add(tok.token)
+    }
+    return { ...res, spentBefore, spentTotal: ledger.spentOf(planId), remaining: Math.max(0, Math.round((opts.budgetCny() - ledger.spentOf(planId)) * 100) / 100) }  })
+
+  /** 协作式取消：标记后当前执行会在下一个付费步骤前停止（已产生的作业产物保留） */
+  handle('video:cancel', (_e, payload: { planId: string; stageId: string }) => {
+    const key = tokenKey(payload?.planId, payload?.stageId)
+    cancelled.add(key)
+    return { ok: true, cancelled: key }
+  })
+
+  handle('video:resume', (_e, payload: { planId: string; stageId: string; jobs?: VideoJobRecord[] }) => {
+    const key = tokenKey(payload?.planId, payload?.stageId)
+    cancelled.delete(key)
+    // 重启续跑：渲染层把 IndexedDB 里的作业回灌主进程（幂等 put），再挑出 failed/running
+    if (Array.isArray(payload?.jobs)) for (const j of payload.jobs) if (j?.id) jobs.put(j)
+    const pending = jobs.listByStage(payload?.planId, payload?.stageId).filter((j) => j.status === 'failed' || j.status === 'running')
+    return { ok: true, retriedJobIds: pending.map((j) => j.id), onlyWorkItems: pending.map((j) => j.work_item_id), seeded: Array.isArray(payload?.jobs) ? payload.jobs.length : 0 }
+  })
+
+  /**
    * `video:plan`：**只预估不执行**（设计稿 §2.5）——把阶段要干的活翻译成 jobs + 成本，
    * 不写注册表、不计账、不发任何付费请求。
    */
-  handle('video:plan', (_e, payload: PlanStageInput) => {
+  handle('video:plan', async (_e, payload: PlanStageInput & { brief?: string; shotCount?: number; shotSeconds?: number; onScreenText?: string; ratio?: string; resolution?: string }) => {
+    // 带 brief 时：跑一次分镜 LLM（规划步骤，无付费图片/视频请求），返回可确认的付费项清单
+    if (payload?.brief && !payload?.shots?.length) {
+      if (!opts.bailian) throw new Error('视频执行器未注入凭证')
+      const prepared = await prepareStage({
+        planId: payload.planId,
+        stageId: payload.stageId,
+        revision: Number(payload.revision) || 0,
+        brief: String(payload.brief),
+        shotCount: payload.shotCount,
+        shotSeconds: payload.shotSeconds,
+        onScreenText: payload.onScreenText,
+        imageModel: payload.imageModel,
+        ratio: payload.ratio,
+        resolution: payload.resolution,
+        origin: opts.bailian.origin(),
+        apiKey: opts.bailian.apiKey()
+      })
+      const est = prepared.planned.estimate
+      return {
+        planId: payload.planId,
+        stageId: payload.stageId,
+        revision: Number(payload.revision) || 0,
+        shotCount: prepared.shots.length,
+        shots: prepared.shots,
+        narration: prepared.script.narration,
+        issues: prepared.script.issues,
+        blacklist: prepared.script.blacklistHits.map((h) => h.kind),
+        jobs: prepared.planned.jobs.map((j) => ({ id: j.id, kind: j.kind, paid: j.paid, model: j.model, shot_index: j.shot_index })),
+        items: prepared.planned.items,
+        paidItemsHash: paidItemsHash(prepared.planned.items),
+        estimatedCost: est.expectCny,
+        currency: est.currency,
+        estimate: est,
+        modelMix: prepared.planned.modelMix,
+        unpriced: est.unpriced,
+        budget: { spent: ledger.spentOf(payload.planId), remaining: Math.max(0, Math.round((opts.budgetCny() - ledger.spentOf(payload.planId)) * 100) / 100) }
+      }
+    }
     const plan = planStageJobs(payload)
     return {
       planId: payload?.planId,
@@ -111,6 +271,8 @@ export function registerVideoHandlers(
       jobKeys: plan.jobs.map((j) => j.id),
       jobs: plan.jobs.map((j) => ({ id: j.id, kind: j.kind, paid: j.paid, model: j.model, shot_index: j.shot_index })),
       shots: plan.shotCount,
+      items: plan.items,
+      paidItemsHash: paidItemsHash(plan.items),
       estimatedCost: plan.estimate.expectCny,
       currency: plan.estimate.currency,
       estimate: plan.estimate,
@@ -177,6 +339,40 @@ export function registerVideoHandlers(
     handle('video:debugParseScript', (_e, payload: { llmText: string; shotCount?: number; shotSeconds?: number; expectedTotalSeconds?: number }) => {
       const r = parseScript(payload?.llmText ?? '', { shotCount: payload?.shotCount, shotSeconds: payload?.shotSeconds, expectedTotalSeconds: payload?.expectedTotalSeconds })
       return { title: r.title, narration: r.narration, shots: r.shots, issues: r.issues, blacklist: r.blacklistHits.map((h) => h.kind), budget: r.budget }
+    })
+
+    /** TTS 端点诊断（零成本计划外，仅用于定位请求形态）：逐个试组合并回传原始状态/响应 */
+    handle('video:debugTtsProbe', async (_e, payload: { text?: string }) => {
+      if (!opts.bailian) throw new Error('未注入凭证')
+      const origin = opts.bailian.origin().replace(/\/+$/, '')
+      const key = opts.bailian.apiKey()
+      const text = payload?.text ?? '这是一次接口自检。'
+      const tries = [
+        { id: 'a:qwen3-tts-flash', url: `${origin}/api/v1/services/aigc/multimodal-generation/generation`, body: { model: 'qwen3-tts-flash', input: { text, voice: 'Cherry' } } },
+        { id: 'b:qwen-tts', url: `${origin}/api/v1/services/aigc/multimodal-generation/generation`, body: { model: 'qwen-tts', input: { text, voice: 'Cherry' } } },
+        { id: 'c:qwen3-tts-flash+lang', url: `${origin}/api/v1/services/aigc/multimodal-generation/generation`, body: { model: 'qwen3-tts-flash', input: { text, voice: 'Cherry' }, parameters: { language_type: 'Chinese' } } },
+        { id: 'd:compat/audio/speech', url: `${origin}/compatible-mode/v1/audio/speech`, body: { model: 'qwen3-tts-flash', input: text, voice: 'Cherry' } },
+        { id: 'e:official-domain', url: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', body: { model: 'qwen3-tts-flash', input: { text, voice: 'Cherry' } } },
+        { id: 'f:no-voice', url: `${origin}/api/v1/services/aigc/multimodal-generation/generation`, body: { model: 'qwen3-tts-flash', input: { text } } },
+        { id: 'g:parameters-voice', url: `${origin}/api/v1/services/aigc/multimodal-generation/generation`, body: { model: 'qwen3-tts-flash', input: { text }, parameters: { voice: 'Cherry' } } }
+      ]
+      const out: Array<{ id: string; status: number; body: string; audioUrl?: string }> = []
+      for (const t of tries) {
+        try {
+          const res = await fetch(t.url, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(t.body), signal: AbortSignal.timeout(60_000) })
+          const body = await res.text()
+          let audioUrl = ''
+          try {
+            audioUrl = parseTtsResponseLike(body)
+          } catch {
+            audioUrl = ''
+          }
+          out.push({ id: t.id, status: res.status, body: body.slice(0, 240), audioUrl })
+        } catch (e) {
+          out.push({ id: t.id, status: -1, body: e instanceof Error ? e.message : String(e) })
+        }
+      }
+      return out
     })
 
     handle('video:debugSeedLedger', (_e, entries: Array<{ plan_id: string; stage_id: string; job_id: string; kind: string; cny: number; at: number }>) => {      ledger.seed(entries as Parameters<CostLedger['seed']>[0])

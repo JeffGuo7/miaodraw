@@ -1008,6 +1008,78 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] video-plan:', r)
     check('video-plan', r)
   }
+  if (process.env.SHOT_VIDEO_TTS_PROBE === '1') {
+    // 诊断（非验收）：确认 TTS 端点/请求形态（失败请求不产生费用）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => { try { return JSON.stringify(await window.api.videoDebugTtsProbe({ text: '接口自检' })) } catch (e) { return 'ERR:' + e.message } })()`
+    )
+    console.log('[shot] video-tts-probe:', r)
+  }
+  if (process.env.SHOT_VIDEO_E2E === '1') {
+    // V1 真实成片（付费，2 镜头 ≈ ¥0.21）：预估 → 确认凭证 → 执行（script→shots→tts→compose）→ 幂等复跑不重复付费
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const api = window.api
+        const brief = '做一条短视频：秋天午后一杯热茶，安静治愈，不要口播只留画面'
+        // ① 建计划 + 物化首阶段（免费）
+        const created = await api.planCreate({ prompt: brief, canvasContext: { videoReady: true } })
+        if (created.kind !== 'plan') return 'ERR: 未建计划 ' + JSON.stringify(created)
+        const planId = created.planId
+        const authored = await api.planAuthorStage({ planId })
+        const snap = authored && authored.value ? authored.value : authored
+        const stage = snap.stages && snap.stages[0]
+        if (!stage) return 'ERR: 首阶段未物化 ' + JSON.stringify(authored).slice(0, 200)
+        const ctx = { planId, stageId: stage.id, revision: stage.revision, brief, shotCount: 2, shotSeconds: 3, resolution: '720P' }
+
+        // ② 预估（LLM 规划，无付费图片/视频请求）：拿到 shots/narration/items + 预估成本
+        const plan = await api.videoPlan(ctx)
+        if (!plan.shots || !plan.shots.length) return 'ERR: 预估未产出分镜 ' + JSON.stringify(plan).slice(0, 200)
+        const estimateOk = plan.estimatedCost > 0 && plan.estimatedCost <= 0.4 && plan.unpriced === false && plan.budget.spent === 0
+
+        // ③ 用户确认 → 一次性凭证（绑定 stageId/revision/付费项哈希）
+        const token = await api.videoDebugIssueConfirmToken({ planId, stageId: stage.id, revision: stage.revision, items: plan.items })
+
+        // ④ 执行：script→shots(图)→tts→compose
+        const t0 = Date.now()
+        const run = await api.videoRun({ ...ctx, confirmToken: token, prepared: { narration: plan.narration, shots: plan.shots } })
+        const seconds = Math.round((Date.now() - t0) / 1000)
+
+        // ⑤ 断言：成片存在 + 作业全 done + 记账 + 审计
+        let finalSize = 0
+        try { finalSize = (await api.canvasAssetInfo(run.finalRelPath)).size } catch (e) { finalSize = -1 }
+        const jobs = await api.videoJobs({ planId, stageId: stage.id })
+        const kinds = jobs.map(j => j.kind + ':' + j.status).sort()
+        const cost = await api.videoCost({ planId })
+        const events = await api.planEvents(planId)
+        const auditOk = Array.isArray(events) && events.filter(e => e.event === 'video_paid').length >= 1 && events.some(e => e.event === 'video_compose')
+        const paidImages = jobs.filter(j => j.kind === 'image' && j.paid).length
+        const ok1 = run.ok === true && finalSize > 0 && jobs.every(j => j.status === 'done') && cost.spent > 0 && cost.spent <= 0.4 && paidImages === 2 && auditOk
+
+        // ⑥ 幂等复跑（新凭证 + 同分镜）：已 done 的作业必须复用，付费调用 0 次
+        const token2 = await api.videoDebugIssueConfirmToken({ planId, stageId: stage.id, revision: stage.revision, items: plan.items })
+        const rerun = await api.videoRun({ ...ctx, confirmToken: token2, prepared: { narration: plan.narration, shots: plan.shots } })
+        const costAfterRerun = await api.videoCost({ planId })
+        const noExtraSpend = costAfterRerun.spent === cost.spent
+
+        // ⑦ 重放同一凭证 → 拒绝（凭证一次性，杜绝重复付费）
+        const replay = await api.videoRun({ ...ctx, confirmToken: token, prepared: { narration: plan.narration, shots: plan.shots } })
+
+        const ok = estimateOk && ok1 && rerun.ok === true && noExtraSpend && replay.ok === false && replay.code === 'TOKEN_USED'
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
+          estimateOk, estimatedCost: plan.estimatedCost, items: (plan.items || []).length, shots: plan.shots.length,
+          runOk: run.ok, final: run.finalRelPath, finalSize, seconds, jobs: kinds, spent: cost.spent, auditOk,
+          rerunOk: rerun.ok, rerunSpent: costAfterRerun.spent, noExtraSpend, replayCode: replay.code,
+          runReason: run.reason || null, rerunReason: rerun.reason || null
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-e2e:', r)
+    check('video-e2e', r)
+  }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
     const r = await w.webContents.executeJavaScript(
@@ -2052,16 +2124,23 @@ function registerIpc(): void {
         const v = Number(readSettings().videoBudget)
         return Number.isFinite(v) && v > 0 ? v : 20
       },
-      // 记账留痕：每次付费进 plan_events（actor=auto，含金额与 request_id）
+      // 记账留痕：每次付费/关键步骤进 plan_events（actor=auto，含金额与 request_id）
       audit: (e) =>
         orch.registry.recordAudit({
           plan_id: e.plan_id,
-          event: 'video_paid',
+          event: e.event ?? 'video_paid',
           actor: 'auto',
           stage_id: e.stage_id,
           request_id: e.request_id ?? null,
-          detail: `${e.detail ?? '视频作业记账'}：¥${e.cny}（job=${e.job_id}）`
-        })
+          detail: `${e.detail ?? '视频作业'}${typeof e.cny === 'number' ? `：¥${e.cny}` : ''}${e.job_id ? `（job=${e.job_id}）` : ''}`
+        }),
+      // V1 executor 的目录与凭证（模块本身不读 electron）
+      paths: {
+        imageDir: () => OUT_DIR,
+        videoDir: () => VIDEO_DIR,
+        tmpDir: () => path.join(app.getPath('userData'), 'tmp')
+      },
+      bailian: { origin: () => bailianOrigin(), apiKey: () => bailianApiKey() }
     }
   )
 

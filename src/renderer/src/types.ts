@@ -335,6 +335,16 @@ export interface Api {
   videoCost(payload: { planId: string }): Promise<{ planId: string; budget: number; spent: number; remaining: number; byStage: Record<string, number>; currency: 'CNY' }>
   /** 只预估不执行（设计稿 §2.5）：返回 jobs/预估成本/modelMix */
   videoPlan(payload: unknown): Promise<unknown>
+  /** 真正执行：付费闸门 fail-closed（confirmToken 绑定 stageId+revision+付费项） */
+  videoRun(payload: unknown): Promise<unknown>
+  /** 协作式取消：下一个付费步骤前停止 */
+  videoCancel(payload: { planId: string; stageId: string }): Promise<unknown>
+  /** 续跑：只重跑 failed/running，返回待重跑 jobIds */
+  videoResume(payload: { planId: string; stageId: string }): Promise<unknown>
+  /** 阶段级进度（video:progress） */
+  onVideoStageProgress(cb: (payload: unknown) => void): () => void
+  /** 探针专用：签发一次性确认凭证 */
+  videoDebugIssueConfirmToken(payload: unknown): Promise<unknown>
   /** 探针专用：分镜解析断言（零成本，不调模型） */
   videoDebugParseScript(payload: unknown): Promise<unknown>
   /** 作业变更（主进程 → 渲染层，落 IndexedDB） */
