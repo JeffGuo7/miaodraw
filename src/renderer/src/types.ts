@@ -333,6 +333,10 @@ export interface Api {
   videoJobs(payload: { planId: string; stageId?: string }): Promise<unknown>
   /** 查花费（spent/remaining/byStage，用于成本卡与硬上限） */
   videoCost(payload: { planId: string }): Promise<{ planId: string; budget: number; spent: number; remaining: number; byStage: Record<string, number>; currency: 'CNY' }>
+  /** 只预估不执行（设计稿 §2.5）：返回 jobs/预估成本/modelMix */
+  videoPlan(payload: unknown): Promise<unknown>
+  /** 探针专用：分镜解析断言（零成本，不调模型） */
+  videoDebugParseScript(payload: unknown): Promise<unknown>
   /** 作业变更（主进程 → 渲染层，落 IndexedDB） */
   onVideoJob(cb: (payload: unknown) => void): () => void
   /** 探针专用：幂等 / 成本闸门断言（仅截图模式注册） */

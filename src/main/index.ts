@@ -968,6 +968,46 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] video-jobs:', r)
     check('video-jobs', r)
   }
+  if (process.env.SHOT_VIDEO_PLAN === '1') {
+    // V1 主链纯函数（零成本）：video:plan 只预估不执行 + 分镜解析/文案检查卡校验
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const api = window.api
+        const P = 'probe-plan-v1b', S = 'stage-shots'
+        const shots = [1, 2, 3, 4].map(i => ({ workItemId: 'wi_' + i, imagePrompt: '镜头' + i + '：秋天窗边的热茶，暖光' }))
+
+        // ① 只预估不执行：4 镜头 → 4 图 + tts + compose；¥0.4 预估；不计账
+        const plan = await api.videoPlan({ planId: P, stageId: S, revision: 2, narration: '秋天的午后，一杯热茶。', shots })
+        const planOk = plan.shots === 4 && plan.jobs.filter(j => j.kind === 'image' && j.paid).length === 4 &&
+          plan.jobs.some(j => j.kind === 'tts' && j.paid) && plan.jobs.some(j => j.kind === 'compose' && !j.paid) &&
+          plan.estimatedCost === 0.4 && plan.unpriced === false && plan.modelMix.includes('z-image-turbo')
+        const costAfterPlan = await api.videoCost({ planId: P })
+        const noSpend = costAfterPlan.spent === 0
+        const jobsAfterPlan = await api.videoJobs({ planId: P, stageId: S })
+
+        // ② 分镜解析：围栏 JSON → 2 镜头、无 issue
+        const good = await api.videoDebugParseScript({ llmText: '\\u0060\\u0060\\u0060json\\n{"title":"秋日茶事","shots":[{"narration":"秋天的午后","image_prompt":"暖色窗边热茶"},{"narration":"水汽升起","image_prompt":"茶面特写"}]}\\n\\u0060\\u0060\\u0060', shotCount: 2, shotSeconds: 3 })
+        const goodOk = good.shots.length === 2 && good.issues.length === 0 && good.narration === '秋天的午后水汽升起'
+
+        // ③ 文案检查卡：黑名单 + 密度超预算必须被记账（不静默放行）
+        const bad = await api.videoDebugParseScript({ llmText: '{"title":"x","shots":[{"narration":"震惊！速成秘籍三天学会，绝对有效，第一第二第三第四第五第六第七第八第九第十","image_prompt":"a"}]}', shotCount: 1, shotSeconds: 3 })
+        const badOk = bad.blacklist.length >= 1 && bad.issues.some(i => i.includes('黑名单')) && bad.issues.some(i => i.includes('密度'))
+
+        // ④ 兜底：模型不吐 JSON 也要能出分镜（流程不断）
+        const fb = await api.videoDebugParseScript({ llmText: '第一句。第二句。第三句。', shotCount: 3, shotSeconds: 3 })
+        const fbOk = fb.shots.length === 3 && fb.issues.some(i => i.includes('兜底')) && fb.shots.every(s => s.image_prompt)
+
+        const ok = planOk && noSpend && jobsAfterPlan.length === 0 && goodOk && badOk && fbOk
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ planOk, estimatedCost: plan.estimatedCost, jobs: plan.jobs.map(j => j.kind + (j.paid ? '$' : '')), unpriced: plan.unpriced, spent: costAfterPlan.spent, jobsAfterPlan: jobsAfterPlan.length, goodShots: good.shots.length, badBlacklist: bad.blacklist, badIssues: bad.issues.length, fallbackShots: fb.shots.length })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-plan:', r)
+    check('video-plan', r)
+  }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
     const r = await w.webContents.executeJavaScript(

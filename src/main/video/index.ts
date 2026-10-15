@@ -14,6 +14,8 @@ import type { IpcMainInvokeEvent } from 'electron'
 
 import { VideoJobRegistry, decideSubmit, markDone, markFailed, markRunning, markSkipped, type CreateJobInput, type VideoJobRecord } from './jobs.ts'
 import { CostLedger, authorizePaidSubmit, estimateCost, issueConfirmToken, paidItemsHash, type ConfirmToken, type CostItem, type PaidSubmitAuth } from './cost.ts'
+import { planStageJobs, type PlanStageInput } from './planning.ts'
+import { parseScript } from './script.ts'
 
 type HandleFn = (channel: string, fn: (e: IpcMainInvokeEvent, ...args: never[]) => unknown) => void
 
@@ -96,6 +98,28 @@ export function registerVideoHandlers(
     return { planId: payload?.planId, budget, spent, remaining: Math.max(0, Math.round((budget - spent) * 100) / 100), byStage: ledger.byStage(payload?.planId), currency: 'CNY' }
   })
 
+  /**
+   * `video:plan`：**只预估不执行**（设计稿 §2.5）——把阶段要干的活翻译成 jobs + 成本，
+   * 不写注册表、不计账、不发任何付费请求。
+   */
+  handle('video:plan', (_e, payload: PlanStageInput) => {
+    const plan = planStageJobs(payload)
+    return {
+      planId: payload?.planId,
+      stageId: payload?.stageId,
+      revision: Number(payload?.revision) || 0,
+      jobKeys: plan.jobs.map((j) => j.id),
+      jobs: plan.jobs.map((j) => ({ id: j.id, kind: j.kind, paid: j.paid, model: j.model, shot_index: j.shot_index })),
+      shots: plan.shotCount,
+      estimatedCost: plan.estimate.expectCny,
+      currency: plan.estimate.currency,
+      estimate: plan.estimate,
+      modelMix: plan.modelMix,
+      unpriced: plan.estimate.unpriced,
+      budget: { spent: ledger.spentOf(payload?.planId), remaining: Math.max(0, Math.round((opts.budgetCny() - ledger.spentOf(payload?.planId)) * 100) / 100) }
+    }
+  })
+
   // ── 探针/调试通道（仅截图模式注册）：零成本验证幂等与成本闸门 ──
   if (process.env.TEST_MODE === 'screenshot') {
     handle('video:debugEnsure', (_e, payload: CreateJobInput) => jobs.ensure(payload))
@@ -149,8 +173,13 @@ export function registerVideoHandlers(
       return { ok: auth.ok, code: auth.code, reason: auth.reason, estimate: auth.estimate, tokenUsed: auth.token?.used === true, token: auth.token }
     })
 
-    handle('video:debugSeedLedger', (_e, entries: Array<{ plan_id: string; stage_id: string; job_id: string; kind: string; cny: number; at: number }>) => {
-      ledger.seed(entries as Parameters<CostLedger['seed']>[0])
+    /** 分镜解析（零成本）：探针用固定 LLM 文本断言解析/校验，不调用任何模型 */
+    handle('video:debugParseScript', (_e, payload: { llmText: string; shotCount?: number; shotSeconds?: number; expectedTotalSeconds?: number }) => {
+      const r = parseScript(payload?.llmText ?? '', { shotCount: payload?.shotCount, shotSeconds: payload?.shotSeconds, expectedTotalSeconds: payload?.expectedTotalSeconds })
+      return { title: r.title, narration: r.narration, shots: r.shots, issues: r.issues, blacklist: r.blacklistHits.map((h) => h.kind), budget: r.budget }
+    })
+
+    handle('video:debugSeedLedger', (_e, entries: Array<{ plan_id: string; stage_id: string; job_id: string; kind: string; cny: number; at: number }>) => {      ledger.seed(entries as Parameters<CostLedger['seed']>[0])
       return ledger.list()
     })
 

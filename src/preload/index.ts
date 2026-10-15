@@ -60,6 +60,9 @@ const api = {
   // ── 视频管线（V1）：作业表（幂等）+ 成本账本 ──
   videoJobs: (payload: { planId: string; stageId?: string }): Promise<unknown> => ipcRenderer.invoke('video:jobs', payload),
   videoCost: (payload: { planId: string }): Promise<unknown> => ipcRenderer.invoke('video:cost', payload),
+  /** 只预估不执行（设计稿 §2.5）：返回 jobs/预估成本/modelMix，不写注册表不计账 */
+  videoPlan: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:plan', payload),
+  videoDebugParseScript: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:debugParseScript', payload),
   onVideoJob: (cb: (payload: unknown) => void): (() => void) => {
     const h = (_e: unknown, payload: unknown): void => cb(payload)
     ipcRenderer.on('video:job', h)
