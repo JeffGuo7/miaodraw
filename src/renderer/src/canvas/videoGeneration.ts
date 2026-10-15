@@ -294,3 +294,47 @@ export async function runVideoNode(nodeId: string): Promise<void> {
 function videoNodeIdMetadata(nodeId: string): Record<string, unknown> {
   return canvasStore.getState().nodes.find((n) => n.id === nodeId)?.metadata ?? {}
 }
+
+/**
+ * V1 成片落画布：`videos/<file>` → assets 行 + 视频节点（内容走 media://local/vid/）。
+ * 与单节点出片共用一套入库方式，metadata.source 标 bailian-pipeline 便于区分。
+ */
+export async function dropFilmToCanvas(relPath: string, meta: Record<string, unknown> = {}): Promise<string | undefined> {
+  try {
+    const info = await window.api.canvasAssetInfo(relPath)
+    const name = relPath.split('/').pop() ?? 'film.mp4'
+    const now = Date.now()
+    const record = {
+      id: newId(),
+      path: relPath,
+      status: 'active' as const,
+      size: info.size,
+      mtime_ms: info.mtimeMs,
+      quick_hash: info.quickHash,
+      full_hash: info.fullHash,
+      width: info.width,
+      height: info.height,
+      duration_ms: typeof info.width === 'number' ? null : null,
+      mime_type: info.mime,
+      name,
+      metadata: JSON.stringify({ source: 'bailian-pipeline', ...meta }),
+      created_at: now,
+      updated_at: now,
+      migration_id: null,
+      superseded_by: null,
+      candidate_asset_id: null,
+      candidate_path: null
+    }
+    await putAssetBatch([record])
+    const nodes = canvasStore.getState().nodes
+    const last = nodes[nodes.length - 1]
+    const id = canvasStore.addNode('video', { x: (last?.x ?? 120) + 60, y: (last?.y ?? 120) + 420 })
+    canvasStore.updateNode(id, {
+      metadata: { content: `media://local/vid/${encodeURIComponent(name)}`, assetId: record.id, ...meta }
+    })
+    return id
+  } catch (e) {
+    console.warn('[canvas] 成片落卡失败：', e instanceof Error ? e.message : e)
+    return undefined
+  }
+}

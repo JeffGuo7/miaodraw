@@ -116,6 +116,26 @@ export function registerVideoHandlers(
   })
 
   /**
+   * `video:confirm`：用户在预估卡上确认后签发一次性凭证（绑定 stageId + revision + 付费项哈希）。
+   * 生产通道（非探针）：渲染层拿到 token 后随 `video:run` 一起提交。
+   */
+  handle('video:confirm', (_e, payload: { planId: string; stageId: string; revision: number; items: CostItem[]; acceptUnpriced?: boolean }) => {
+    const items = payload?.items ?? []
+    if (!items.length) throw new Error('没有可确认的付费项（先做一次预估）')
+    const token = issueConfirmToken({
+      stageId: payload?.stageId,
+      revision: Number(payload?.revision) || 0,
+      paidHash: paidItemsHash(items),
+      nonce: randomUUID(),
+      acceptUnpriced: payload?.acceptUnpriced
+    })
+    tokens.set(tokenKey(payload?.planId, payload?.stageId), token)
+    const est = estimateCost(items)
+    opts.audit?.({ plan_id: payload?.planId, stage_id: payload?.stageId, event: 'video_confirm', detail: `用户确认付费执行：预估 ¥${est.expectCny.toFixed(2)}（${items.length} 项）` })
+    return { token, estimate: est, paidItemsHash: paidItemsHash(items) }
+  })
+
+  /**
    * `video:run`：真正执行（付费闸门 fail-closed）。返回最终的 jobs / 成片路径 / 实际花费。
    * 不通过闸门 → 直接返回 COST_GATE_REQUIRED，**不发任何付费请求**。
    */

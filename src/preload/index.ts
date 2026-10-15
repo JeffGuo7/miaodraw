@@ -64,8 +64,10 @@ const api = {
   videoPlan: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:plan', payload),
   /** 真正执行（付费闸门 fail-closed：confirmToken 绑定 stageId+revision+付费项） */
   videoRun: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:run', payload),
+  /** 用户确认后签发一次性凭证（绑定 stageId+revision+付费项哈希） */
+  videoConfirm: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('video:confirm', payload),
   videoCancel: (payload: { planId: string; stageId: string }): Promise<unknown> => ipcRenderer.invoke('video:cancel', payload),
-  videoResume: (payload: { planId: string; stageId: string }): Promise<unknown> => ipcRenderer.invoke('video:resume', payload),
+  videoResume: (payload: { planId: string; stageId: string; jobs?: unknown[] }): Promise<unknown> => ipcRenderer.invoke('video:resume', payload),
   /** 阶段级进度（video:progress；与单节点出片的 runId 事件同通道，按字段区分） */
   onVideoStageProgress: (cb: (payload: unknown) => void): (() => void) => {
     const h = (_e: unknown, payload: unknown): void => cb(payload)

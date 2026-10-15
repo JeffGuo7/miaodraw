@@ -640,3 +640,39 @@
   border-radius: 4px;
   padding: 2px 6px;
 }
+
+/* ── V1 收尾：成片阶段面板（预估 → 确认 → 进度 → 落卡） ── */
+.ivc-videostage {
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  border: 1px solid #bae0ff;
+  background: #f0f7ff;
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ivc-videostage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.ivc-videostage-hint {
+  color: #555;
+  font-size: 11px;
+}
+
+.ivc-videostage-warn {
+  color: #a8071a;
+  font-size: 11px;
+}
+
+.ivc-videostage-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

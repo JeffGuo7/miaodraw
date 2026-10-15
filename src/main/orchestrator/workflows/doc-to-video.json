@@ -46,13 +46,13 @@
     {
       "id": "video",
       "name": "视频合成",
-      "goal": "图片 + 旁白交 Pixelle 出片",
+      "goal": "分镜图 + 旁白 → 本地 ffmpeg 合成成片（零 Pixelle 依赖）",
       "paid": true,
       "work_items": [
-        { "id": "final_video", "name": "成片", "modality": "video", "prompt_hint": "确认模板与画幅后交 Pixelle 合成" }
+        { "id": "final_video", "name": "成片", "modality": "video", "prompt_hint": "确认画幅与时长后：分镜图 + 旁白 → ffmpeg 合成" }
       ],
       "review": {
-        "before_execution": ["确认模板与画幅（会调用付费视频链路）"],
+        "before_execution": ["确认画幅/时长与预估费用（会调用付费出图与配音链路）"],
         "after_execution": ["确认成片可用"]
       },
       "execution_locks": { "aspect_ratio": "9:16", "resolution": "720P" }

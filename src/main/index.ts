@@ -1080,6 +1080,66 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] video-e2e:', r)
     check('video-e2e', r)
   }
+  if (process.env.SHOT_VIDEO_UI === '1') {
+    // V1 收尾（近零成本：仅一次分镜 LLM，约 ¥0.001）：计划卡上的成片面板 → 预估 → 取消不花钱 + 取消/续跑通道可用
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1200)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('对话').click()
+        await sleep(400)
+        const panel = document.querySelector('[data-testid="chat-panel"]')
+        const ta = panel.querySelector('textarea')
+        const setVal = (el, v) => { const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; s.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }
+        setVal(ta, '做一条短视频，要有分镜和口播')
+        await sleep(150)
+        ;[...panel.querySelectorAll('button')].find(b => b.textContent.includes('发送')).click()
+        let card = null
+        for (let i = 0; i < 40; i++) { await sleep(200); card = document.querySelector('[data-plan-id]'); if (card) break }
+        if (!card) return 'ERR: 计划卡未出现'
+        const planId = card.getAttribute('data-plan-id')
+        // 物化到「成片」阶段（含 video work_item）
+        let stagePanel = null
+        for (let i = 0; i < 4 && !stagePanel; i++) {
+          const authored = await window.api.planAuthorStage({ planId })
+          await sleep(500)
+          stagePanel = document.querySelector('[data-video-stage-panel="true"]')
+          if (!stagePanel && authored && authored.ok === false) break
+        }
+        if (!stagePanel) return 'ERR: 成片阶段面板未出现（stage=' + document.querySelectorAll('[data-stage-id]').length + '）'
+        const stageId = stagePanel.getAttribute('data-stage-id')
+        const beginsIdle = stagePanel.getAttribute('data-video-phase') === 'idle'
+        const planBtn = stagePanel.querySelector('[data-video-plan="true"]')
+        if (!planBtn) return 'ERR: 无预估按钮'
+        // ① 预估 → 出预估卡（金额 > 0），且此时不得有付费调用
+        planBtn.click()
+        let est = null
+        for (let i = 0; i < 60; i++) { await sleep(500); est = document.querySelector('[data-video-estimate="true"]'); if (est) break }
+        if (!est) return 'ERR: 预估卡未出现'
+        const cost = Number(est.getAttribute('data-video-cost'))
+        const costOk = Number.isFinite(cost) && cost > 0
+        const spentBeforeRun = (await window.api.videoCost({ planId })).spent
+        // ② 取消（不确认）→ 回到 idle，且没有任何付费与作业
+        est.querySelector('[data-video-discard="true"]').click()
+        await sleep(600)
+        const backToIdle = document.querySelector('[data-video-stage-panel="true"]')?.getAttribute('data-video-phase') === 'idle'
+        const jobs = await window.api.videoJobs({ planId, stageId })
+        const spentAfter = (await window.api.videoCost({ planId })).spent
+        const noSpend = spentBeforeRun === 0 && spentAfter === 0 && jobs.length === 0
+        // ③ 取消 / 续跑通道可用（零成本，直接走 IPC）
+        const cancel = await window.api.videoCancel({ planId, stageId })
+        const resume = await window.api.videoResume({ planId, stageId, jobs: [] })
+        const channelsOk = cancel?.ok === true && resume?.ok === true
+        const ok = beginsIdle && costOk && backToIdle && noSpend && channelsOk
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ beginsIdle, costOk, cost, backToIdle, noSpend, jobs: jobs.length, spentAfter, channelsOk })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-ui:', r)
+    check('video-ui', r)
+  }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
     const r = await w.webContents.executeJavaScript(
@@ -1243,7 +1303,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
             rq.onsuccess = () => res(rq.result?.value ?? null); rq.onerror = () => rej(rq.error)
           })
           schema = meta
-          if (schema?.version === 4) break
+          if (schema?.version >= 5) break
         }
         const messages = await new Promise((res, rej) => {
           const tx = db.transaction('messages', 'readonly')
@@ -1254,7 +1314,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         const plans = await window.api.planList()
         // #185 类回归守卫：getSnapshot 对未知 key 必须返回稳定引用（否则 useSyncExternalStore 无限重渲染→白屏）
         const stableSnapshot = window.__canvasChat.getMessages('__nope__') === window.__canvasChat.getMessages('__nope__')
-        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version === 4 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1 && stableSnapshot
+        const ok = drafting && userRows.length >= 1 && dragOk === true && schema?.version >= 5 && schema?.assetsChecked > 0 && Array.isArray(plans) && plans.length >= 1 && stableSnapshot
         return (ok ? 'OK:' : 'ERR:') + JSON.stringify({
           drafting, sendLatency, userRows: userRows.length, dragOk, stableSnapshot,
           schemaVersion: schema?.version ?? null, assetsChecked: schema?.assetsChecked ?? null,

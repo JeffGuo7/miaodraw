@@ -14,6 +14,7 @@ import type { PlanRecord, StageRecord } from './plan-types'
 import { actViaCard } from './plan-actions'
 import { appendMessage } from './chat-store'
 import { isPlanStale, needsFullRefresh } from './plan-recover'
+import VideoStageCard from './VideoStageCard'
 
 interface Props {
   planId: string
@@ -226,6 +227,10 @@ export default function PlanCard({ planId }: Props): JSX.Element {
                     重跑
                   </Button>
                 </Space>
+              )}
+              {/* V1：成片阶段（work_items 含 video）挂「预估 → 确认 → 执行 → 进度 → 落卡」面板 */}
+              {stage.work_items.some((w) => w.modality === 'video') && !frozen && (
+                <VideoStageCard planId={planId} stage={stage} brief={plan.prompt} />
               )}
             </div>
           )

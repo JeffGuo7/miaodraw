@@ -67,7 +67,7 @@ main/video/
 ├── index.ts        步骤编排（对标 linear.py 的模板方法，但每步可跳过/可重入）
 ├── script.ts       文案/分镜：LLM → narrations → image_prompts（含校验 + 黑名单重写）
 ├── tts.ts          配音：百炼 TTS（本地 edge-tts 作降级）
-├── shots.ts        镜头素材：出图 / 出视频（复用现有 generate + pixelle 链路）
+├── shots.ts        镜头素材：出图 / 出视频（复用现有 generate 链路，百炼直连）
 ├── frame.ts        帧渲染：用 Electron 离屏窗口渲染 HTML 模板（不引入 Playwright）
 ├── compose.ts      合成：ffmpeg 拼接 + 可选 BGM
 ├── cost.ts         成本护栏：预估 / 确认 / 上限 / 记账
@@ -179,7 +179,7 @@ interface VideoJobRecord {
 |---|---|---|
 | **V1** | `script.ts` + `tts.ts` + `shots.ts`（只出图）+ `compose.ts`（图+音 → mp4）；跑通 `doc-to-video` 一个 workflow | 视频生成、BGM、字幕 |
 | **V2** | 成本护栏（预估/确认/上限/记账）+ `video_jobs` 续跑 | 多厂商视频矩阵 |
-| **V3** | 出视频镜头（百炼 i2v）+ Pixelle 作为可选出片后端（保留现有代理） | — |
+| **V3** | 出视频镜头（百炼 i2v，逐个镜头显式确认成本、默认关） | 多厂商视频矩阵 |
 | **V4** | HTML 模板帧渲染（Electron 离屏）+ 字幕烧录（显式 opt-in） | BGM 自动创作、转场风格 |
 
 ---
@@ -199,8 +199,8 @@ interface VideoJobRecord {
 | TaskManager 纯内存、无断点（`manager.py` L29-45；checkpoint/resume 全仓 0） | 用户会重启应用；我们必须以 `video_jobs` + plans 持久化做续跑 |
 | Playwright 无头渲染 HTML（`frame_html.py` L16-46） | Electron 自带渲染器，用离屏 BrowserWindow 即可，省一个 Chromium 依赖 |
 | 无成本闸门（`pricing`/`price` 全仓 0） | 用户对价格敏感，预估+确认+上限是硬需求 |
-| ComfyUI 工作流体系（`comfy_base_service.py`） | 本期走百炼/Pixelle REST；引入 ComfyUI 会带来第二套编排 |
-| DashScope/OpenAI/Seedream/Kling/Seedance 全矩阵（`api_media.py` L23-63） | 先接现有百炼 + Pixelle；能力表用"结构"不用"全量模型清单"，避免维护真空 |
+| ComfyUI 工作流体系（`comfy_base_service.py`） | 本期只走百炼 REST；引入 ComfyUI 会带来第二套编排 |
+| DashScope/OpenAI/Seedream/Kling/Seedance 全矩阵（`api_media.py` L23-63） | 先只接现有百炼；能力表用"结构"不用"全量模型清单"，避免维护真空 |
 | `.index.json` 单文件索引（`persistence.py` L70-72） | 我们已有 IndexedDB assets + 血统边，无需第二套索引 |
 | per-frame 全量重算 | 我们按 work_item 增量 + 指纹复用 |
 
@@ -220,3 +220,8 @@ interface VideoJobRecord {
 - **V0 = Coder 第 0 期**（在途）：收口「直连百炼出片段 + 成本护栏」。本设计的 §2.6 就是 V0 成本护栏的规格；出片段实现即 §2.2 表格中 `shots` 阶段的 executor，**本设计不另定义接口**。
 - **V1 起**：消费既有 workflow 定义 `src/main/orchestrator/workflows/doc-to-video.json`（stage `brief/shots/narration/video`；`video` 阶段已标 `"paid": true`，`execution_locks` 已有 `aspect_ratio=9:16`、`resolution=720P`）——V1 只补 `script.ts`/`tts.ts`/`compose.ts` 与 job 续跑，**不重写 stage 拓扑**。
 - V1~V4 与原表一致；V0 完成前不启动 V1 的付费链路验证（沿用 `todo-cost-guard.md` §2 的内部测试纪律：最多 1 分镜、最低分辨率、静音，并写明实际花费）。
+
+**变更说明（v2.1，2026-10-15，Chief 通知）**：用户**彻底否决 Pixelle**。据此：
+- V3 行由「出视频镜头（百炼 i2v）+ Pixelle 作为可选出片后端（保留现有代理）」改为「出视频镜头（百炼 i2v，逐个镜头显式确认成本、默认关）」
+- 全文清理「把 Pixelle 当运行依赖」的措辞：`shots.ts` 说明改「复用现有 generate 链路，百炼直连」；「刻意不学」表里 ComfyUI 行改「本期只走百炼 REST」、厂商矩阵行改「先只接现有百炼」
+- **保留**部分（作为参考书的行为描述与行号引用，不构成依赖）：标题「参考 Pixelle-Video」、头部边界与干净房间声明、§一 全部拆解、§三 学到的 5 条、§2.7「对齐 Pixelle 的短板」

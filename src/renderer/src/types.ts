@@ -337,10 +337,12 @@ export interface Api {
   videoPlan(payload: unknown): Promise<unknown>
   /** 真正执行：付费闸门 fail-closed（confirmToken 绑定 stageId+revision+付费项） */
   videoRun(payload: unknown): Promise<unknown>
+  /** 用户确认后签发一次性凭证 */
+  videoConfirm(payload: unknown): Promise<unknown>
   /** 协作式取消：下一个付费步骤前停止 */
   videoCancel(payload: { planId: string; stageId: string }): Promise<unknown>
-  /** 续跑：只重跑 failed/running，返回待重跑 jobIds */
-  videoResume(payload: { planId: string; stageId: string }): Promise<unknown>
+  /** 续跑：只重跑 failed/running；可回灌 IndexedDB 里的作业（重启续跑用） */
+  videoResume(payload: { planId: string; stageId: string; jobs?: unknown[] }): Promise<unknown>
   /** 阶段级进度（video:progress） */
   onVideoStageProgress(cb: (payload: unknown) => void): () => void
   /** 探针专用：签发一次性确认凭证 */
