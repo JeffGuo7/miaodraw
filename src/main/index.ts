@@ -774,8 +774,11 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
             const last = vids[vids.length - 1]
             const deps = (await all('asset_dependencies')).filter(d => d.child_id === (last?.id || '') && d.operation === 'bailian-video')
             const meta = last ? JSON.parse(last.metadata || '{}') : {}
-            const ok = vids.length >= 1 && !!last && last.size > 0 && deps.length >= 1 && meta.source === 'bailian-video' && meta.duration_sec === 2
-            return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ videos: vids.length, file: last?.path, size: last?.size, duration_ms: last?.duration_ms, deps: deps.length, source: meta.source, model: meta.model, estimatedCny: meta.estimated_cny, seconds: Math.round((Date.now() - t0) / 1000) })
+            // 本探针未连参考图 → 没有父产物，预期「零血统边」（不许凭空写边）；
+            // 有父产物时的建边逻辑由 buildVideoLineage 单测覆盖（零成本）
+            const depsOk = deps.length === 0
+            const ok = vids.length >= 1 && !!last && last.size > 0 && depsOk && meta.source === 'bailian-video' && meta.duration_sec === 2
+            return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ videos: vids.length, file: last?.path, size: last?.size, duration_ms: last?.duration_ms, parents: 0, deps: deps.length, depsOk, source: meta.source, model: meta.model, estimatedCny: meta.estimated_cny, seconds: Math.round((Date.now() - t0) / 1000) })
           }
           const err = document.querySelector('.ivc-gen-error')
           if (err) return 'ERR: ' + err.textContent.slice(0, 200)
@@ -831,6 +834,56 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] video-guard:', r)
     check('video-guard', r)
+  }
+  if (process.env.SHOT_VIDEO_LINEAGE === '1') {
+    // V1 落卡/入库/血统边（零成本）：stub 成片结果 + 播种「已入库父产物」→ 断言 assets 行 + derived 血统边
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const openDb = () => new Promise((res, rej) => { const rq = indexedDB.open('miaodraw-canvas'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+        const db = await openDb()
+        const all = (store) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const rq = tx.objectStore(store).getAll(); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+        const btn = byText('视频')
+        if (!btn) return 'ERR: 工具条无视频按钮'
+        btn.click()
+        await sleep(800)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 视频节点无提示词输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '血统边自测（零成本 stub，不会提交任务）')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(200)
+        // 找一个已入库的图片资产当父产物（真实连线图片卡才有的形态）
+        const parent = (await all('assets')).filter(a => String(a.path || '').startsWith('outputs/')).pop()
+        if (!parent) return 'ERR: 库中没有可用图片资产'
+        const host = [...document.querySelectorAll('[data-node-id]')].find(el => el.querySelector('.ivc-video-opts'))
+        const nodeId = host?.getAttribute('data-node-id')
+        if (!nodeId) return 'ERR: 找不到视频节点'
+        window.__videoTest.seedParent(nodeId, 'media://local/out/' + encodeURIComponent(String(parent.path).slice('outputs/'.length)), parent.id)
+        await sleep(300)
+        const stub = await window.api.videoDebugStub()
+        window.__videoTest.setStub(stub)
+        const run = document.querySelector('[data-video-run="true"]')
+        if (!run) return 'ERR: 无生成按钮'
+        run.click()
+        let modal = null
+        for (let i = 0; i < 20; i++) { await sleep(150); modal = document.querySelector('.ant-modal-confirm'); if (modal) break }
+        if (!modal) return 'ERR: 未出现成本确认卡'
+        modal.querySelector('.ant-btn-primary')?.click()
+        await sleep(2500)
+        const child = (await all('assets')).filter(a => a.path === stub.relPath).pop()
+        const deps = (await all('asset_dependencies')).filter(d => d.child_id === (child?.id || '') && d.parent_id === parent.id)
+        const edge = deps[0]
+        const meta = edge ? JSON.parse(edge.metadata || '{}') : {}
+        const videoCards = document.querySelectorAll('video.ivc-video').length
+        const ok = !!child && child.duration_ms === 2000 && child.size > 0 && edge?.role === 'derived' && edge?.operation === 'bailian-video' && meta.source === 'bailian-video' && meta.duration_sec === 2 && videoCards >= 1
+        window.__videoTest.setStub(null)
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ childPath: child?.path, childSize: child?.size, duration_ms: child?.duration_ms, parentPath: parent.path, deps: deps.length, role: edge?.role, operation: edge?.operation, meta, videoCards })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-lineage:', r)
+    check('video-lineage', r)
   }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
@@ -1837,6 +1890,28 @@ function registerIpc(): void {
     log('info', `video done file=${result.file} size=${result.sizeBytes} model=${result.model} ${result.durationSec}s in ${result.elapsed}ms est=¥${result.estimatedCny}`)
     return result
   })
+
+  // 探针专用（仅截图模式）：造一个零成本的 stub 成片结果，用来端到端验证落卡/入库/血统边
+  if (process.env.TEST_MODE === 'screenshot') {
+    handle('video:debugStub', async () => {
+      const file = 'probe_stub.mp4'
+      await fsp.mkdir(VIDEO_DIR, { recursive: true })
+      await fsp.writeFile(path.join(VIDEO_DIR, file), Buffer.alloc(2048, 7))
+      return {
+        file,
+        relPath: `videos/${file}`,
+        url: `media://local/vid/${file}`,
+        taskId: 'probe-stub',
+        model: 'wan2.7-t2v',
+        resolution: '720P',
+        ratio: '16:9',
+        durationSec: 2,
+        sizeBytes: 2048,
+        estimatedCny: 1.2,
+        elapsed: 0
+      }
+    })
+  }
 
   // ---------- 编排（O1：计划/阶段 IPC + plan:changed 事件） ----------
   registerOrchestratorHandlers(handle, (channel, payload) => {

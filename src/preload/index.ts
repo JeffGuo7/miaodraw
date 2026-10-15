@@ -55,6 +55,8 @@ const api = {
     ipcRenderer.on('video-progress', h)
     return () => ipcRenderer.removeListener('video-progress', h)
   },
+  /** 探针专用（仅截图模式注册）：零成本 stub 成片结果，端到端验证落卡/入库/血统边 */
+  videoDebugStub: (): Promise<unknown> => ipcRenderer.invoke('video:debugStub'),
   // ── 编排（O1）：计划/阶段 + 状态机推进 + plan:changed 事件 ──
   planCreate: (payload: { prompt: string; canvasContext?: Record<string, unknown> }): Promise<unknown> =>
     ipcRenderer.invoke('plan:create', payload),

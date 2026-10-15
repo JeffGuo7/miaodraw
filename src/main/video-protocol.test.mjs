@@ -8,6 +8,7 @@ import {
   MAX_AUTO_RETRY,
   VIDEO_MAX_BYTES,
   afterFailure,
+  buildVideoLineage,
   buildVideoSubmitBody,
   buildVideoSubmitUrl,
   buildVideoTaskUrl,
@@ -130,4 +131,34 @@ test('成本护栏：同一节点连续失败 2 次后停止自动重试', () =>
   assert.equal(failures, MAX_AUTO_RETRY)
   assert.equal(canAutoRetry(failures), false, '第 2 次失败后必须人工再点')
   assert.equal(afterFailure(-5), 1)
+})
+
+test('血统边：只对已入库父产物建边（role=derived, operation=bailian-video）', () => {
+  const edges = buildVideoLineage(
+    'child1',
+    [{ assetId: 'p1' }, { assetId: undefined }, { assetId: 'p2' }],
+    { model: 'wan2.7-t2v', duration: 2 },
+    1700000000000
+  )
+  assert.equal(edges.length, 2, '未入库的连线不算父产物')
+  assert.deepEqual(
+    edges.map((e) => [e.child_id, e.parent_id, e.role, e.operation, e.input_index]),
+    [
+      ['child1', 'p1', 'derived', 'bailian-video', null],
+      ['child1', 'p2', 'derived', 'bailian-video', null]
+    ]
+  )
+  assert.deepEqual(JSON.parse(edges[0].metadata), { source: 'bailian-video', model: 'wan2.7-t2v', duration_sec: 2 })
+})
+
+test('血统边：没有父产物（纯文生视频）→ 不产生任何边', () => {
+  assert.deepEqual(buildVideoLineage('c', [], { model: 'wan2.7-t2v', duration: 2 }, 1), [])
+  assert.deepEqual(buildVideoLineage('c', [{ assetId: undefined }], { model: 'wan2.7-t2v', duration: 2 }, 1), [])
+})
+
+test('硬上限：10 秒 1080P 预估价 ¥12 会被判 overCap（fail-closed）', () => {
+  const e = estimateVideoCost(normalizeVideoSpec({ prompt: 'x', duration: 10, resolution: '1080P' }))
+  assert.equal(e.cny, 12)
+  assert.equal(e.overCap, true)
+  assert.equal(estimateVideoCost(normalizeVideoSpec({ prompt: 'x', duration: 2, resolution: '720P' })).overCap, false)
 })

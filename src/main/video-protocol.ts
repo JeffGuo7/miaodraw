@@ -243,3 +243,40 @@ export function ratioLabel(ratio: VideoRatio): string {
   if (ratio === '1:1') return '方形 1:1'
   return '横屏 16:9'
 }
+
+// ── 血统边（纯函数：只对「已入库的父产物」建边，未入库的连线不算数） ──
+export interface VideoLineageParent {
+  assetId?: string
+}
+
+export interface VideoLineageEdge {
+  child_id: string
+  parent_id: string
+  role: 'derived'
+  input_index: null
+  operation: 'bailian-video'
+  metadata: string
+  created_at: number
+}
+
+export function buildVideoLineage(
+  childId: string,
+  parents: VideoLineageParent[],
+  spec: { model: string; duration: number },
+  now: number
+): VideoLineageEdge[] {
+  const edges: VideoLineageEdge[] = []
+  for (const p of parents) {
+    if (!p?.assetId) continue
+    edges.push({
+      child_id: childId,
+      parent_id: p.assetId,
+      role: 'derived',
+      input_index: null,
+      operation: 'bailian-video',
+      metadata: JSON.stringify({ source: 'bailian-video', model: spec.model, duration_sec: spec.duration }),
+      created_at: now
+    })
+  }
+  return edges
+}

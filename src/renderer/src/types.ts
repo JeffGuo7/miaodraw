@@ -326,6 +326,8 @@ export interface Api {
   }>
   /** 视频任务进度（主进程 → 渲染层） */
   onVideoProgress(cb: (payload: unknown) => void): () => void
+  /** 探针专用（仅截图模式注册）：零成本 stub 成片结果 */
+  videoDebugStub(): Promise<unknown>
   // ── 编排（O1）：计划/阶段读写 + 状态机推进 + plan:changed 事件 ──
   /** 建计划：立即返回 drafting（route_kind=direct 时不建计划） */
   planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; videoReady?: boolean; pixelleReady?: boolean } }): Promise<

@@ -18,6 +18,7 @@ import { checkVoBlacklist, checkVoDensity } from '../../../main/prompt-guards'
 import {
   DEFAULT_VIDEO_SPEC,
   afterFailure,
+  buildVideoLineage,
   canAutoRetry,
   estimateVideoCost,
   normalizeVideoSpec,
@@ -36,6 +37,41 @@ export {
   normalizeVideoSpec,
   canAutoRetry
 } from '../../../main/video-protocol'
+
+/**
+ * 探针/离线测试接缝（零成本）：设置 stub 后不提交付费任务，但**完整走**落卡/入库/血统边。
+ * seedParent 用来播种一个「已入库的父产物」（真实连线图片卡才有的形态）。
+ */
+interface VideoStubResult {
+  file: string
+  relPath: string
+  url: string
+  taskId: string
+  model: string
+  resolution: string
+  ratio: string
+  durationSec: number
+  sizeBytes: number
+  estimatedCny: number
+  elapsed: number
+}
+
+let stubResult: VideoStubResult | null = null
+
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { __videoTest?: unknown }).__videoTest = {
+    setStub: (r: VideoStubResult | null): void => {
+      stubResult = r && typeof r === 'object' ? r : null
+    },
+    seedParent: (childNodeId: string, content: string, assetId: string): string => {
+      const cur = canvasStore.getState().nodes.find((n) => n.id === childNodeId)
+      const id = canvasStore.addNode('image', { x: (cur?.x ?? 0) - 320, y: cur?.y ?? 0 })
+      canvasStore.updateNode(id, { metadata: { content, assetId, stub: true } })
+      canvasStore.addConnection(id, childNodeId)
+      return id
+    }
+  }
+}
 
 /** 状态 → 中文（进度条文案） */
 const STATE_TEXT: Record<TaskState, string> = {
@@ -138,20 +174,8 @@ async function persistVideoAsset(args: {
     }
     if (!childId) return undefined
 
-    const deps: AssetDependencyRecord[] = []
-    for (const p of args.parents) {
-      if (!p.assetId) continue
-      deps.push({
-        child_id: childId,
-        parent_id: p.assetId,
-        role: 'derived',
-        input_index: null,
-        operation: 'bailian-video',
-        metadata: JSON.stringify({ source: 'bailian-video', model: args.spec.model, duration_sec: args.spec.duration }),
-        created_at: now
-      })
-    }
-    if (deps.length) await putDependencyBatch(deps)
+    const deps = buildVideoLineage(childId, args.parents, { model: args.spec.model, duration: args.spec.duration }, now)
+    if (deps.length) await putDependencyBatch(deps as AssetDependencyRecord[])
     return childId
   } catch (e) {
     // 入库失败不影响画布展示（对账机制后续补录）
@@ -222,7 +246,7 @@ export async function runVideoNode(nodeId: string): Promise<void> {
   const startedAt = Date.now()
 
   try {
-    const res = await window.api.videoGenerate({ spec, runId })
+    const res = stubResult ?? (await window.api.videoGenerate({ spec, runId }))
 
     // 产物视频卡：落在视频节点右侧
     const videoNodeId = canvasStore.addNode('video', { x: node.x + node.width + 60, y: node.y })

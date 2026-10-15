@@ -3,6 +3,7 @@ out/
 dist/
 vendor/
 outputs/
+videos/
 app.log
 install.log
 *.local
