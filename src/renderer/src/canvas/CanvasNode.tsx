@@ -13,7 +13,7 @@ import type { CanvasNodeData } from './types'
 import { NODE_SPECS } from './types'
 import { canvasStore } from './store'
 import { runGenerateNode } from './generation'
-import { runVideoNode, TEMPLATES } from './videoGeneration'
+import { runVideoNode, DEFAULT_VIDEO_SPEC, VIDEO_DURATIONS, VIDEO_RATIOS, VIDEO_RESOLUTIONS, ratioLabel, estimateVideoCost, normalizeVideoSpec, canAutoRetry } from './videoGeneration'
 import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
 import { clientToWorld, invalidateCanvasRect } from './rect-cache'
 import { beginPending, endPending, updatePending } from './pending-connection'
@@ -306,36 +306,66 @@ function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
   const progress = typeof node.metadata.progress === 'number' ? Math.round(node.metadata.progress * 100) : null
   const upstreamText = canvasStore.upstreamOf(node.id).filter((n) => n.type === 'text' && String(n.metadata.content ?? '').trim())
 
+  // V1 成本护栏：档位来自节点，预估价实时显示；连续失败 2 次后需人工确认
+  const duration = Number(node.metadata.duration ?? DEFAULT_VIDEO_SPEC.duration) || DEFAULT_VIDEO_SPEC.duration
+  const ratio = String(node.metadata.ratio ?? DEFAULT_VIDEO_SPEC.ratio)
+  const resolution = String(node.metadata.resolution ?? DEFAULT_VIDEO_SPEC.resolution)
+  const failCount = Number(node.metadata.failCount ?? 0) || 0
+  const estimate = estimateVideoCost(normalizeVideoSpec({ prompt: 'x', duration, ratio, resolution }))
+  const guardBlocked = !canAutoRetry(failCount)
+
   return (
     <div className="ivc-gen">
-      <Select
-        size="small"
-        value={node.metadata.mode === 'fixed' ? 'fixed' : 'generate'}
-        disabled={running}
-        options={[
-          { value: 'generate', label: 'AI 生成文案分镜' },
-          { value: 'fixed', label: '文案原文直出' }
-        ]}
-        onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, mode: v } })}
-      />
       {upstreamText.length === 0 && (
         <Input.TextArea
           className="ivc-gen-prompt"
-          placeholder="输入视频文案（或连线一张文案卡）…"
+          placeholder="输入视频提示词（或连线一张文案卡）…"
           value={String(node.metadata.prompt ?? '')}
           disabled={running}
           onChange={(e) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, prompt: e.target.value } })}
         />
       )}
       {upstreamText.length > 0 && <div className="ivc-gen-refs">文案卡 ×{upstreamText.length}（已连线）</div>}
-      <Select
+      <div className="ivc-video-opts">
+        <Select
+          size="small"
+          value={duration}
+          disabled={running}
+          data-video-duration={duration}
+          options={VIDEO_DURATIONS.map((d) => ({ value: d, label: `${d} 秒` }))}
+          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, duration: v } })}
+        />
+        <Select
+          size="small"
+          value={ratio}
+          disabled={running}
+          options={VIDEO_RATIOS.map((r) => ({ value: r, label: ratioLabel(r) }))}
+          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, ratio: v } })}
+        />
+        <Select
+          size="small"
+          value={resolution}
+          disabled={running}
+          options={VIDEO_RESOLUTIONS.map((q) => ({ value: q, label: q }))}
+          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, resolution: v } })}
+        />
+      </div>
+      <div className="ivc-video-cost" data-video-cost={estimate.cny.toFixed(2)}>
+        预估价 ¥{estimate.cny.toFixed(2)}（{duration} 秒 · {resolution}，以账单为准）
+      </div>
+      {guardBlocked && (
+        <div className="ivc-gen-error" data-video-guard="blocked">
+          已连续失败 {failCount} 次，成本护栏已停止自动重试（再点需人工确认）
+        </div>
+      )}
+      <Button
         size="small"
-        value={String(node.metadata.template ?? TEMPLATES[0].value)}
-        disabled={running}
-        options={TEMPLATES}
-        onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, template: v } })}
-      />
-      <Button size="small" type="primary" icon={<PlayCircleOutlined />} loading={running} onClick={() => void runVideoNode(node.id)}>
+        type="primary"
+        icon={<PlayCircleOutlined />}
+        loading={running}
+        data-video-run="true"
+        onClick={() => void runVideoNode(node.id)}
+      >
         {running ? status || '生成中…' : node.metadata.error ? '重试' : '生成成片'}
       </Button>
       {running && <Progress size="small" percent={progress != null ? progress : undefined} status="active" format={() => status} />}

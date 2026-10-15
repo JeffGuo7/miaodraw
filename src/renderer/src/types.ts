@@ -307,13 +307,28 @@ export interface Api {
     height: number | null
     mime: string
   }>
-  /** Pixelle 视频后端（M3）：确保后端已启动，返回 baseUrl */
-  pixelleEnsure(): Promise<{ baseUrl: string }>
-  /** Pixelle 环境预检（uv/后端目录），缺失时给可执行指引 */
-  pixelleCheckEnv(): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }>
+  /** 视频生成（V1）：直连百炼异步任务（提交→轮询→下载→落盘），返回产物元数据 */
+  videoGenerate(payload: {
+    spec: { prompt: string; model?: string; resolution?: string; ratio?: string; duration?: number; promptExtend?: boolean; negative?: string }
+    runId?: string
+  }): Promise<{
+    file: string
+    relPath: string
+    url: string
+    taskId: string
+    model: string
+    resolution: string
+    ratio: string
+    durationSec: number
+    sizeBytes: number
+    estimatedCny: number
+    elapsed: number
+  }>
+  /** 视频任务进度（主进程 → 渲染层） */
+  onVideoProgress(cb: (payload: unknown) => void): () => void
   // ── 编排（O1）：计划/阶段读写 + 状态机推进 + plan:changed 事件 ──
   /** 建计划：立即返回 drafting（route_kind=direct 时不建计划） */
-  planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; pixelleReady?: boolean } }): Promise<
+  planCreate(payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; videoReady?: boolean; pixelleReady?: boolean } }): Promise<
     | { kind: 'direct' | 'ask'; direct?: boolean; capsule: unknown }
     | { kind: 'plan'; planId: string; status: string; workflow_id: string; stage_outline: unknown[]; capsule: unknown }
   >
@@ -349,8 +364,6 @@ export interface Api {
   onPlanChanged(cb: (payload: unknown) => void): () => void
   /** 审计事件推送（主进程 → 渲染层） */
   onPlanEvent(cb: (payload: unknown) => void): () => void
-  /** Pixelle REST 代理（主进程转发，规避 CORS） */
-  pixelleProxy(args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }>
   /** 图像编辑：局部重绘 / 擦除 / 去水印 / 超分 / 扩图 / 上色 / 线稿生图 */
   imageEdit(payload: {
     op: ImageEditOp

@@ -32,8 +32,11 @@ function sha256(buf: Buffer): string {
   return crypto.createHash('sha256').update(buf).digest('hex')
 }
 
-/** 校验相对路径：允许 outputs/<图片名>、refs/<hash><ext>、pixelle/<视频相对路径>（防路径构造） */
-function resolveAssetFile(paths: { outputsPath: () => string; userDataPath: () => string; pixelleOutputPath: () => string }, rel: string): { abs: string; mime: string } | null {
+/** 校验相对路径：允许 outputs/<图片名>、refs/<hash><ext>、videos/<文件名>，以及历史遗留的 pixelle/<相对路径>（防路径构造） */
+function resolveAssetFile(
+  paths: { outputsPath: () => string; userDataPath: () => string; videosPath: () => string; pixelleOutputPath: () => string },
+  rel: string
+): { abs: string; mime: string } | null {
   const norm = path.posix.normalize(rel.replace(/\\/g, '/'))
   let base: string
   let name: string
@@ -43,6 +46,9 @@ function resolveAssetFile(paths: { outputsPath: () => string; userDataPath: () =
   } else if (norm.startsWith('refs/')) {
     base = path.join(paths.userDataPath(), 'refs')
     name = norm.slice('refs/'.length)
+  } else if (norm.startsWith('videos/')) {
+    base = paths.videosPath()
+    name = norm.slice('videos/'.length)
   } else if (norm.startsWith('pixelle/')) {
     base = paths.pixelleOutputPath()
     name = norm.slice('pixelle/'.length)
@@ -64,15 +70,15 @@ function resolveAssetFile(paths: { outputsPath: () => string; userDataPath: () =
 
 export function registerCanvasAssetHandlers(
   handle: HandleFn,
-  paths: { outputsPath: () => string; userDataPath: () => string; pixelleOutputPath: () => string }
+  paths: { outputsPath: () => string; userDataPath: () => string; videosPath: () => string; pixelleOutputPath: () => string }
 ): void {
   handle('canvas:assetInfo', async (_e, rel: string): Promise<CanvasAssetInfo> => {
     const target = resolveAssetFile(paths, rel)
     if (!target) throw new Error('资产路径不合法')
     const st = await fsp.stat(target.abs)
 
-    // pixelle 视频（可能上百 MB）：只读头部 4MB 做 quick_hash，不整读不算 full
-    if (rel.startsWith('pixelle/')) {
+    // 视频（可能上百 MB）：只读头部 4MB 做 quick_hash，不整读不算 full
+    if (rel.startsWith('pixelle/') || rel.startsWith('videos/')) {
       const fh = await fsp.open(target.abs, 'r')
       try {
         const head = Buffer.alloc(Math.min(4 * 1024 * 1024, st.size))

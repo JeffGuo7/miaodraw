@@ -48,11 +48,13 @@ const api = {
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   refsRead: (hash: string, ext: string): Promise<Uint8Array> => ipcRenderer.invoke('refs:read', hash, ext),
   canvasAssetInfo: (rel: string): Promise<unknown> => ipcRenderer.invoke('canvas:assetInfo', rel),
-  pixelleEnsure: (): Promise<{ baseUrl: string }> => ipcRenderer.invoke('pixelle:ensure'),
-  pixelleCheckEnv: (): Promise<{ ok: boolean; uv: boolean; backendDir: boolean; message?: string }> =>
-    ipcRenderer.invoke('pixelle:checkEnv'),
-  pixelleProxy: (args: { method: 'GET' | 'POST'; path: string; body?: unknown }): Promise<{ status: number; json: unknown }> =>
-    ipcRenderer.invoke('pixelle:proxy', args),
+  // ── 视频生成（V1）：直连百炼异步任务；进度经 video-progress 回推（零 Pixelle 依赖） ──
+  videoGenerate: (payload: { spec: unknown; runId?: string }): Promise<unknown> => ipcRenderer.invoke('video:generate', payload),
+  onVideoProgress: (cb: (payload: unknown) => void): (() => void) => {
+    const h = (_e: unknown, payload: unknown): void => cb(payload)
+    ipcRenderer.on('video-progress', h)
+    return () => ipcRenderer.removeListener('video-progress', h)
+  },
   // ── 编排（O1）：计划/阶段 + 状态机推进 + plan:changed 事件 ──
   planCreate: (payload: { prompt: string; canvasContext?: Record<string, unknown> }): Promise<unknown> =>
     ipcRenderer.invoke('plan:create', payload),

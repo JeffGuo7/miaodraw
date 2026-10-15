@@ -26,7 +26,7 @@ export function registerOrchestratorHandlers(
   )
 
   /** 建计划：同步只做分类+骨架（立即返回 drafting），首阶段 author 走事件推进 */
-  handle('plan:create', (_e, payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; pixelleReady?: boolean } }) => {
+  handle('plan:create', (_e, payload: { prompt: string; canvasContext?: { hasImage?: boolean; hasText?: boolean; videoReady?: boolean; pixelleReady?: boolean } }) => {
     const res = registry.create(payload?.prompt ?? '', payload?.canvasContext ?? {})
     if (res.kind !== 'plan') {
       return { kind: res.kind, direct: res.kind === 'direct', capsule: res.capsule }

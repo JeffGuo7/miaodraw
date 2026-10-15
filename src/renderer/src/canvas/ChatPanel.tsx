@@ -101,7 +101,7 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
     try {
       if (!planId) {
         // 首条消息：立即落 user 行 + 建计划（plan:create 同步返回 drafting，不阻塞输入）
-        const created = (await window.api.planCreate({ prompt: content, canvasContext: { pixelleReady: true } })) as {
+        const created = (await window.api.planCreate({ prompt: content, canvasContext: { videoReady: true } })) as {
           kind?: string
           planId?: string
           status?: string
@@ -238,7 +238,7 @@ function FrozenConfirmCard({
   }
 
   const newPlan = async (): Promise<void> => {
-    const created = (await window.api.planCreate({ prompt: prompt.text, canvasContext: { pixelleReady: true } })) as { kind?: string }
+    const created = (await window.api.planCreate({ prompt: prompt.text, canvasContext: { videoReady: true } })) as { kind?: string }
     await appendMessage({
       planId,
       role: 'agent',

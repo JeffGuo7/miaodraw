@@ -20,7 +20,9 @@ export interface RouteContext {
   hasImage?: boolean
   /** 是否已有文案素材 */
   hasText?: boolean
-  /** Pixelle 后端子进程是否就绪（视频阶段不可用时降级） */
+  /** 视频链路是否就绪（V1 起为直连百炼，不再依赖本地后端） */
+  videoReady?: boolean
+  /** @deprecated 旧名（Pixelle 时代）；仅为兼容旧调用保留，优先读 videoReady */
   pixelleReady?: boolean
 }
 
@@ -46,11 +48,11 @@ export function classify(prompt: string, ctx: RouteContext = {}): RoutingCapsule
   // 视频流程：先判断素材条件，条件不足就问用户，不猜
   if (strong > 0 || v2v > 0 || d2v > 0) {
     // 只有显式 false（已知不可用）才降级；未传（未知）按可用处理，执行前闸门再兜
-    if (ctx.pixelleReady === false) {
+    if ((ctx.videoReady ?? ctx.pixelleReady) === false) {
       return {
         route_kind: 'workflow',
         workflow_id: 'single-image',
-        reason: '视频链路当前不可用（Pixelle 未就绪），先按出图流程走，可在看板上修复后重开'
+        reason: '视频链路当前不可用（未配置百炼视频凭证），先按出图流程走，修复后重开即可'
       }
     }
     if (v2v > 0 && ctx.hasImage) {

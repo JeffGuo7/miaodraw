@@ -32,7 +32,9 @@ import { initLogger, log } from './logger'
 import { checkUpdate, downloadUpdate, installUpdate, cancelUpdateDownload } from './updater'
 import { localCaption, prefetchCaptionModel, captionModelId, type CaptionProgress } from './localCaption'
 import { registerCanvasAssetHandlers } from './canvasAssets'
-import { registerPixelleHandlers, pixelleOutputDir, stopPixelleBackend } from './pixelle'
+import { generateVideoJob } from './bailianVideo'
+import { estimateVideoCost, normalizeVideoSpec, type VideoSpecInput } from './video-protocol'
+
 import { registerOrchestratorHandlers } from './orchestrator'
 import { auditPlannedPrompt, buildImagePrompt } from './prompt-guards'
 
@@ -41,6 +43,8 @@ const APP_ROOT = app.getAppPath()
 const isPackaged = app.isPackaged
 const LIB_ROOT = libraryRoot(isPackaged, APP_ROOT, process.resourcesPath)
 const OUT_DIR = isPackaged ? path.join(app.getPath('userData'), 'outputs') : path.join(APP_ROOT, 'outputs')
+/** 视频产物目录（V1 直连百炼出片；与 outputs 图片分开，避免历史记录扫描混入大文件） */
+const VIDEO_DIR = isPackaged ? path.join(app.getPath('userData'), 'videos') : path.join(APP_ROOT, 'videos')
 const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json')
 /** 素材留档允许的扩展名（refs:read 白名单，防路径构造） */
 const REF_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'])
@@ -65,6 +69,7 @@ protocol.registerSchemesAsPrivileged([
 
 function resolveMediaHost(bucket: string): string | null {
   if (bucket === 'out') return OUT_DIR
+  if (bucket === 'vid') return VIDEO_DIR
   if (bucket === 'lib-a') return path.join(LIB_ROOT, 'libA', 'images')
   if (bucket === 'lib-b') return path.join(LIB_ROOT, 'libB', 'data', 'images')
   return null
@@ -427,12 +432,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         .capturePage()
         .then((img) => fs.writeFileSync(process.env.SHOT_PATH || path.join(APP_ROOT, 'screenshot-client.png'), img.toPNG()))
         .catch(() => undefined)
-        // app.exit 不会触发 before-quit：这里必须手动收掉 Pixelle 后端子进程树，否则残留 python 占住管道
-        .finally(() => {
-          void stopPixelleBackend()
-            .catch(() => undefined)
-            .finally(() => app.exit(1))
-        })
+        .finally(() => app.exit(1))
     },
     watchdogMs
   )
@@ -736,7 +736,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     check('canvas-gen', r)
   }
   if (process.env.SHOT_CANVAS_VIDEO === '1') {
-    // 画布视频节点端到端自测：新建视频节点 → 填文案 → 生成成片 → 等视频卡（需 Pixelle 后端，耗时数分钟）
+    // V1 真实出片（付费 ≤¥2）：视频节点 → 默认 2 秒/720P → 成本确认卡 → 确认 → 等成片 → assets+血统边
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
@@ -746,27 +746,91 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         btn.click()
         await sleep(700)
         const ta = document.querySelector('.ivc-gen-prompt')
-        if (!ta) return 'ERR: 视频节点无文案输入框'
+        if (!ta) return 'ERR: 视频节点无提示词输入框'
         const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-        setter.call(ta, '秋日午后，一只戴贝雷帽的柴犬坐在窗边看落叶')
+        setter.call(ta, '秋天午后，一只戴贝雷帽的柴犬坐在窗边看窗外落叶缓缓飘落，暖色调，电影感')
         ta.dispatchEvent(new Event('input', { bubbles: true }))
         await sleep(300)
-        const run = [...document.querySelectorAll('.ivc-gen button')].find(b => b.textContent.includes('生成成片'))
+        const cost = document.querySelector('.ivc-video-cost')?.getAttribute('data-video-cost')
+        const run = document.querySelector('[data-video-run="true"]')
         if (!run) return 'ERR: 无生成成片按钮'
         run.click()
+        // 成本确认卡：必须出现，且金额与节点显示一致
+        let modal = null
+        for (let i = 0; i < 30; i++) { await sleep(200); modal = document.querySelector('.ant-modal-confirm'); if (modal) break }
+        if (!modal) return 'ERR: 未出现成本确认卡'
+        const modalText = modal.textContent || ''
+        if (!modalText.includes('预估费用') || !modalText.includes(String(cost))) return 'ERR: 确认卡金额不符 ' + modalText.slice(0, 120)
         const t0 = Date.now()
-        while (Date.now() - t0 < 360000) {
+        modal.querySelector('.ant-btn-primary')?.click()
+        while (Date.now() - t0 < 600000) {
           await sleep(5000)
           const vid = document.querySelectorAll('video.ivc-video').length
-          if (vid > 0) return 'OK:canvas_videos=' + vid + ' in ' + Math.round((Date.now() - t0) / 1000) + 's'
+          if (vid > 0) {
+            // 入库断言：assets 行 + 血统边（operation=bailian-video）
+            const db = await new Promise((res, rej) => { const rq = indexedDB.open('miaodraw-canvas'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+            const all = (store) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const rq = tx.objectStore(store).getAll(); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
+            const vids = (await all('assets')).filter(a => String(a.path || '').startsWith('videos/'))
+            const last = vids[vids.length - 1]
+            const deps = (await all('asset_dependencies')).filter(d => d.child_id === (last?.id || '') && d.operation === 'bailian-video')
+            const meta = last ? JSON.parse(last.metadata || '{}') : {}
+            const ok = vids.length >= 1 && !!last && last.size > 0 && deps.length >= 1 && meta.source === 'bailian-video' && meta.duration_sec === 2
+            return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ videos: vids.length, file: last?.path, size: last?.size, duration_ms: last?.duration_ms, deps: deps.length, source: meta.source, model: meta.model, estimatedCny: meta.estimated_cny, seconds: Math.round((Date.now() - t0) / 1000) })
+          }
           const err = document.querySelector('.ivc-gen-error')
           if (err) return 'ERR: ' + err.textContent.slice(0, 200)
         }
-        return 'ERR: 360s 超时未出片'
+        return 'ERR: 600s 超时未出片'
       })().catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] canvas-video:', r)
     check('canvas-video', r)
+  }
+  if (process.env.SHOT_VIDEO_GUARD === '1') {
+    // V1 成本护栏（零付费）：预估价显示 / 不确认不提交 / 硬上限 fail-closed
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const btn = byText('视频')
+        if (!btn) return 'ERR: 工具条无视频按钮'
+        btn.click()
+        await sleep(700)
+        const ta = document.querySelector('.ivc-gen-prompt')
+        if (!ta) return 'ERR: 视频节点无提示词输入框'
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        setter.call(ta, '成本护栏自测（不会真的提交任务）')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        await sleep(200)
+        const costEl = document.querySelector('.ivc-video-cost')
+        const cost = costEl?.getAttribute('data-video-cost') ?? ''
+        const costText = (costEl?.textContent || '').slice(0, 60)
+        // ① 点生成 → 必须先出确认卡（金额一致），不确认不得提交
+        const run = document.querySelector('[data-video-run="true"]')
+        if (!run) return 'ERR: 无生成按钮'
+        run.click()
+        let modal = null
+        for (let i = 0; i < 20; i++) { await sleep(150); modal = document.querySelector('.ant-modal-confirm'); if (modal) break }
+        const modalText = modal ? modal.textContent || '' : ''
+        const confirmShown = !!modal && modalText.includes('预估费用') && modalText.includes(String(cost))
+        // ② 取消 → 无提交痕迹（无视频卡、无进度文案、无错误）
+        modal?.querySelector('.ant-btn-default')?.click()
+        await sleep(800)
+        const videoCards = document.querySelectorAll('video.ivc-video').length
+        const genText = document.querySelector('.ivc-gen')?.textContent || ''
+        const submitted = /提交中|排队中|生成中/.test(genText) || !!document.querySelector('.ivc-gen-error')
+        const noSubmit = videoCards === 0 && submitted === false
+        // ③ 硬上限 fail-closed：主进程预估价超限直接拒（零付费，不会走到提交）
+        let capError = ''
+        try { await window.api.videoGenerate({ spec: { prompt: '硬上限自测', duration: 10, resolution: '1080P' } }) }
+        catch (e) { capError = (e && e.message) || String(e) }
+        const capBlocked = capError.includes('上限')
+        const ok = cost === '1.20' && confirmShown && noSubmit && capBlocked
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ cost, costText, confirmShown, noSubmit, videoCards, submitted, capError: capError.slice(0, 120), capBlocked })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] video-guard:', r)
+    check('video-guard', r)
   }
   if (process.env.SHOT_CANVAS_I2I === '1') {
     // i2i 连线 + 血统边自测：出图 → 连线参考图 → 再出图（约 2 张图成本）
@@ -1102,7 +1166,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { videoReady: true } })
         const planId = created.planId
         let snap = null
         for (let i = 0; i < 30; i++) { await sleep(150); snap = await window.api.planAuthored(planId); if (snap?.stages?.length) break }
@@ -1124,7 +1188,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         const autoGates = autoEvents2.filter(e => String(e.event).includes('confirm_')).length
 
         // blocked：新计划 → 开启自动 → 把阶段置 blocked → 驱动一次 → 应自动转手动
-        const created2 = await window.api.planCreate({ prompt: '再来一条短视频', canvasContext: { pixelleReady: true } })
+        const created2 = await window.api.planCreate({ prompt: '再来一条短视频', canvasContext: { videoReady: true } })
         const pid2 = created2.planId
         let s2 = null
         for (let i = 0; i < 30; i++) { await sleep(150); const x = await window.api.planAuthored(pid2); s2 = x.stages?.[0] ?? null; if (s2) break }
@@ -1385,7 +1449,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { pixelleReady: true } })
+        const created = await window.api.planCreate({ prompt: '做一条带货短视频，要有分镜和口播', canvasContext: { videoReady: true } })
         if (created.kind !== 'plan') return 'ERR: 未建成计划'
         const planId = created.planId
         let snap = null
@@ -1482,7 +1546,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         await sleep(1200)
         const created = await window.api.planCreate({
           prompt: '帮我做一条带货短视频，要有分镜和口播',
-          canvasContext: { pixelleReady: true }
+          canvasContext: { videoReady: true }
         })
         if (created.kind !== 'plan') return 'ERR: 未建成计划 ' + JSON.stringify(created)
         const immediateDrafting = created.status === 'drafting'
@@ -1718,8 +1782,6 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     shotErrors++
   }
   // 有断言失败则以非零退出，让 CI / smoke 脚本能感知
-  // 注意：app.exit 不触发 before-quit，需先手动收掉 Pixelle 后端子进程树
-  await stopPixelleBackend().catch(() => undefined)
   app.exit(shotErrors > 0 ? 1 : 0)
 }
 
@@ -1745,15 +1807,36 @@ async function archiveRefs(refs: RefImage[]): Promise<Array<{ order: number; rol
 }
 
 function registerIpc(): void {
-  // ---------- 画布资产（M1 数据层：outputs/refs 只读取样，供 assets 索引） ----------
+  // ---------- 画布资产（M1 数据层：outputs/refs/videos 只读取样，供 assets 索引） ----------
   registerCanvasAssetHandlers(handle, {
     outputsPath: () => OUT_DIR,
     userDataPath: () => app.getPath('userData'),
-    pixelleOutputPath: () => pixelleOutputDir()
+    videosPath: () => VIDEO_DIR,
+    // 历史遗留：早期 pixelle/ 资产仍要能读（只读路径，不再 spawn 任何后端）
+    pixelleOutputPath: () => process.env.PIXELLE_OUTPUT_DIR || path.join('D:\\project\\Pixelle-Video', 'output')
   })
 
-  // ---------- Pixelle 视频生产后端（M3：起停管理 + REST 代理） ----------
-  registerPixelleHandlers(handle)
+  // ---------- 视频生成（V1：直连百炼，异步任务 + 进度回推，零 Pixelle 依赖） ----------
+  handle('video:generate', async (_e, raw: { spec?: VideoSpecInput; runId?: string }) => {
+    const spec = normalizeVideoSpec(raw?.spec ?? {})
+    if (!spec.prompt) throw new Error('提示词不能为空')
+    // 成本硬上限（fail-closed）：超过就直接拒绝，不给「再点一次就过」的机会
+    const cost = estimateVideoCost(spec)
+    if (cost.overCap) throw new Error(`预估价 ¥${cost.cny.toFixed(2)} 超过单次上限 ¥6.00，请先降到更短时长/更低分辨率`)
+    const key = bailianApiKey()
+    if (!key) throw new Error('未配置百炼 API Key，请到「设置 → 模型服务」粘贴密钥并保存')
+    const result = await generateVideoJob({
+      spec,
+      origin: bailianOrigin(),
+      apiKey: key,
+      outDir: VIDEO_DIR,
+      onProgress: (p) => {
+        if (win && !win.isDestroyed()) win.webContents.send('video-progress', { runId: raw?.runId, ...p })
+      }
+    })
+    log('info', `video done file=${result.file} size=${result.sizeBytes} model=${result.model} ${result.durationSec}s in ${result.elapsed}ms est=¥${result.estimatedCny}`)
+    return result
+  })
 
   // ---------- 编排（O1：计划/阶段 IPC + plan:changed 事件） ----------
   registerOrchestratorHandlers(handle, (channel, payload) => {

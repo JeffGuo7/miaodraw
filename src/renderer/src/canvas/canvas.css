@@ -626,3 +626,17 @@
   justify-content: space-between;
   gap: 8px;
 }
+
+/* ── V1：视频节点档位 + 预估价 ── */
+.ivc-video-opts {
+  display: flex;
+  gap: 4px;
+}
+
+.ivc-video-cost {
+  font-size: 11px;
+  color: #d46b08;
+  background: #fff7e6;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
