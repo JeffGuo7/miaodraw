@@ -15,7 +15,7 @@
                     "test:orchestrator":  "node --test src/main/orchestrator/state.test.mjs src/main/orchestrator/registry.test.mjs",
                     "test:prompt":  "node --test src/main/prompt-guards.test.mjs",
                     "test:video":  "node --test src/main/video-protocol.test.mjs src/main/video/jobs.test.mjs src/main/video/cost.test.mjs src/main/video/pipeline.test.mjs",
-                    "test:cost":  "node --test src/main/image-cost.test.mjs src/main/persist-image.test.mjs",
+                    "test:cost":  "node --test src/main/image-cost.test.mjs src/main/persist-image.test.mjs src/main/net-guard.test.mjs",
                     "test":  "npm run test:canvas \u0026\u0026 npm run test:orchestrator \u0026\u0026 npm run test:prompt \u0026\u0026 npm run test:video \u0026\u0026 npm run test:cost",
                     "start":  "electron-vite preview",
                     "dev":  "electron-vite dev",

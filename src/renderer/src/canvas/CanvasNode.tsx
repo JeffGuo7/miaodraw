@@ -4,7 +4,7 @@
  * 原组件为 canvas-node.tsx（体量大、耦合生成/存储服务），M0 先落节点壳：
  * 六类内建节点 + 选中/拖拽/缩放，内容渲染在 M2/M3 逐类接能力。
  */
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 import { Button, Input, Progress, Select, message } from 'antd'
 import { PlayCircleOutlined } from '@ant-design/icons'
@@ -22,13 +22,12 @@ import PlanCard from './PlanCard'
 interface CanvasNodeProps {
   node: CanvasNodeData
   selected: boolean
-  scale: number
 }
 
 const MIN_W = 120
 const MIN_H = 60
 
-export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Element {
+function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
   // 渲染打点（C1 验收：对话滚动/收发时画布节点渲染增量必须为 0）
   if (typeof window !== 'undefined') {
     const w = window as unknown as { __canvasNodeRenders?: number }
@@ -43,7 +42,7 @@ export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Elem
     canvasStore.select(node.id)
     const origin = { x: node.x, y: node.y }
     const start = { x: e.clientX, y: e.clientY }
-    const k = scale > 0 ? scale : 1
+    const k = canvasStore.getState().viewport.k || 1
     let next = { x: node.x, y: node.y }
     let frame: number | null = null
 
@@ -78,7 +77,7 @@ export function CanvasNode({ node, selected, scale }: CanvasNodeProps): JSX.Elem
     canvasStore.select(node.id)
     const origin = { w: node.width, h: node.height }
     const start = { x: e.clientX, y: e.clientY }
-    const k = scale > 0 ? scale : 1
+    const k = canvasStore.getState().viewport.k || 1
     let next = { w: node.width, h: node.height }
     let frame: number | null = null
 
@@ -374,3 +373,10 @@ function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
     </div>
   )
 }
+
+/**
+ * 节点级 memo：拖动/选中只重渲染受影响的节点。
+ * 判定用节点对象引用——store 的 updateNode/applyNodeMove 只替换被改的那个节点对象，
+ * 其余节点引用不变，因此可以跳过渲染（此前拖动一个节点会重建整张画布的所有节点）。
+ */
+export const CanvasNode = memo(CanvasNodeView)

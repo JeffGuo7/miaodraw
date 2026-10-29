@@ -6,9 +6,6 @@
  * padding 与 handleRadius 均除以 scale，保证缩放后屏幕命中面积不变）。
  */
 
-/** 画布级 SVG 的坐标偏移：SVG 本体定位在 (-OFF, -OFF)，世界坐标需 +OFF 才能落在视口内 */
-export const CANVAS_SVG_OFFSET = 100000
-
 export interface HitTestNode {
   id: string
   x: number

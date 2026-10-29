@@ -14,7 +14,7 @@ import type { PlanConflict, PlanEvent, PlanRecord, ReplanOp, RouteKind, RoutingC
 
 import { authorStage as authorStageContent, buildPlan, patchStage as patchStageContent } from './planner.ts'
 import { classify, getWorkflow, type RouteContext } from './router.ts'
-import { applyAction, derivePlanStatus, nextStageToAuthor, type StageAction } from './state.ts'
+import { applyAction, assertNoPlaceholders, derivePlanStatus, nextStageToAuthor, type StageAction } from './state.ts'
 
 export interface PlanSnapshot {
   plan: PlanRecord
@@ -45,6 +45,9 @@ export type ReplanResult =
   | { ok: false; tier: 'replan'; conflict: PlanConflict }
   | { ok: false; tier: 'replan'; error: string }
 
+/** 主进程内存里最多保留的审计事件（渲染层 IndexedDB 存全量，这里只用于回溯最近的操作） */
+const MAX_IN_MEMORY_EVENTS = 2000
+
 /** 幂等结果缓存（进程内；渲染层另有 plan_events 持久审计） */
 interface CachedReplan {
   payloadHash: string
@@ -56,6 +59,8 @@ export class PlanRegistry {
   private stages = new Map<string, StageRecord[]>()
   private replays = new Map<string, CachedReplan>()
   private events: PlanEvent[] = []
+  /** 审计事件自增序号（与 events 数组长度解耦——数组会按上限裁剪，id 必须单调） */
+  private eventSeq = 0
   private driving = false
   private onChange?: (snapshot: PlanSnapshot) => void
   private onEvent?: (event: PlanEvent) => void
@@ -112,7 +117,15 @@ export class PlanRegistry {
       }
       const orders = new Set(stages.map((s) => s.order))
       const outlineOrders = new Set(plan.stage_outline.map((o) => o.order))
-      const selfConsistent = orders.size === stages.length && stages.every((s) => outlineOrders.has(s.order))
+      let selfConsistent = orders.size === stages.length && stages.every((s) => outlineOrders.has(s.order))
+      if (selfConsistent) {
+        // 复用状态机的不变式：禁止「pending 但已物化」的占位卡
+        try {
+          assertNoPlaceholders(plan, stages)
+        } catch {
+          selfConsistent = false
+        }
+      }
       if (!selfConsistent) {
         skipped++
         continue
@@ -283,7 +296,14 @@ export class PlanRegistry {
     // ── 在局部副本上执行，全部成功才提交（原子性） ──
     const stages = snap.stages.map((s) => ({ ...s }))
     let outline: StageOutlineEntry[] = snap.plan.stage_outline.map((o) => ({ ...o }))
-    const frozenThroughOrder = this.orderOf(stages, outline, req.preserveThroughStageId)
+    // 冻结前缀的 stageId 必须存在：orderOf 未知时若静默返回 0，等于「不冻结任何阶段」，
+    // 会把「改已完成阶段」的请求放行——这是 fail-open，必须显式拒绝。
+    let frozenThroughOrder: number
+    try {
+      frozenThroughOrder = this.orderOf(stages, outline, req.preserveThroughStageId)
+    } catch (e) {
+      return { ok: false, tier: 'replan', error: e instanceof Error ? e.message : String(e) }
+    }
     const frozenIds = new Set(stages.filter((s) => s.order <= frozenThroughOrder).map((s) => s.id))
 
     try {
@@ -455,8 +475,11 @@ export class PlanRegistry {
   }
 
   private record(event: PlanEvent): void {
-    const withId: PlanEvent = { ...event, id: this.events.length + 1 }
+    this.eventSeq += 1
+    const withId: PlanEvent = { ...event, id: this.eventSeq }
     this.events.push(withId)
+    // 主进程常驻内存：审计事件按上限裁剪（渲染层另有 IndexedDB append-only 全量留档）
+    if (this.events.length > MAX_IN_MEMORY_EVENTS) this.events.splice(0, this.events.length - MAX_IN_MEMORY_EVENTS)
     this.onEvent?.(withId)
   }
 
@@ -464,7 +487,9 @@ export class PlanRegistry {
     if (!stageId) return 0
     const fromStage = stages.find((s) => s.id === stageId)?.order
     const fromOutline = outline.find((o) => o.id === stageId)?.order
-    return fromStage ?? fromOutline ?? 0
+    const order = fromStage ?? fromOutline
+    if (order === undefined) throw new Error(`冻结前缀阶段不存在：${stageId}`)
+    return order
   }
 
   private nextFreeOrder(stages: StageRecord[], outline: StageOutlineEntry[]): number {

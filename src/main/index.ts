@@ -175,7 +175,12 @@ function readSettings(): Settings {
 function writeSettings(patch: Settings): Settings {
   const next = { ...readSettings(), ...patch }
   fs.mkdirSync(path.dirname(SETTINGS_FILE()), { recursive: true })
-  fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(next, null, 2))
+  // 原子写：先写临时文件再 rename。直接覆盖时若进程在写一半被杀，
+  // 下次 readSettings 解析失败会返回 {}，用户全部配置（含密钥）被清空。
+  const target = SETTINGS_FILE()
+  const tmp = `${target}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2))
+  fs.renameSync(tmp, target)
   return next
 }
 /**

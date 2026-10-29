@@ -1,11 +1,15 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { makeImageFileName, sniffImageExt } from './image-file'
+import { checkRemoteUrl } from './net-guard'
 
 /** 内置供应商的默认 API 地址；自定义供应商必须自带 baseUrl */
 export const PROVIDER_BASE_URLS: Record<string, string> = {
   siliconflow: 'https://api.siliconflow.cn/v1',
   openai: 'https://api.openai.com/v1'
 }
+
+let providerSeq = 0
 
 export interface HttpGenOpts {
   /** 供应商 ID：内置 'siliconflow' | 'openai'，或任意自定义 OpenAI 兼容供应商 */
@@ -78,13 +82,19 @@ export async function httpGenerate(o: HttpGenOpts): Promise<HttpGenResult> {
     if (!url) throw new Error('服务商未返回图片')
   }
 
-  const file = `image_${t0}.png`
-  if (b64) {
-    await fsp.writeFile(path.join(o.outputsDir, file), Buffer.from(b64, 'base64'))
-  } else {
-    const resp = await fetch(url!)
-    if (!resp.ok) throw new Error(`下载图片失败：HTTP ${resp.status}`)
-    await fsp.writeFile(path.join(o.outputsDir, file), Buffer.from(await resp.arrayBuffer()))
-  }
+  // 下载供应商返回的图片前先做地址安全校验（第三方域名不可穷举，只校验公网 + https）
+  const buffer = b64
+    ? Buffer.from(b64, 'base64')
+    : await (async () => {
+        const guard = checkRemoteUrl(url!)
+        if (!guard.ok) throw new Error(`拒绝下载不安全的图片地址（${guard.reason}）`)
+        const resp = await fetch(url!)
+        if (!resp.ok) throw new Error(`下载图片失败：HTTP ${resp.status}`)
+        return Buffer.from(await resp.arrayBuffer())
+      })()
+  // 与 persistImage 同规则：时间戳+自增序号、扩展名按字节头（避免同毫秒覆盖与假 png）
+  providerSeq += 1
+  const file = makeImageFileName(t0, providerSeq, sniffImageExt(buffer))
+  await fsp.writeFile(path.join(o.outputsDir, file), buffer)
   return { file, seed }
 }

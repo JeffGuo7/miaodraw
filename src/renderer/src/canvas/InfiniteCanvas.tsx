@@ -9,7 +9,7 @@ import type { JSX } from 'react'
 
 import type { ViewportTransform } from './types'
 import { canvasStore } from './store'
-import { attachCanvasRect } from './rect-cache'
+import { attachCanvasRect, getCanvasRect } from './rect-cache'
 
 export type CanvasTool = 'select' | 'pan'
 
@@ -106,16 +106,19 @@ export function InfiniteCanvas({
     const el = e.target instanceof Element ? e.target : null
     if (el?.closest('.ivc-no-zoom')) return
 
-    const delta = -e.deltaY
-    const factor = Math.pow(1.1, delta / 100)
-    const newScale = Math.min(Math.max(viewport.k * factor, MIN_SCALE), MAX_SCALE)
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return
+    // 必须读 store 里的最新视口：props 的 viewport 在同一帧内可能已过期，
+    // 连续滚轮会用旧 k 反复覆盖，表现为「触控板快滚缩放变慢/回弹」。
+    const vp = canvasStore.getState().viewport
+    const factor = Math.pow(1.1, -e.deltaY / 100)
+    const newScale = Math.min(Math.max(vp.k * factor, MIN_SCALE), MAX_SCALE)
+    if (newScale === vp.k) return
+    // 容器 rect 由 rect-cache 维护（ResizeObserver + scroll），热路径不再强制读布局
+    const rect = getCanvasRect()
 
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
-    const worldX = (mouseX - viewport.x) / viewport.k
-    const worldY = (mouseY - viewport.y) / viewport.k
+    const worldX = (mouseX - vp.x) / vp.k
+    const worldY = (mouseY - vp.y) / vp.k
 
     onViewportChange({ x: mouseX - worldX * newScale, y: mouseY - worldY * newScale, k: newScale })
   }

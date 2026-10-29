@@ -3,7 +3,7 @@
  * 引擎/节点移植自 basketikun/infinite-canvas（MIT），见各文件头署名。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { JSX } from 'react'
+import type { JSX, RefObject } from 'react'
 import { Button, Progress, Tooltip } from 'antd'
 import {
   BgColorsOutlined,
@@ -22,8 +22,8 @@ import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
-import { CANVAS_SVG_OFFSET } from './connection-hit'
 import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
+import { getCanvasRect } from './rect-cache'
 import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
@@ -240,7 +240,7 @@ export default function CanvasWorkbench(): JSX.Element {
       >
         <ConnectionLayer />
         {state.nodes.map((n) => (
-          <CanvasNode key={n.id} node={n} selected={state.selectedIds.includes(n.id)} scale={state.viewport.k} />
+          <CanvasNode key={n.id} node={n} selected={state.selectedIds.includes(n.id)} />
         ))}
       </InfiniteCanvas>
 
@@ -309,7 +309,7 @@ export default function CanvasWorkbench(): JSX.Element {
         </div>
       )}
 
-      <MiniMap />
+      <MiniMap containerRef={containerRef} />
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
@@ -319,7 +319,7 @@ export default function CanvasWorkbench(): JSX.Element {
 }
 
 /** 小地图：节点包围盒 + 视口框，点击跳转 */
-function MiniMap(): JSX.Element {
+function MiniMap({ containerRef }: { containerRef: RefObject<HTMLDivElement | null> }): JSX.Element {
   const state = useCanvasState()
   const W = 168
   const H = 112
@@ -340,8 +340,8 @@ function MiniMap(): JSX.Element {
     maxX = Math.max(maxX, n.x + n.width)
     maxY = Math.max(maxY, n.y + n.height)
   }
-  // 视口也算进包围盒
-  const el = document.querySelector<HTMLElement>('.ivc-root')
+  // 视口也算进包围盒（用传入的容器 ref，避免每次渲染都 document.querySelector）
+  const el = containerRef.current
   if (el) {
     const vp = state.viewport
     minX = Math.min(minX, -vp.x / vp.k)
@@ -393,14 +393,24 @@ function MiniMap(): JSX.Element {
   )
 }
 
-/** 连线层：世界坐标系内一个大画布 SVG，节点间画贝塞尔线 + pending 橡皮筋（P0-4） */
+/**
+ * 连线层：只覆盖「当前可见世界区域」的 SVG，取代原先 200000x200000 的超大世界 layer。
+ *
+ * 坐标空间：本层渲染在 .ivc-world 内部（父级已施加 translate+scale），因此这里一律用世界坐标。
+ * 通过把 SVG 定位到当前视口对应的世界矩形、并用 <g> 平移回原点，避免 SVG 布局盒随缩放爆炸。
+ */
 function ConnectionLayer(): JSX.Element {
-  const { nodes, connections } = useCanvasState()
+  const { nodes, connections, viewport } = useCanvasState()
   const [pendingActive, setPendingActive] = useState(() => Boolean(getPending()))
   const pathRef = useRef<SVGPathElement | null>(null)
   const dotRef = useRef<SVGCircleElement | null>(null)
   const byId = new Map(nodes.map((n) => [n.id, n]))
-  const OFF = CANVAS_SVG_OFFSET
+  const k = viewport.k > 0 ? viewport.k : 1
+  const rect = getCanvasRect()
+  const viewW = (rect.width || 1920) / k
+  const viewH = (rect.height || 1080) / k
+  const worldLeft = -viewport.x / k
+  const worldTop = -viewport.y / k
 
   // pending 状态只在 begin/end 时通知（拖动过程直接改 DOM 属性，不触发重渲染）
   useEffect(() => subscribePending(() => setPendingActive(Boolean(getPending()))), [])
@@ -412,30 +422,41 @@ function ConnectionLayer(): JSX.Element {
 
   return (
     <svg
-      style={{ position: 'absolute', left: -OFF, top: -OFF, width: OFF * 2, height: OFF * 2, pointerEvents: 'none', overflow: 'visible' }}
+      className="ivc-connections"
+      style={{
+        position: 'absolute',
+        left: worldLeft,
+        top: worldTop,
+        width: viewW,
+        height: viewH,
+        pointerEvents: 'none',
+        overflow: 'visible'
+      }}
     >
-      {connections.map((c) => {
-        const a = byId.get(c.from)
-        const b = byId.get(c.to)
-        if (!a || !b) return null
-        const mx = (a.x + a.width + b.x) / 2
-        return (
-          <path
-            key={c.id}
-            d={`M ${a.x + a.width + OFF} ${a.y + a.height / 2 + OFF} C ${mx + OFF} ${a.y + a.height / 2 + OFF}, ${mx + OFF} ${b.y + b.height / 2 + OFF}, ${b.x + OFF} ${b.y + b.height / 2 + OFF}`}
-            stroke="#4096ff"
-            strokeWidth={2}
-            fill="none"
-            opacity={0.7}
-          />
-        )
-      })}
-      {pendingActive && (
-        <>
-          <path ref={pathRef} data-pending-line="1" stroke="#4096ff" strokeWidth={2} strokeDasharray="6 4" fill="none" opacity={0.9} />
-          <circle ref={dotRef} data-pending-dot="1" r={4} fill="#4096ff" opacity={0.9} />
-        </>
-      )}
+      <g transform={`translate(${-worldLeft} ${-worldTop})`}>
+        {connections.map((c) => {
+          const a = byId.get(c.from)
+          const b = byId.get(c.to)
+          if (!a || !b) return null
+          const mx = (a.x + a.width + b.x) / 2
+          return (
+            <path
+              key={c.id}
+              d={`M ${a.x + a.width} ${a.y + a.height / 2} C ${mx} ${a.y + a.height / 2}, ${mx} ${b.y + b.height / 2}, ${b.x} ${b.y + b.height / 2}`}
+              stroke="#4096ff"
+              strokeWidth={2 / k}
+              fill="none"
+              opacity={0.7}
+            />
+          )
+        })}
+        {pendingActive && (
+          <>
+            <path ref={pathRef} data-pending-line="1" stroke="#4096ff" strokeWidth={2 / k} strokeDasharray="6 4" fill="none" opacity={0.9} />
+            <circle ref={dotRef} data-pending-dot="1" r={4 / k} fill="#4096ff" opacity={0.9} />
+          </>
+        )}
+      </g>
     </svg>
   )
 }

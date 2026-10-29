@@ -3,6 +3,7 @@ import path from 'node:path'
 import { log } from './logger'
 import { vendorCardFor } from './prompt-guards'
 import { makeImageFileName, sniffImageExt } from './image-file'
+import { checkRemoteUrl } from './net-guard'
 
 /**
  * HTTP 直连层（Cherry Studio 式架构：API Key + Base URL + 模型，纯 HTTP，无外部进程依赖）。
@@ -13,6 +14,15 @@ import { makeImageFileName, sniffImageExt } from './image-file'
  * 2. DashScope 原生（/api/v1/services/aigc/multimodal-generation/generation）：
  *    百炼生图/改图，同步一次请求直接返回图片 URL（wan2.7-image 系列）。
  */
+
+/** 下载模型/供应商返回的图片前的安全校验：只允许 https 公网地址（阿里云产物域允许 http） */
+function assertSafeImageUrl(raw: string): void {
+  const guard = checkRemoteUrl(raw, { allowHttpAliyun: true })
+  if (!guard.ok) {
+    log('warn', `reject unsafe image url: ${guard.reason}`)
+    throw new Error(`拒绝下载不安全的图片地址（${guard.reason}）`)
+  }
+}
 
 export const DASHSCOPE_ORIGIN = 'https://dashscope.aliyuncs.com'
 
@@ -341,6 +351,7 @@ export async function httpBailianImage(o: HttpImageOpts): Promise<HttpImageResul
     o.onProgress?.('save', imageUrls.length > 1 ? `下载 ${imageUrls.length} 张结果` : '下载生成结果')
     const buffers: Buffer[] = []
     for (const u of imageUrls) {
+      assertSafeImageUrl(u)
       const resp = await fetch(u)
       if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
       buffers.push(Buffer.from(await resp.arrayBuffer()))
@@ -413,6 +424,7 @@ export async function httpOpenAIImages(o: HttpOpenAIImageOpts): Promise<HttpImag
         remoteUrls.push(item.url ?? '')
       } else if (item.url) {
         o.onProgress?.('save', data.length > 1 ? `下载 ${data.length} 张结果` : '下载生成结果')
+        assertSafeImageUrl(item.url)
         const resp = await fetch(item.url)
         if (!resp.ok) throw new Error(`下载生成结果失败：HTTP ${resp.status}`)
         buffers.push(Buffer.from(await resp.arrayBuffer()))
@@ -515,6 +527,7 @@ async function dashEditTask(o: DashEditOpts): Promise<HttpImageResult> {
         o.onProgress?.('save', '下载编辑结果')
         const buffers: Buffer[] = []
         for (const u of urls) {
+          assertSafeImageUrl(u)
           const resp = await fetch(u)
           if (!resp.ok) throw new Error(`下载结果失败：HTTP ${resp.status}`)
           buffers.push(Buffer.from(await resp.arrayBuffer()))
