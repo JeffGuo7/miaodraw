@@ -226,6 +226,27 @@ export default function CanvasWorkbench(): JSX.Element {
         redo()
         return
       }
+      // 复制 / 粘贴 / 复制副本（多选时整组带上内部连线）
+      if (mod && e.key.toLowerCase() === 'c') {
+        e.preventDefault()
+        canvasStore.copySelection()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'v') {
+        e.preventDefault()
+        canvasStore.paste()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'd') {
+        e.preventDefault()
+        canvasStore.duplicateSelection()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        canvasStore.setSelection(canvasStore.getState().nodeIds)
+        return
+      }
       const st = canvasStore.getState()
       const selectedNodes = st.selectedIds
       const selectedConn = st.selectedConnectionId

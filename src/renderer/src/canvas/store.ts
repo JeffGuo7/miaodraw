@@ -41,6 +41,9 @@ let state: CanvasState = {
 
 export type CanvasKey = 'nodes' | 'viewport' | 'selection' | 'connections'
 
+/** 进程内剪贴板（Ctrl+C/V 用；系统剪贴板与跨窗口不在本期范围） */
+let clipboard: { nodes: CanvasNodeData[]; connections: CanvasConnection[] } | null = null
+
 const listeners = new Set<(key: CanvasKey) => void>()
 const nodeListeners = new Map<string, Set<() => void>>()
 const geometryListeners = new Set<() => void>()
@@ -232,6 +235,66 @@ export const canvasStore = {
     state = { ...state, nodes, geometryVersion: state.geometryVersion + 1 }
     for (const o of origins) emitNode(o.id)
     emitGeometry()
+  },
+
+  /**
+   * 复制选中节点（含选中节点之间的内部连线）。
+   * 计划卡不参与复制：同一 plan 只能有一张卡，复制出来会变成两张卡指向同一个 plan。
+   */
+  copySelection(): number {
+    const ids = new Set(state.selectedIds)
+    const nodes = state.nodes.filter((n) => ids.has(n.id) && n.type !== 'plan')
+    if (!nodes.length) return 0
+    const nodeIds = new Set(nodes.map((n) => n.id))
+    clipboard = {
+      nodes: nodes.map((n) => ({ ...n, metadata: { ...n.metadata } })),
+      connections: state.connections.filter((c) => nodeIds.has(c.from) && nodeIds.has(c.to)).map((c) => ({ ...c }))
+    }
+    return nodes.length
+  },
+
+  canPaste(): boolean {
+    return Boolean(clipboard?.nodes.length)
+  },
+
+  /** 粘贴：新 id、整体偏移、保留内部连线，并选中新节点（一次操作 = 一条 undo） */
+  paste(offset = 24): string[] {
+    const src = clipboard
+    if (!src?.nodes.length) return []
+    const zBase = state.zCounter
+    const idMap = new Map<string, string>()
+    const stamp = Date.now().toString(36)
+    const newNodes = src.nodes.map((n, i) => {
+      const id = `n${stamp}${Math.random().toString(36).slice(2, 6)}${i}`
+      idMap.set(n.id, id)
+      return { ...n, id, x: n.x + offset, y: n.y + offset, zIndex: zBase + i + 1, metadata: { ...n.metadata } }
+    })
+    const newConns = src.connections.map((c, i) => ({
+      id: `c${stamp}${Math.random().toString(36).slice(2, 6)}${i}`,
+      from: idMap.get(c.from) as string,
+      to: idMap.get(c.to) as string
+    }))
+    state = {
+      ...state,
+      nodes: [...state.nodes, ...newNodes],
+      nodeIds: [...state.nodeIds, ...newNodes.map((n) => n.id)],
+      connections: [...state.connections, ...newConns],
+      selectedIds: newNodes.map((n) => n.id),
+      selectedConnectionId: null,
+      zCounter: zBase + newNodes.length + 1,
+      geometryVersion: state.geometryVersion + 1
+    }
+    emitKey('nodes')
+    emitKey('selection')
+    if (newConns.length) emitKey('connections')
+    emitGeometry()
+    return newNodes.map((n) => n.id)
+  },
+
+  /** 复制副本（Ctrl+D）：克隆当前选中，不经过剪贴板 */
+  duplicateSelection(): string[] {
+    const n = canvasStore.copySelection()
+    return n ? canvasStore.paste() : []
   },
 
   /** 选中连线（与节点选择互斥） */

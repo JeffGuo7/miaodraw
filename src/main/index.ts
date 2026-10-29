@@ -2081,6 +2081,32 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-undo:', r)
     check('canvas-undo', r)
   }
+  if (process.env.SHOT_CANVAS_CLIP === '1') {
+    // 剪贴板探针：建节点 → Ctrl+C → Ctrl+V（应 +1）→ Ctrl+D 复制副本（再 +1）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const count = () => document.querySelectorAll('[data-node-id]').length
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click()
+        await sleep(400)
+        const before = count()
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true }))
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true }))
+        await sleep(500)
+        const afterPaste = count()
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true }))
+        await sleep(500)
+        const afterDup = count()
+        return JSON.stringify({ before, afterPaste, afterDup, ok: afterPaste === before + 1 && afterDup === before + 2 })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-clip:', r)
+    check('canvas-clip', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(
