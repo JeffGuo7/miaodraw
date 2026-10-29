@@ -2,7 +2,7 @@
  * 画布工作台 — miaodraw 画布模式一级视图
  * 引擎/节点移植自 basketikun/infinite-canvas（MIT），见各文件头署名。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { JSX } from 'react'
 import { Button, Progress, Tooltip } from 'antd'
 import {
@@ -15,12 +15,15 @@ import {
   GroupOutlined,
   DragOutlined,
   MessageOutlined,
-  ThunderboltOutlined
+  ThunderboltOutlined,
+  UndoOutlined,
+  RedoOutlined
 } from '@ant-design/icons'
 
 import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
 import { canvasStore, useConnections, useGeometryVersion, useIsSelected, useNode, useNodeIds, useSelectedConnection, useViewport } from './store'
+import { attachHistory, canRedo, canUndo, historyDepth, redo, subscribeHistory, undo } from './history'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
 import { getCanvasRect } from './rect-cache'
@@ -124,6 +127,8 @@ function CanvasNodeHost({ id }: { id: string }): JSX.Element | null {
 export default function CanvasWorkbench(): JSX.Element {
   const ids = useNodeIds()
   const viewport = useViewport()
+  const undoable = useSyncExternalStore(subscribeHistory, canUndo)
+  const redoable = useSyncExternalStore(subscribeHistory, canRedo)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [tool, setTool] = useState<'select' | 'pan'>('select')
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
@@ -131,6 +136,12 @@ export default function CanvasWorkbench(): JSX.Element {
 
   const setViewport = useCallback((vp: ViewportTransform): void => {
     canvasStore.setViewport(vp)
+  }, [])
+
+  // 撤销/重做：订阅画布变更（250ms 合并），并暴露给探针
+  useEffect(() => attachHistory(), [])
+  useEffect(() => {
+    ;(window as unknown as { __canvasHistory?: unknown }).__canvasHistory = { undo, redo, canUndo, canRedo, depth: historyDepth }
   }, [])
 
   // 编排（O1）：订阅 plan:changed 落 IndexedDB + 迁移断言（plan 是真相源，画布只是视图）
@@ -202,6 +213,19 @@ export default function CanvasWorkbench(): JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       const el = e.target instanceof Element ? e.target : null
       if (el?.closest("input,textarea,select,[contenteditable='true']")) return
+      // 撤销/重做：Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y（输入框内不拦截，交给原生编辑）
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+        return
+      }
       const st = canvasStore.getState()
       const selectedNodes = st.selectedIds
       const selectedConn = st.selectedConnectionId
@@ -265,6 +289,12 @@ export default function CanvasWorkbench(): JSX.Element {
           <Button size="small" type={tool === 'pan' ? 'primary' : 'default'} icon={<BgColorsOutlined />} onClick={() => setTool('pan')} />
         </Tooltip>
         <span style={{ width: 1, height: 16, background: '#e2e6ee', display: 'inline-block' }} />
+        <Tooltip title="撤销（Ctrl+Z）">
+          <Button size="small" icon={<UndoOutlined />} disabled={!undoable} onClick={() => undo()} data-undo="true" />
+        </Tooltip>
+        <Tooltip title="重做（Ctrl+Shift+Z）">
+          <Button size="small" icon={<RedoOutlined />} disabled={!redoable} onClick={() => redo()} data-redo="true" />
+        </Tooltip>
         <Tooltip title="计划对话（说需求 → 自动搭流程）">
           <Button size="small" type={chatOpen ? 'primary' : 'default'} icon={<MessageOutlined />} onClick={() => setChatOpen((v) => !v)}>
             对话

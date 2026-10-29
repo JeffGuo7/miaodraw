@@ -2050,6 +2050,37 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     )
     console.log('[shot] canvas-drag:', r)
   }
+  if (process.env.SHOT_CANVAS_UNDO === '1') {
+    // 撤销/重做探针：建节点 → 撤销（应回到建之前）→ 重做（应回到建之后）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const count = () => document.querySelectorAll('[data-node-id]').length
+        const before = count()
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click()
+        await sleep(400)
+        const afterAdd = count()
+        await sleep(400) // 等历史防抖提交
+        const undoBtn = document.querySelector('[data-undo="true"]')
+        if (!undoBtn) return 'ERR: 未找到撤销按钮'
+        undoBtn.click()
+        await sleep(400)
+        const afterUndo = count()
+        const redoBtn = document.querySelector('[data-redo="true"]')
+        if (!redoBtn) return 'ERR: 未找到重做按钮'
+        redoBtn.click()
+        await sleep(400)
+        const afterRedo = count()
+        return JSON.stringify({ before, afterAdd, afterUndo, afterRedo, ok: afterAdd === before + 1 && afterUndo === before && afterRedo === afterAdd })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-undo:', r)
+    check('canvas-undo', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(

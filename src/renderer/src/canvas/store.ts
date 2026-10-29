@@ -44,9 +44,19 @@ export type CanvasKey = 'nodes' | 'viewport' | 'selection' | 'connections'
 const listeners = new Set<(key: CanvasKey) => void>()
 const nodeListeners = new Map<string, Set<() => void>>()
 const geometryListeners = new Set<() => void>()
+const anyListeners = new Set<() => void>()
 
 function emitKey(key: CanvasKey): void {
   for (const l of listeners) l(key)
+  for (const l of anyListeners) l()
+}
+
+/** 订阅「任意变更」（历史记录用：不关心具体通道） */
+export function subscribeAny(cb: () => void): () => void {
+  anyListeners.add(cb)
+  return () => {
+    anyListeners.delete(cb)
+  }
 }
 
 function emitNode(id: string): void {
@@ -146,6 +156,26 @@ export const canvasStore = {
   /** 缩放热路径：同源 */
   applyNodeResize(id: string, width: number, height: number): void {
     patchNode(id, { width, height })
+  },
+
+  /**
+   * 用快照整体替换画布内容（撤销/重做、载入工程）。
+   * 会重建 nodeIds 并广播所有通道，保证订阅者（节点宿主、连线层、小地图）全部刷新。
+   */
+  restore(snapshot: { nodes: CanvasNodeData[]; connections: CanvasConnection[] }): void {
+    const nodes = snapshot.nodes.map((n) => ({ ...n, metadata: { ...n.metadata } }))
+    state = {
+      ...state,
+      nodes,
+      nodeIds: nodes.map((n) => n.id),
+      connections: snapshot.connections.map((c) => ({ ...c })),
+      selectedIds: [],
+      selectedConnectionId: null,
+      geometryVersion: state.geometryVersion + 1
+    }
+    for (const key of ['nodes', 'selection', 'connections'] as CanvasKey[]) emitKey(key)
+    emitGeometry()
+    for (const id of state.nodeIds) emitNode(id)
   },
 
   /** 全量通知（载入/撤销等一次性变更后使用） */
