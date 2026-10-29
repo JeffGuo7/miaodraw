@@ -4,7 +4,7 @@
  * 硬约束（Jeff 批）：双向镜像去重用 `source_message_id` + `request_id`，且**去重判定先于写 plan_events**
  * （否则事件流出现幽灵记录）。这里先查镜像消息是否已存在，存在就直接返回，不再调 IPC。
  */
-import type { StageRecord } from './plan-types'
+import type { StageRecord } from '../../../shared/plan-types'
 
 import { appendMessage, detachMirror, getMessages, removeMessage } from './chat-store'
 

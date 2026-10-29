@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { Button, Progress, Tag, message } from 'antd'
 
-import type { StageRecord } from './plan-types'
+import type { StageRecord } from '../../../shared/plan-types'
 
 import { dropFilmToCanvas } from './videoGeneration'
 import { loadVideoJobs } from './video-persistence'

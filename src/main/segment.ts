@@ -142,8 +142,3 @@ export function createSegmentService(absMapper: (url: string) => string | null):
   }
 }
 
-export function segmentModelsDir(): string {
-  return path.join(app.getPath('userData'), 'models')
-}
-
-

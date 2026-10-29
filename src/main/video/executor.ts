@@ -31,7 +31,7 @@ import {
 } from './media.ts'
 import { buildScriptPrompt, parseScript, shotImagePrompt, type ScriptResult } from './script.ts'
 import { planStageJobs, type PlanShotInput } from './planning.ts'
-import { decideSubmit, markDone, markFailed, markRunning, resumableJobs, type VideoJobRecord } from './jobs.ts'
+import { decideSubmit, markDone, markFailed, markRunning, type VideoJobRecord } from './jobs.ts'
 import { authorizePaidSubmit, type ConfirmToken, type CostEstimate } from './cost.ts'
 
 const execFileAsync = promisify(execFile)
@@ -409,6 +409,3 @@ export async function runStage(input: RunStageInput, registry: {
 }
 
 /** 续跑：只重跑 failed/running（含 running 先对账由调用方决定 onlyWorkItems） */
-export function pendingWorkItemIds(jobs: VideoJobRecord[]): string[] {
-  return resumableJobs(jobs).map((j) => j.work_item_id)
-}

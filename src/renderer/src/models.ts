@@ -1,4 +1,6 @@
-import type { ModelCap, ModelConfig, ModelDefaults } from './types'
+import type { ModelCap, ModelConfig } from './types'
+import { deriveCaps, MODEL_NOISE_RE } from '../../shared/model-caps'
+import { vendorCardFor } from '../../main/prompt-guards'
 
 export interface ModelDef {
   model: string
@@ -51,13 +53,6 @@ export const PROVIDERS: ProviderDef[] = [
   }
 ]
 
-export const MODELS_LEGACY: Record<string, boolean> = {
-  'qwen-image-3.0': true,
-  'qwen-image-3.0-pro': true,
-  'z-image-turbo': true,
-  'wanx2.0-t2i-turbo': true
-}
-
 /** 解析后的可用模型：内置模板 + 用户追加 + 自定义供应商（启用的） */
 export interface ResolvedModel {
   provider: string
@@ -71,32 +66,15 @@ export interface ResolvedModel {
 
 /** 默认值键："provider::model" */
 export const modelKey = (provider: string, model: string): string => `${provider}::${model}`
-export const parseModelKey = (key: string): { provider: string; model: string } | null => {
-  const [p, m] = key.split('::')
-  return p && m ? { provider: p, model: m } : null
-}
 
-/** 自动拉取目录的噪音过滤（与主进程 http.ts 同规则）：与创作无关的模型不进下拉 */
-const NOISE_RE = /(asr|tts|embedding|rerank|realtime|livetranslate|-s2s|ocr|omni|deep-research|deep-search|qvq|qwen-vl-ocr|qwen-audio|qwen-mt|gui-|for-status|auto-handle)/i
-
-/** 按模型 ID 推断能力标签：vl→视觉，image/wan/z-image/flux 等→生图，其余→文本 */
-function deriveCaps(id: string): ModelCap[] {
-  if (/vl|vision/i.test(id)) return ['vision', 'text']
-  if (/image|wan\d|z-image|flux|kolors|dall|stable|sd3|diffusion/i.test(id)) return ['image']
-  return ['text']
-}
 
 /**
  * 生图模型的素材融合上限（参考图张数）。
- * 官方文档：wan2.7-image 系列最多 9 张；qwen-image-3.x 最多 3 张。
- * ⚠️ 与主进程 http.ts 的 imageCapability 同规则，改一处要同步另一处。
+ * 真源是主进程的厂商卡 VENDOR_CARDS（prompt-guards.ts，纯函数可被渲染层复用），
+ * 这里不再硬编码规则——此前 UI 与主进程各写一份，导致 gpt-image/seedream 上限不一致。
  */
 export function refLimit(model: string): number {
-  const m = (model || '').toLowerCase()
-  if (m.startsWith('wan2.')) return 9
-  if (m.startsWith('qwen-image-3')) return 3
-  if (m.startsWith('qwen-image')) return 3
-  return 1
+  return vendorCardFor(model)?.maxRefs ?? 1
 }
 
 /** 合并内置模板与用户配置，产出全部可用模型（供下拉/默认值/设置页使用） */
@@ -116,7 +94,7 @@ export function resolveModels(cfg: ModelConfig | undefined): ResolvedModel[] {
     }
     // 服务端 /models 自动拉取的目录（Cherry Studio 式自动发现），去重后并入
     for (const id of cfg?.fetchedModels?.[p.id] ?? []) {
-      if (seen.has(modelKey(p.id, id)) || NOISE_RE.test(id)) continue
+      if (seen.has(modelKey(p.id, id)) || MODEL_NOISE_RE.test(id)) continue
       seen.add(modelKey(p.id, id))
       const caps = deriveCaps(id)
       out.push({ provider: p.id, model: id, label: id, price: '按量', caps, i2i: caps.includes('image') && p.i2i, custom: false })
@@ -134,18 +112,7 @@ export function resolveModels(cfg: ModelConfig | undefined): ResolvedModel[] {
 /** 按能力过滤 */
 export const byCap = (models: ResolvedModel[], cap: ModelCap): ResolvedModel[] => models.filter((m) => m.caps.includes(cap))
 
-/** 能力默认值解析：用户配置优先，未配置回退该能力第一个内置模型 */
-export function resolveDefaults(cfg: ModelConfig | undefined, models: ResolvedModel[]): { image: ResolvedModel; text: ResolvedModel; vision: ResolvedModel } {
-  const pick = (kind: keyof ModelDefaults): ResolvedModel => {
-    const key = cfg?.defaults?.[kind]
-    if (key) {
-      const hit = models.find((m) => modelKey(m.provider, m.model) === key)
-      if (hit) return hit
-    }
-    return byCap(models, kind === 'image' ? 'image' : kind)[0] ?? byCap(models, 'image')[0] ?? models[0]
-  }
-  return { image: pick('image'), text: pick('text'), vision: pick('vision') }
-}
+
 
 export function providerLabel(id: string, cfg?: ModelConfig): string {
   return PROVIDERS.find((p) => p.id === id)?.label ?? cfg?.customProviders?.find((c) => c.id === id)?.name ?? id

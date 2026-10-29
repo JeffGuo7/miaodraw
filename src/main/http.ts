@@ -197,15 +197,8 @@ export async function httpModels(apiBase: string, apiKey: string, timeoutMs = 15
   return [...new Set(ids)]
 }
 
-/** 自动拉取目录的噪音过滤：ASR/TTS/向量/实时传输等与创作无关的模型不进目录 */
-export const MODEL_NOISE_RE = /(asr|tts|embedding|rerank|realtime|livetranslate|-s2s|ocr|omni|deep-research|deep-search|qvq|qwen-vl-ocr|qwen-audio|qwen-mt|gui-|for-status|auto-handle)/i
-
-/** 按模型 ID 推断能力标签：vl→视觉，image/wan/z-image/flux 等→生图，其余→文本 */
-export function deriveCaps(id: string): Array<'image' | 'text' | 'vision'> {
-  if (/vl|vision/i.test(id)) return ['vision', 'text']
-  if (/image|wan\d|z-image|flux|kolors|dall|stable|sd3|diffusion/i.test(id)) return ['image']
-  return ['text']
-}
+// 模型目录噪音过滤与能力推断的唯一真源在 src/shared/model-caps.ts（渲染层共用）
+export { MODEL_NOISE_RE, deriveCaps } from '../shared/model-caps'
 
 // ---------- 多素材融合：素材类型与模型能力注册表 ----------
 /** 素材角色：告诉模型"这张图是干什么的"（可空则仅按序号引用） */

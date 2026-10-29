@@ -14,7 +14,7 @@
  * 本文件刻意不引入任何运行时依赖（只有 import type），以便 `node --test` 直接跑：
  * 见同目录 state.test.mjs。
  */
-import type { PlanRecord, PlanStatus, StageRecord, StageStatus, WaitingReason, WorkItem } from '../../shared/plan-types'
+import type { PlanRecord, PlanStatus, StageRecord, StageStatus, WaitingReason } from '../../shared/plan-types'
 
 export type StageAction =
   | 'author_stage'
@@ -37,10 +37,6 @@ const ALLOWED: Record<StageStatus, StageAction[]> = {
   doing: ['execution_done', 'retry', 'block'],
   done: ['retry'],
   blocked: ['unblock', 'retry']
-}
-
-export function allowedActions(status: StageStatus): StageAction[] {
-  return [...ALLOWED[status]]
 }
 
 export function isActionAllowed(status: StageStatus, action: StageAction): boolean {
@@ -119,14 +115,6 @@ export function setWorkItemOutput(
 }
 
 /** 执行失败/重跑中的产物状态回写（不改 revision 语义：仍算一次变更） */
-export function setWorkItemStatus(stage: StageRecord, itemId: string, status: WorkItem['status'], now: number = Date.now()): TransitionResult {
-  const idx = stage.work_items.findIndex((w) => w.id === itemId)
-  if (idx < 0) return { ok: false, error: `work_item 不存在：${itemId}` }
-  const items = stage.work_items.slice()
-  items[idx] = { ...items[idx], status }
-  return { ok: true, stage: { ...stage, work_items: items, revision: stage.revision + 1, updated_at: now } }
-}
-
 /** 计划级状态推导：blocked > done > running > drafting */
 export function derivePlanStatus(stages: StageRecord[], outlineCount: number): PlanStatus {
   if (stages.some((s) => s.status === 'blocked')) return 'blocked'

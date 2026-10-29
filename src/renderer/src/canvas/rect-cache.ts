@@ -70,8 +70,4 @@ export function clientToWorld(clientX: number, clientY: number, viewport: { x: n
   return { x: (clientX - rect.left - viewport.x) / k, y: (clientY - rect.top - viewport.y) / k }
 }
 
-/** 世界坐标 → 屏幕坐标（用于把 pending 线画在 DOM 层时定位） */
-export function worldToClient(worldX: number, worldY: number, viewport: { x: number; y: number; k: number }): { x: number; y: number } {
-  const rect = getCanvasRect()
-  return { x: worldX * viewport.k + viewport.x + rect.left, y: worldY * viewport.k + viewport.y + rect.top }
-}
+

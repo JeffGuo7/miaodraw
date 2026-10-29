@@ -29,7 +29,7 @@ import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
-import type { PlanRecord, StageRecord } from './plan-types'
+import type { PlanRecord, StageRecord } from '../../../shared/plan-types'
 import './canvas.css'
 
 const ADD_BUTTONS: Array<{ type: CanvasNodeType; icon: JSX.Element; label: string }> = [

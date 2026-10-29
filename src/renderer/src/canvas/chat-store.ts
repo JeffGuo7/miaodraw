@@ -6,7 +6,7 @@
  */
 import { useCallback, useSyncExternalStore } from 'react'
 
-import type { ChatMessage, ChatRole } from './plan-types'
+import type { ChatMessage, ChatRole } from '../../../shared/plan-types'
 
 import { deleteMessage, listMessagesByPlan, putMessage } from './db'
 
@@ -143,15 +143,4 @@ export function useChatMessages(planId: string | null): ChatMessage[] {
 }
 
 /** 测试/探针用：直接注入消息（不落盘），用于重渲染断言 */
-export function injectMessageForTest(planId: string | null, role: ChatRole, content: string): void {
-  const key = keyOf(planId)
-  const msg: ChatMessage = { id: newId(), plan_id: planId, role, content, source_message_id: null, created_at: Date.now() }
-  byPlan.set(key, [...(byPlan.get(key) ?? []), msg].slice(-50))
-  emit(key)
-}
-
 /** 清空内存态（探针在用例间隔离用） */
-export function resetChatStoreForTest(): void {
-  byPlan.clear()
-  for (const key of listeners.keys()) emit(key)
-}

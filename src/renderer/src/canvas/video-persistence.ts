@@ -4,7 +4,7 @@
  * 幂等：`video:job` 推的是全量作业记录，按 job key `put` 覆盖 —— 重复事件不产生第二条。
  * 重启续跑：`restoreVideoJobs()` 读回后可按 failed/running 续跑（executor 接入后使用）。
  */
-import { listResumableVideoJobs, listVideoJobs, putVideoJob } from './db'
+import { listVideoJobs, putVideoJob } from './db'
 import type { VideoJobRecord } from '../../../main/video/jobs'
 
 let attached = false
@@ -32,6 +32,3 @@ export async function loadVideoJobs(planId: string, stageId?: string): Promise<V
 }
 
 /** 重启续跑入口：只返回 failed/running（done/skipped 一律跳过，硬规则 4） */
-export async function loadResumableVideoJobs(planId?: string): Promise<VideoJobRecord[]> {
-  return listResumableVideoJobs(planId)
-}

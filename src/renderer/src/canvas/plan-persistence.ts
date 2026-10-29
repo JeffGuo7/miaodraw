@@ -2,7 +2,7 @@
  * 计划持久化（O1）：plan 是真相源，画布节点只是视图。
  * 主进程每次 plan:changed 推全量快照，这里落 IndexedDB（plans/stages），支持重启续跑。
  */
-import type { PlanEvent, PlanRecord, StageRecord } from './plan-types'
+import type { PlanEvent, PlanRecord, StageRecord } from '../../../shared/plan-types'
 
 import { appendPlanEvent, assertAssetsMigrated, getPlan, listPlans, listStagesByPlan, putPlan, putStageBatch, SCHEMA_VERSION, setMeta } from './db'
 

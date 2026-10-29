@@ -9,7 +9,7 @@ import type { JSX } from 'react'
 import { App as AntdApp, Button, Space, Tag, Tooltip } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 
-import type { PlanRecord, StageRecord } from './plan-types'
+import type { PlanRecord, StageRecord } from '../../../shared/plan-types'
 
 import { actViaCard } from './plan-actions'
 import { appendMessage } from './chat-store'

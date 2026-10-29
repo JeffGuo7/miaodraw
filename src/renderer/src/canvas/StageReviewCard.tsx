@@ -12,7 +12,7 @@ import type { JSX } from 'react'
 import { App as AntdApp, Button, Input, Space, Tag, Typography } from 'antd'
 import { DownOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons'
 
-import type { StageRecord } from './plan-types'
+import type { StageRecord } from '../../../shared/plan-types'
 
 import { actViaCard } from './plan-actions'
 

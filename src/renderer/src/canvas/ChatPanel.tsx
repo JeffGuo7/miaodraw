@@ -11,7 +11,7 @@ import type { JSX } from 'react'
 import { Button, Empty, Input, Spin, Tag, Typography } from 'antd'
 import { CloseOutlined, MessageOutlined, SendOutlined } from '@ant-design/icons'
 
-import type { ChatMessage, StageRecord } from './plan-types'
+import type { ChatMessage, StageRecord } from '../../../shared/plan-types'
 
 import { appendMessage, loadMessages, setLastCreateResult, useChatMessages } from './chat-store'
 import { actViaChat, detectFrozenTouch } from './plan-actions'
