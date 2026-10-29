@@ -8,7 +8,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 import type { ChatMessage, ChatRole } from './plan-types'
 
-import { listMessagesByPlan, putMessage } from './db'
+import { deleteMessage, listMessagesByPlan, putMessage } from './db'
 
 /** 每个 planId 一份消息数组（含 null 键代表"尚未建计划"的草稿会话） */
 const byPlan = new Map<string, ChatMessage[]>()
@@ -96,6 +96,33 @@ export async function appendMessage(input: {
   emit(key)
   void putMessage(msg).catch((e) => console.warn('[chat] 消息落盘失败：', e instanceof Error ? e.message : e))
   return msg
+}
+
+/** 删除一条消息（镜像失败回滚用）：内存与 IndexedDB 同删，避免去重键永久占位 */
+export async function removeMessage(planId: string | null, id: string): Promise<void> {
+  const key = keyOf(planId)
+  const cur = byPlan.get(key) ?? []
+  const next = cur.filter((m) => m.id !== id)
+  if (next.length === cur.length) return
+  byPlan.set(key, next)
+  emit(key)
+  await deleteMessage(id).catch((e) => console.warn('[chat] 消息删除失败：', e instanceof Error ? e.message : e))
+}
+
+/**
+ * 撤销镜像去重键（保留消息正文）：动作失败后如果留着 source_message_id，
+ * 同阶段同动作会被永久判定为「已处理」，表现为按钮点了没反应。
+ */
+export async function detachMirror(planId: string | null, mirrorKey: string): Promise<void> {
+  const key = keyOf(planId)
+  const cur = byPlan.get(key) ?? []
+  const idx = cur.findIndex((m) => m.source_message_id === mirrorKey)
+  if (idx < 0) return
+  const next = cur.slice()
+  next[idx] = { ...next[idx], source_message_id: null }
+  byPlan.set(key, next)
+  emit(key)
+  await putMessage(next[idx]).catch((e) => console.warn('[chat] 镜像回滚落盘失败：', e instanceof Error ? e.message : e))
 }
 
 /** 从 IndexedDB 载入某计划的历史（重启恢复；不覆盖已有内存态） */

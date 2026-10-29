@@ -12,11 +12,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
+          # 单测直接 import .ts 源码（node --test），依赖 Node 原生 type stripping（>=22.18）
           node-version: 22
           cache: npm
       - name: Install (skip electron download)
         run: npm ci --ignore-scripts
       - name: Lint
         run: npm run lint
+      # 纯函数单测（canvas / orchestrator / prompt / video 四组，约 2s，无外部依赖）
+      - name: Unit tests
+        run: npm test
       - name: Typecheck + build
         run: npm run build

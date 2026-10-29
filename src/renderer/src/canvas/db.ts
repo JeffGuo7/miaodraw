@@ -357,6 +357,11 @@ export async function putMessage(message: ChatMessage): Promise<void> {
   await tx('messages', 'readwrite', (s) => s.put(message))
 }
 
+/** 删除一条消息（镜像失败回滚用，避免去重键永久占位） */
+export async function deleteMessage(id: string): Promise<void> {
+  await tx('messages', 'readwrite', (s) => s.delete(id))
+}
+
 /** 取某计划的消息（按 created_at 升序，只取最近 limit 条） */
 export async function listMessagesByPlan(planId: string, limit = 50): Promise<ChatMessage[]> {
   const db = await openCanvasDB()

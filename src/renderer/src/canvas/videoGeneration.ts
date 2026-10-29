@@ -304,8 +304,11 @@ export async function dropFilmToCanvas(relPath: string, meta: Record<string, unk
     const info = await window.api.canvasAssetInfo(relPath)
     const name = relPath.split('/').pop() ?? 'film.mp4'
     const now = Date.now()
+    // assets.path 是唯一索引：同一成片重复落卡时若总用新 id put，会撞 ConstraintError 被 catch 吞掉，
+    // 表现为「成片静默不落卡」。按路径复用既有资产行（内容寻址语义）。
+    const existAsset = await getAssetByPath(relPath)
     const record = {
-      id: newId(),
+      id: existAsset?.id ?? newId(),
       path: relPath,
       status: 'active' as const,
       size: info.size,
@@ -318,7 +321,7 @@ export async function dropFilmToCanvas(relPath: string, meta: Record<string, unk
       mime_type: info.mime,
       name,
       metadata: JSON.stringify({ source: 'bailian-pipeline', ...meta }),
-      created_at: now,
+      created_at: existAsset?.created_at ?? now,
       updated_at: now,
       migration_id: null,
       superseded_by: null,
@@ -327,6 +330,9 @@ export async function dropFilmToCanvas(relPath: string, meta: Record<string, unk
     }
     await putAssetBatch([record])
     const nodes = canvasStore.getState().nodes
+    // 同一资产已落过卡就不再重复建节点（重复点「落卡」不应叠出多个视频节点）
+    const existingNode = nodes.find((n) => n.type === 'video' && n.metadata.assetId === record.id)
+    if (existingNode) return existingNode.id
     const last = nodes[nodes.length - 1]
     const id = canvasStore.addNode('video', { x: (last?.x ?? 120) + 60, y: (last?.y ?? 120) + 420 })
     canvasStore.updateNode(id, {

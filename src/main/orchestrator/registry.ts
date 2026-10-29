@@ -91,6 +91,42 @@ export class PlanRegistry {
     return [...this.plans.values()].sort((a, b) => b.updated_at - a.updated_at)
   }
 
+  /**
+   * 重启恢复：把渲染层从 IndexedDB 读回的计划快照重新装进主进程工作集。
+   * 规则：内存里已有的计划一律跳过（内存状态永远更新）；只接受自洽快照
+   * （阶段 order 唯一且都在 stage_outline 内，禁止占位卡），不改 revision、不推进状态。
+   */
+  restore(snapshots: PlanSnapshot[], now: number = Date.now()): { restored: number; skipped: number } {
+    let restored = 0
+    let skipped = 0
+    for (const input of snapshots ?? []) {
+      const plan = input?.plan
+      const stages = input?.stages
+      if (!plan?.id || !Array.isArray(stages)) {
+        skipped++
+        continue
+      }
+      if (this.plans.has(plan.id)) {
+        skipped++
+        continue
+      }
+      const orders = new Set(stages.map((s) => s.order))
+      const outlineOrders = new Set(plan.stage_outline.map((o) => o.order))
+      const selfConsistent = orders.size === stages.length && stages.every((s) => outlineOrders.has(s.order))
+      if (!selfConsistent) {
+        skipped++
+        continue
+      }
+      const copy = stages.map((s) => ({ ...s }))
+      this.plans.set(plan.id, plan)
+      this.stages.set(plan.id, copy)
+      this.record({ plan_id: plan.id, event: 'restore', actor: 'auto', stage_id: null, before_revision: plan.revision, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
+      this.emit({ plan, stages: copy })
+      restored++
+    }
+    return { restored, skipped }
+  }
+
   listEvents(planId?: string): PlanEvent[] {
     return planId ? this.events.filter((e) => e.plan_id === planId) : [...this.events]
   }
@@ -154,6 +190,10 @@ export class PlanRegistry {
     const plan = this.touch(planId, stages, now)
     this.record({ plan_id: planId, event: `advance:${action}`, actor, stage_id: stageId, before_revision: before, after_revision: plan.revision, request_id: null, source_message_id: null, created_at: now })
     this.emit({ plan, stages })
+    // 阶段接力：某阶段确认完成（done）后，必须 author 出下一个阶段，
+    // 否则多阶段流程（如 doc-to-video 四阶段）会永远停在第 1 阶段——大纲里剩下的阶段永远不会物化。
+    // 注意：authorFirstStage 在「全部已 author」时安全返回，不会重复物化。
+    if (r.stage.status === 'done') this.authorFirstStage(planId, now)
     // C4：计划开了自动推进时，执行器交付后自动接力过闸门
     if (plan.auto_advance) this.driveAuto(planId, now)
     return { ok: true, value: r.stage }
@@ -404,7 +444,7 @@ export class PlanRegistry {
   remove(planId: string): boolean {
     const had = this.plans.delete(planId)
     this.stages.delete(planId)
-    for (const key of [...this.replays.keys()]) if (key.startsWith(`${planId}:`)) this.replays.delete(key)
+    for (const key of this.replays.keys()) if (key.startsWith(`${planId}:`)) this.replays.delete(key)
     return had
   }
 

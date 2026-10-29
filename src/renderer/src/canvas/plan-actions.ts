@@ -6,19 +6,26 @@
  */
 import type { StageRecord } from './plan-types'
 
-import { appendMessage, getMessages } from './chat-store'
+import { appendMessage, detachMirror, getMessages, removeMessage } from './chat-store'
 
 export type StageActionKind = 'confirm_plan' | 'confirm_result' | 'retry'
 
 const MIRROR_PREFIX = 'mirror:'
 
-/** 镜像消息的稳定 id：同 (plan, stage, action) 只应存在一条 */
-export function mirrorId(planId: string, stageId: string, action: StageActionKind): string {
-  return `${MIRROR_PREFIX}${planId}:${stageId}:${action}`
+/** 在途表：同一镜像键只允许一次并发提交（双击/连点不产生两次 IPC） */
+const inflight = new Set<string>()
+
+/**
+ * 镜像消息的稳定 id：同 (plan, stage, action, **revision**) 只应存在一条。
+ * 必须带 revision——否则一旦某次动作失败，该阶段该动作会被永久去重跳过（按钮点了没反应）；
+ * 也不能只带 (plan,stage,action)，因为「重跑」本身就是要能重复执行的动作。
+ */
+export function mirrorId(planId: string, stageId: string, action: StageActionKind, revision: number): string {
+  return `${MIRROR_PREFIX}${planId}:${stageId}:${action}:${revision}`
 }
 
-export function hasMirror(planId: string, stageId: string, action: StageActionKind): boolean {
-  const id = mirrorId(planId, stageId, action)
+export function hasMirror(planId: string, stageId: string, action: StageActionKind, revision: number): boolean {
+  const id = mirrorId(planId, stageId, action, revision)
   return getMessages(planId).some((m) => m.source_message_id === id || m.id === id)
 }
 
@@ -39,22 +46,36 @@ export interface ActionOutcome {
  * 镜像消息带 source_message_id/request_id；重复点击直接返回 skipped，不产生新事件。
  */
 export async function actViaCard(planId: string, stage: StageRecord, action: StageActionKind): Promise<ActionOutcome> {
-  if (hasMirror(planId, stage.id, action)) return { status: 'skipped', detail: '该动作已处理过（镜像去重）' }
-  const mid = mirrorId(planId, stage.id, action)
+  const mid = mirrorId(planId, stage.id, action, stage.revision)
+  if (hasMirror(planId, stage.id, action, stage.revision)) return { status: 'skipped', detail: '该动作已处理过（镜像去重）' }
+  if (inflight.has(mid)) return { status: 'skipped', detail: '正在处理中' }
+  inflight.add(mid)
   // 先落镜像消息（带去重键），再调 IPC —— 去重判定已在上面完成
-  await appendMessage({ planId, role: 'user', content: describe(stage, action), sourceMessageId: mid, requestId: mid })
-  const res = (await window.api.planAdvance({ planId, stageId: stage.id, action, expectedRevision: stage.revision, actor: 'ui' })) as {
-    ok?: boolean
-    conflict?: boolean
-    error?: string
+  const mirror = await appendMessage({ planId, role: 'user', content: describe(stage, action), sourceMessageId: mid, requestId: mid })
+  try {
+    const res = (await window.api.planAdvance({ planId, stageId: stage.id, action, expectedRevision: stage.revision, actor: 'ui' })) as {
+      ok?: boolean
+      conflict?: boolean
+      error?: string
+    }
+    if (res?.ok) return { status: 'done' }
+    // 失败/冲突必须回滚镜像：否则同一个 (阶段, 动作, revision) 会被永久判为「已处理」，
+    // 用户看到的就是「点了没反应」。
+    await removeMessage(planId, mirror.id)
+    if (res?.conflict) {
+      await appendMessage({ planId, role: 'system', content: '计划已更新（revision 变化），已刷新到最新版本，请重新确认。' })
+      return { status: 'conflict' }
+    }
+    await appendMessage({ planId, role: 'system', content: `操作失败：${res?.error ?? '未知原因'}` })
+    return { status: 'error', detail: res?.error }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    await removeMessage(planId, mirror.id)
+    await appendMessage({ planId, role: 'system', content: `操作失败：${msg}` })
+    return { status: 'error', detail: msg }
+  } finally {
+    inflight.delete(mid)
   }
-  if (res?.ok) return { status: 'done' }
-  if (res?.conflict) {
-    await appendMessage({ planId, role: 'system', content: '计划已更新（revision 变化），已为你刷新，请确认最新版本。' })
-    return { status: 'conflict' }
-  }
-  await appendMessage({ planId, role: 'system', content: `操作失败：${res?.error ?? '未知原因'}` })
-  return { status: 'error', detail: res?.error }
 }
 
 /** 聊天文本 → 动作（actor=chat）。C2 只处理确认/重试；其余交给 C3/C5 的增量分类 */
@@ -95,21 +116,35 @@ export async function actViaChat(planId: string, text: string, stages: StageReco
   if (!action) return { status: 'skipped', detail: '非确认类消息或当前无闸门' }
   const stage = pickGateStage(stages, action)
   if (!stage) return { status: 'skipped', detail: '当前没有待确认的阶段' }
-  const mid = mirrorId(planId, stage.id, action)
+  const mid = mirrorId(planId, stage.id, action, stage.revision)
+  if (hasMirror(planId, stage.id, action, stage.revision)) return { status: 'skipped', detail: '该动作已处理过（镜像去重）' }
+  if (inflight.has(mid)) return { status: 'skipped', detail: '正在处理中' }
+  inflight.add(mid)
   await appendMessage({ planId, role: 'user', content: text, sourceMessageId: mid, requestId: mid })
-  const res = (await window.api.planAdvance({ planId, stageId: stage.id, action, expectedRevision: stage.revision, actor: 'chat' })) as {
-    ok?: boolean
-    conflict?: boolean
-    error?: string
+  try {
+    const res = (await window.api.planAdvance({ planId, stageId: stage.id, action, expectedRevision: stage.revision, actor: 'chat' })) as {
+      ok?: boolean
+      conflict?: boolean
+      error?: string
+    }
+    if (res?.ok) {
+      await appendMessage({ planId, role: 'agent', content: `已按你的确认推进「${stage.name}」` })
+      return { status: 'done' }
+    }
+    // 失败：摘掉去重键但保留用户原话（用户自己的消息不该被删）
+    await detachMirror(planId, mid)
+    if (res?.conflict) {
+      await appendMessage({ planId, role: 'system', content: '计划刚刚被更新过，请再说一次确认（已刷新最新状态）。' })
+      return { status: 'conflict' }
+    }
+    await appendMessage({ planId, role: 'system', content: `操作失败：${res?.error ?? '未知原因'}` })
+    return { status: 'error', detail: res?.error }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    await detachMirror(planId, mid)
+    await appendMessage({ planId, role: 'system', content: `操作失败：${msg}` })
+    return { status: 'error', detail: msg }
+  } finally {
+    inflight.delete(mid)
   }
-  if (res?.ok) {
-    await appendMessage({ planId, role: 'agent', content: `已按你的确认推进「${stage.name}」` })
-    return { status: 'done' }
-  }
-  if (res?.conflict) {
-    await appendMessage({ planId, role: 'system', content: '计划刚刚被更新过，请再说一次确认（已刷新最新状态）。' })
-    return { status: 'conflict' }
-  }
-  await appendMessage({ planId, role: 'system', content: `操作失败：${res?.error ?? '未知原因'}` })
-  return { status: 'error', detail: res?.error }
 }

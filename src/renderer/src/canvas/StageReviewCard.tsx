@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
-import { Button, Input, Space, Tag, Typography } from 'antd'
+import { App as AntdApp, Button, Input, Space, Tag, Typography } from 'antd'
 import { DownOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons'
 
 import type { StageRecord } from './plan-types'
@@ -23,6 +23,7 @@ interface Props {
 }
 
 export default function StageReviewCard({ planId, stage, onStageChanged }: Props): JSX.Element {
+  const { message } = AntdApp.useApp()
   const [expanded, setExpanded] = useState(false)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [conflict, setConflict] = useState(false)
@@ -62,6 +63,14 @@ export default function StageReviewCard({ planId, stage, onStageChanged }: Props
     } finally {
       setSaving(false)
     }
+  }
+
+  /** 统一动作入口：失败/冲突/重复都要有可见反馈 */
+  const runAction = async (action: 'confirm_plan' | 'confirm_result' | 'retry'): Promise<void> => {
+    const out = await actViaCard(planId, stage, action)
+    if (out.status === 'error') message.error(out.detail ?? '操作失败')
+    else if (out.status === 'conflict') message.warning('计划已更新，请按最新版本重新确认')
+    else if (out.status === 'skipped') message.info(out.detail ?? '该动作已处理')
   }
 
   const products = stage.work_items.filter((w) => w.output_node_id || w.output_asset_id)
@@ -139,17 +148,17 @@ export default function StageReviewCard({ planId, stage, onStageChanged }: Props
                 <Button size="small" type="primary" loading={saving} disabled={!dirty} onClick={() => void save()}>
                   保存提示词
                 </Button>
-                <Button size="small" onClick={() => void actViaCard(planId, stage, 'confirm_plan')}>
+                <Button size="small" onClick={() => void runAction('confirm_plan')}>
                   确认计划并执行
                 </Button>
               </>
             )}
             {isResultGate && (
               <>
-                <Button size="small" type="primary" onClick={() => void actViaCard(planId, stage, 'confirm_result')}>
+                <Button size="small" type="primary" onClick={() => void runAction('confirm_result')}>
                   通过
                 </Button>
-                <Button size="small" icon={<ReloadOutlined />} onClick={() => void actViaCard(planId, stage, 'retry')}>
+                <Button size="small" icon={<ReloadOutlined />} onClick={() => void runAction('retry')}>
                   打回重跑
                 </Button>
               </>

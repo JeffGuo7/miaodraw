@@ -105,14 +105,33 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
           kind?: string
           planId?: string
           status?: string
+          capsule?: { route_kind?: string; reason?: string; question?: string; direct_action?: 'generate_image' | 'edit_image' }
         }
         setLastCreateResult(created)
         if (created.kind === 'plan' && created.planId) {
           setPlanId(created.planId)
           await appendMessage({ planId: created.planId, role: 'user', content })
           await appendMessage({ planId: created.planId, role: 'agent', content: '已开始规划，首个阶段就绪后会在这里提示你确认。' })
+        } else if (created.kind === 'ask') {
+          // ask = 信息不足，必须先提问。原实现统一回「已按直连出图处理」，
+          // 结果 ask 分支既不出图也不提问，用户以为在跑其实什么都没发生。
+          await appendMessage({
+            planId: null,
+            role: 'agent',
+            content:
+              created.capsule?.question ||
+              created.capsule?.reason ||
+              '这个需求还差一些信息。请补充：画面主体、用途、期望比例（或视频时长），我再帮你搭流程。'
+          })
         } else {
-          await appendMessage({ planId: null, role: 'system', content: '这个需求不需要建流程，已按直连出图处理。' })
+          // direct = 单步动作，交给创作页执行；这里只如实说明，不谎称'已出图'
+          const isEdit = created.capsule?.direct_action === 'edit_image'
+          const reason = created.capsule?.reason ? '（' + created.capsule.reason + '）' : ''
+          await appendMessage({
+            planId: null,
+            role: 'agent',
+            content: '这个需求适合直连' + (isEdit ? '改图' : '出图') + '，不需要多阶段流程' + reason + '。请到「创作」页发起生成。'
+          })
         }
       } else {
         // 已有计划：C2 起确认/重试类消息走与计划卡同一条 IPC（actor=chat）
@@ -132,7 +151,14 @@ export default function ChatPanel({ open, onClose }: Props): JSX.Element | null 
         const outcome = await actViaChat(planId, content, stages)
         if (outcome.status === 'skipped') {
           await appendMessage({ planId, role: 'user', content })
-          await appendMessage({ planId, role: 'agent', content: '收到。修改计划的能力（增量重排）在 C3/C5 接上后生效。' })
+          const dup = outcome.detail?.includes('已处理') || outcome.detail?.includes('正在处理')
+          await appendMessage({
+            planId,
+            role: 'agent',
+            content: dup
+              ? '这条确认已经处理过了，稍等计划卡刷新即可。'
+              : '收到。要改计划请指明阶段与改法（例如「把第 2 阶段的画面改成横屏」）；确认/通过类消息会在有闸门时生效。'
+          })
         }
       }
     } catch (e) {

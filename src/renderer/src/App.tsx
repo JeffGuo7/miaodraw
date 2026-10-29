@@ -241,6 +241,7 @@ export default function App(): JSX.Element {
           <div style={{ display: view === 'create' ? 'block' : 'none' }}>
             <CreateView
               seed={createSeed}
+              visible={view === 'create'}
               onDistill={goDistill}
               onHealthStale={refreshHealth}
               onGenerated={() => setHistoryVersion((v) => v + 1)}

@@ -127,7 +127,7 @@ async function persistAssets(args: {
     }
     if (deps.length) await putDependencyBatch(deps)
 
-    canvasStore.updateNode(args.childNodeId, { metadata: { ...(canvasStore.getState().nodes.find((n) => n.id === args.childNodeId)?.metadata ?? {}), assetId: child.id } })
+    canvasStore.updateNode(args.childNodeId, { metadata: { ...canvasStore.getState().nodes.find((n) => n.id === args.childNodeId)?.metadata, assetId: child.id } })
   } catch (e) {
     // 资产入库失败不影响画布展示（对账机制后续会补录）
     console.warn('[canvas] asset persist failed', e)

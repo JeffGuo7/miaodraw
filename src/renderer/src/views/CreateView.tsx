@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   App as AntdApp,
@@ -106,9 +106,11 @@ interface Props {
   onHealthStale: () => void
   onGenerated: () => void
   onOpenSettings: () => void
+  /** 当前是否为可见页：常驻挂载（App 用 display 切换），需要靠它感知「从设置页回来」以刷新密钥状态 */
+  visible?: boolean
 }
 
-export default function CreateView({ seed, onDistill, onHealthStale, onGenerated, onOpenSettings }: Props): JSX.Element {
+export default function CreateView({ seed, onDistill, onHealthStale, onGenerated, onOpenSettings, visible = true }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [mode, setMode] = useState<'t2i' | 'fusion'>('t2i')
   const [prompt, setPrompt] = useState('')
@@ -175,6 +177,27 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
       })
       .catch(() => undefined)
   }, [])
+
+  /**
+   * 密钥状态刷新：本组件常驻不卸载（App 用 display 切页），只在 mount 读一次会导致
+   * 「首次去设置页配好密钥 → 回到创作页，生成按钮仍是禁用」的死锁。切回本页时重读。
+   */
+  const refreshProviderKeys = useCallback((): void => {
+    void window.api
+      .getSettings()
+      .then((s) => {
+        const pk = (s.providerKeys ?? {}) as Record<string, { configured?: boolean }>
+        const flags: Record<string, boolean> = {}
+        for (const [k, v] of Object.entries(pk)) flags[k] = !!v?.configured
+        setProviderKeys(flags)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (!visible) return
+    refreshProviderKeys()
+  }, [visible, refreshProviderKeys])
 
   // 跨视图流转（从灵感库/历史带提示词或底图过来）
   useEffect(() => {

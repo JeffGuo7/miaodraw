@@ -99,7 +99,13 @@ export function AboutSection({
     setBusy(true)
     setProgress({ stage: 'download', percent: 0 })
     try {
-      const r = await window.api.updateDownload({ url: upd.assetUrl, name: upd.assetName, size: upd.assetSize })
+      // 带上更新源签发的摘要：主进程会在落盘前与安装前各校验一次
+      const r = await window.api.updateDownload({
+        url: upd.assetUrl,
+        name: upd.assetName,
+        size: upd.assetSize,
+        sha512: upd.assetSha512
+      })
       if (r.ok && r.file) {
         setFile(r.file)
         message.success('下载完成，点「立即安装」启动安装向导')

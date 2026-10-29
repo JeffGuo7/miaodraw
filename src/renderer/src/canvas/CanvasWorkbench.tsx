@@ -23,12 +23,13 @@ import { CanvasNode } from './CanvasNode'
 import { canvasStore, useCanvasState } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { CANVAS_SVG_OFFSET } from './connection-hit'
-import { attachPlanPersistence } from './plan-persistence'
+import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
 import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import type { CanvasNodeType, ViewportTransform } from './types'
+import type { PlanRecord, StageRecord } from './plan-types'
 import './canvas.css'
 
 const ADD_BUTTONS: Array<{ type: CanvasNodeType; icon: JSX.Element; label: string }> = [
@@ -58,7 +59,8 @@ function MigrationOverlay(): JSX.Element | null {
       })
   }, [])
 
-  if (!progress || progress.phase === 'done') return null
+  // aborted 也是终态：只认 done 会让「中断」后浮层永远停在原地（用户以为卡死）
+  if (!progress || progress.phase === 'done' || progress.phase === 'aborted') return null
   if (progress.phase === 'failed') {
     return (
       <div className="ivc-migration-mask ivc-no-zoom">
@@ -94,6 +96,23 @@ function MigrationOverlay(): JSX.Element | null {
   )
 }
 
+interface Snapshot {
+  plan: PlanRecord
+  stages: StageRecord[]
+}
+
+/**
+ * 确保计划卡节点存在（C2/C6）：已存在则复用。
+ * 新建时按 3 列网格错位摆放——历史实现固定落 (24,24)，多个计划会完全重叠成一张卡。
+ */
+function ensurePlanNode(planId: string): void {
+  const nodes = canvasStore.getState().nodes
+  if (nodes.some((n) => n.type === 'plan' && n.metadata.planId === planId)) return
+  const count = nodes.filter((n) => n.type === 'plan').length
+  const id = canvasStore.addNode('plan', { x: 24 + (count % 3) * 460, y: 24 + Math.floor(count / 3) * 420 })
+  canvasStore.updateNode(id, { metadata: { planId } })
+}
+
 export default function CanvasWorkbench(): JSX.Element {
   const state = useCanvasState()
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -117,12 +136,41 @@ export default function CanvasWorkbench(): JSX.Element {
       const snap = raw as { plan?: { id?: string; title?: string } } | undefined
       const planId = snap?.plan?.id
       if (!planId) return
-      const existing = canvasStore.getState().nodes.find((n) => n.type === 'plan' && n.metadata.planId === planId)
-      if (existing) return
-      const id = canvasStore.addNode('plan', { x: 24, y: 24 })
-      canvasStore.updateNode(id, { metadata: { planId } })
+      ensurePlanNode(planId)
     })
     return off
+  }, [])
+
+  // C6 重启续跑：主进程 registry 是纯内存工作集，重启即空。
+  // 不把 IndexedDB 里未完成的计划回灌，计划卡会永远停在「载入计划…」。
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const plans = await loadAllPlans()
+        // 只恢复未完成的计划：done / cancelled 是终态，重启不需要回到画布占位
+        const unfinished = plans.filter((p) => p.status === 'running' || p.status === 'blocked' || p.status === 'drafting')
+        if (!unfinished.length || cancelled) return
+        const snapshots: Snapshot[] = []
+        for (const p of unfinished) {
+          const { plan, stages } = await loadPlan(p.id)
+          if (plan) snapshots.push({ plan, stages })
+        }
+        if (!snapshots.length || cancelled) return
+        const res = (await window.api.planRestore(snapshots)) as { restored?: number; skipped?: number } | undefined
+        if (cancelled) return
+        // 只为「主进程确实持有」的计划建卡；被跳过的（自洽性校验失败/已存在）不建，避免死卡
+        const list = (await window.api.planList()) as Array<{ id?: string }> | undefined
+        const alive = new Set((Array.isArray(list) ? list : []).map((p) => p?.id).filter(Boolean) as string[])
+        for (const s of snapshots) if (alive.has(s.plan.id)) ensurePlanNode(s.plan.id)
+        if (res?.restored) console.info(`[canvas] 重启续跑：恢复 ${res.restored} 个计划（跳过 ${res.skipped ?? 0}）`)
+      } catch (e) {
+        console.warn('[canvas] 计划恢复失败：', e instanceof Error ? e.message : e)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const zoomBy = useCallback(

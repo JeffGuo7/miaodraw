@@ -1,7 +1,7 @@
 {
     "name":  "miaodraw",
     "version":  "0.1.0",
-    "description":  "濡欑粯宸ヤ綔鍙?- AI 鍥惧儚鍒涗綔瀹㈡埛绔紙闃块噷浜戠櫨鐐奸┍鍔級",
+    "description":  "妙绘工作台 - AI 图像创作客户端（阿里云百炼驱动）",
     "main":  "./out/main/index.js",
     "author":  "miaodraw",
     "license":  "MIT",
@@ -15,7 +15,8 @@
                     "test:orchestrator":  "node --test src/main/orchestrator/state.test.mjs src/main/orchestrator/registry.test.mjs",
                     "test:prompt":  "node --test src/main/prompt-guards.test.mjs",
                     "test:video":  "node --test src/main/video-protocol.test.mjs src/main/video/jobs.test.mjs src/main/video/cost.test.mjs src/main/video/pipeline.test.mjs",
-                    "test":  "npm run test:canvas \u0026\u0026 npm run test:orchestrator \u0026\u0026 npm run test:prompt \u0026\u0026 npm run test:video",
+                    "test:cost":  "node --test src/main/image-cost.test.mjs",
+                    "test":  "npm run test:canvas \u0026\u0026 npm run test:orchestrator \u0026\u0026 npm run test:prompt \u0026\u0026 npm run test:video \u0026\u0026 npm run test:cost",
                     "start":  "electron-vite preview",
                     "dev":  "electron-vite dev",
                     "build":  "npm run typecheck \u0026\u0026 electron-vite build",

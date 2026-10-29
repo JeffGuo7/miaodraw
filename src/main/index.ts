@@ -37,6 +37,7 @@ import { estimateVideoCost, normalizeVideoSpec, type VideoSpecInput } from './vi
 
 import { registerOrchestratorHandlers } from './orchestrator'
 import { registerVideoHandlers } from './video'
+import { checkImageBudget, estimateImageBatch } from './image-cost'
 import { auditPlannedPrompt, buildImagePrompt } from './prompt-guards'
 
 // ---------- 路径 ----------
@@ -153,6 +154,10 @@ interface Settings {
   updateFeed?: string
   /** 视频管线累计预算（元，V1 成本护栏硬上限）；未设置时默认 ¥20 */
   videoBudget?: number
+  /** 图片/改图/Agent 累计预算（元，P0 成本护栏）；未设置时默认 ¥20 */
+  imageBudget?: number
+  /** 已花费（元，主进程持久化，重启不清零）——供预算判定与自己核对账单 */
+  imageSpentCny?: number
 }
 function readSettings(): Settings {
   try {
@@ -172,6 +177,45 @@ function writeSettings(patch: Settings): Settings {
   fs.mkdirSync(path.dirname(SETTINGS_FILE()), { recursive: true })
   fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(next, null, 2))
   return next
+}
+/**
+ * 设置对外投影：密文字段与旧明文字段绝不回显到渲染进程；服务商密钥只给掩码状态。
+ * get 与 set 必须共用本函数——历史上 set 直接回传 writeSettings 的结果，
+ * 把 bailianKeyEnc/providerKeysEnc 送回了渲染层（plainFallback 平台即 base64 明文）。
+ */
+function publicSettings(): Record<string, unknown> & { providerKeys: Record<string, { configured: boolean; masked: string; plainFallback: boolean }> } {
+  const s = readSettings()
+  const { bailianKeyEnc: _a, bailianKeyPlain: _b, providerKeysEnc: _c, providers: _d, ...pub } = s
+  return { ...pub, providerKeys: providerKeysInfo() }
+}
+
+/** 图片链路预算（元）：settings.imageBudget，默认 ¥20（与视频预算同口径） */
+function imageBudgetCny(): number {
+  const v = Number(readSettings().imageBudget)
+  return Number.isFinite(v) && v > 0 ? v : 20
+}
+/** 已花费（元）：持久化在 settings 里，重启不清零（视频账本是纯内存，这里刻意做得更严） */
+function imageSpentCny(): number {
+  const v = Number(readSettings().imageSpentCny)
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+/**
+ * 付费出图前置闸门（fail-closed）：超预算直接抛错，调用方不会走到任何付费请求。
+ * 图片链路没有视频那样的确认凭证，预算就是唯一的硬闸。
+ */
+function assertImageBudget(model: string, count: number): { cny: number; count: number } {
+  const gate = checkImageBudget({ model, count, spentCny: imageSpentCny(), budgetCny: imageBudgetCny() })
+  if (!gate.ok) {
+    log('warn', `image budget gate: ${gate.code} ${gate.reason}`)
+    throw new Error(gate.reason)
+  }
+  return { cny: gate.estimate.cny, count: gate.estimate.count }
+}
+/** 成功后记账（按实际张数；写 setting 是唯一持久化点） */
+function recordImageSpend(model: string, count: number): void {
+  const cny = estimateImageBatch(model, count).cny
+  if (!(cny > 0)) return
+  writeSettings({ imageSpentCny: Math.round((imageSpentCny() + cny) * 100) / 100 })
 }
 
 // ---------- 密钥加解密（百炼与第三方服务商共用） ----------
@@ -247,6 +291,15 @@ type ProviderId = (typeof PROVIDER_IDS)[number]
 
 function isProviderId(v: string): v is ProviderId {
   return (PROVIDER_IDS as readonly string[]).includes(v)
+}
+/**
+ * 可存密钥的服务商 = 内置三家 + 用户自定义供应商。
+ * 之前只认内置 id，导致设置页里自定义供应商（custom-<ts>）保存密钥永远失败，
+ * 而 http.ts 的 doubao / gpt-image 分支又依赖这些密钥 → 该能力实际不可达。
+ */
+function isKnownProvider(v: string): boolean {
+  if (isProviderId(v)) return true
+  return (getModelConfig().customProviders ?? []).some((c) => c.id === v)
 }
 
 function getProviderKey(provider: string): string {
@@ -1375,7 +1428,7 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
         await sleep(400)
         const confirmCard = panel.querySelector('[data-frozen-confirm="true"]')
         // 卡片必须给出两种处理方式（任务卡：新建计划 / 从当前阶段重排），否则用户无从选
-        const confirmOptions = confirmCard ? [...confirmCard.querySelectorAll('button')].map((b) => (b.textContent || '').replace(/\s+/g, '')) : []
+        const confirmOptions = confirmCard ? [...confirmCard.querySelectorAll('button')].map((b) => (b.textContent || '').replace(/\\s+/g, '')) : []
         const hasOptions = confirmOptions.some((t) => t.includes('重排')) && confirmOptions.some((t) => t.includes('新建计划'))
         const eventsAfter = (await window.api.planEvents(planId)).length
         const noCommit = eventsAfter === eventsBefore
@@ -2200,7 +2253,19 @@ function registerIpc(): void {
         videoDir: () => VIDEO_DIR,
         tmpDir: () => path.join(app.getPath('userData'), 'tmp')
       },
-      bailian: { origin: () => bailianOrigin(), apiKey: () => bailianApiKey() }
+      bailian: { origin: () => bailianOrigin(), apiKey: () => bailianApiKey() },
+      // 编排状态机 <-> 视频管线接线：视频模块不直接 import orchestrator，用回调注入
+      stageRevision: (planId, stageId) => {
+        const snap = orch.registry.get(planId)
+        return snap?.stages.find((s) => s.id === stageId)?.revision ?? null
+      },
+      onStageDone: ({ planId, stageId }) => {
+        const snap = orch.registry.get(planId)
+        const stage = snap?.stages.find((s) => s.id === stageId)
+        // 只有 doing 才能 execution_done（状态机唯一入口会再校验一次）
+        if (!stage || stage.status !== 'doing') return
+        orch.registry.advance(planId, stageId, 'execution_done', stage.revision, Date.now(), 'auto')
+      }
     }
   )
 
@@ -2347,6 +2412,8 @@ function registerIpc(): void {
   handle('generate', async (_e, raw: GenIpcOpts) => {
     const opts = raw
     if (!opts || !opts.prompt || !opts.prompt.trim()) throw new Error('提示词不能为空')
+    // 成本护栏（fail-closed）：超预算直接抛错，连 HTTP 请求都不会发出去
+    assertImageBudget(opts.model, Math.max(1, Math.round(opts.n || 1)))
     const provider = opts.provider || 'bailian'
     const onProgress = (stage: string, detail?: string): void => {
       win?.webContents.send('gen-progress', { runId: opts.runId, stage, detail })
@@ -2420,7 +2487,8 @@ function registerIpc(): void {
           )
         }
         const first = persisted[0]
-        log('info', `generate done files=${persisted.length} refs=${refs.length} seq=${seq} in ${Date.now() - t0}ms`)
+        recordImageSpend(opts.model, persisted.length)
+        log('info', `generate done files=${persisted.length} refs=${refs.length} seq=${seq} spent=${imageSpentCny()} in ${Date.now() - t0}ms`)
         return {
           file: first.file,
           url: first.url,
@@ -2467,6 +2535,7 @@ function registerIpc(): void {
         2
       )
     )
+    recordImageSpend(opts.model, 1)
     return {
       file: r.file,
       url: `media://local/out/${encodeURIComponent(r.file)}`,
@@ -2542,12 +2611,7 @@ function registerIpc(): void {
     return getModelConfig()
   })
 
-  handle('settings:get', () => {
-    const s = readSettings()
-    // 密文字段与旧明文字段绝不回显到渲染进程；服务商密钥只给掩码状态
-    const { bailianKeyEnc: _a, bailianKeyPlain: _b, providerKeysEnc: _c, providers: _d, ...pub } = s
-    return { ...pub, providerKeys: providerKeysInfo() }
-  })
+  handle('settings:get', () => publicSettings())
   handle('settings:set', (_e, patch: Settings) => {
     if (
       patch &&
@@ -2559,7 +2623,9 @@ function registerIpc(): void {
     ) {
       throw new Error('密钥字段请使用 bailian-key:set / provider-key:set 接口')
     }
-    return writeSettings(patch)
+    // 落盘后返回公开投影（绝不回传 writeSettings 的合并结果，其中含密钥密文）
+    writeSettings(patch)
+    return publicSettings()
   })
 
   // ---------- 第三方服务商密钥管理 ----------
@@ -2574,7 +2640,7 @@ function registerIpc(): void {
   })
   handle('provider-key:get', () => providerKeysInfo())
   handle('provider-key:set', (_e, provider: string, key: string) => {
-    if (!isProviderId(provider)) return { ok: false as const, err: '未知服务商' }
+    if (!isKnownProvider(provider)) return { ok: false as const, err: '未知服务商' }
     const plain = String(key || '').trim()
     if (!plain) return { ok: false as const, err: '密钥不能为空' }
     if (/\s/.test(plain)) return { ok: false as const, err: '密钥中间包含空格或换行，请重新完整复制粘贴' }
@@ -2692,9 +2758,11 @@ function registerIpc(): void {
     const imageDef = resolveDefault('image', { provider: 'bailian', model: 'wan2.7-image' })
     const imageConn = connFor(payload.provider || imageDef.provider, payload.model || imageDef.model)
     if (!imageConn.apiKey) throw new Error('未配置生图模型密钥，请到「设置 → 模型服务」填写')
+    // Agent 一次会走多步出图/改图：先按 2 张的额度闸门，实际花费在执行后按产物张数记账
+    assertImageBudget(imageConn.model, 2)
     // 创作页素材托盘：Agent 可用 images 参数按序号引用（1-based 即"图1/图2"）
     const materialPool = (payload.refs ?? []).slice(0, imageCapability(imageConn.model).maxRefs)
-    return runAgent({
+    const agentRes = await runAgent({
       runId: payload.runId,
       goal: payload.goal.trim(),
       baseImage: payload.baseName,
@@ -2704,6 +2772,9 @@ function registerIpc(): void {
       outputsDir: OUT_DIR,
       onEvent: (e: unknown) => win?.webContents.send('agent-progress', e)
     })
+    // 按实际产物张数记账（至少记 1 张，避免 0 张时漏记）
+    recordImageSpend(imageConn.model, Math.max(1, agentRes.files.length))
+    return agentRes
   })
 
   // ---------- 图像编辑（wanx2.1-imageedit 系列：局部重绘/擦除/去水印/超分/扩图/上色/线稿） ----------
@@ -2780,6 +2851,8 @@ function registerIpc(): void {
       const origin = bailianOrigin()
       const prompt = payload.prompt?.trim() || EDIT_DEFAULT_PROMPT[op]
       const model = op === 'erase' ? 'image-erase-completion' : 'wanx2.1-imageedit'
+      // 改图同样是付费链路，走同一套预算闸门
+      assertImageBudget(model, 1)
       const onProgress = (stage: string, detail?: string): void => {
         win?.webContents.send('gen-progress', { runId: payload.runId, stage, detail })
       }
@@ -2818,6 +2891,7 @@ function registerIpc(): void {
           provider: 'bailian',
           parent: payload.name
         })
+        recordImageSpend(model, 1)
         log('info', `image:edit done op=${op} file=${file} in ${Date.now() - t0}ms`)
         return { file, url, elapsed: Date.now() - t0, seed: 0, model, parent: payload.name, op }
       } catch (e) {
@@ -2886,9 +2960,16 @@ function registerIpc(): void {
 
   // ---------- 应用内更新（自研，见 updater.ts 的说明） ----------
   handle('update:check', () => checkUpdate(readSettings().updateFeed))
-  handle('update:download', async (_e, payload: { url: string; name: string; size?: number }) => {
+  handle('update:download', async (_e, payload: { url: string; name: string; size?: number; sha512?: string }) => {
     if (!payload?.url) throw new Error('缺少下载地址')
-    return downloadUpdate(payload.url, payload.name, (p) => win?.webContents.send('update-progress', p), payload.size)
+    // sha512 由更新源签发（feed 的 sha512 / GitHub asset digest）；缺失时 downloadUpdate 会明确拒绝非 https 地址
+    return downloadUpdate(
+      payload.url,
+      payload.name,
+      (p) => win?.webContents.send('update-progress', p),
+      payload.size,
+      payload.sha512
+    )
   })
   handle('update:cancel', () => ({ ok: cancelUpdateDownload() }))
   handle('update:install', async (_e, file: string) => {

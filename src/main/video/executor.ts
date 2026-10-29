@@ -36,6 +36,22 @@ import { authorizePaidSubmit, type ConfirmToken, type CostEstimate } from './cos
 
 const execFileAsync = promisify(execFile)
 
+/**
+ * running 对账（硬约束①的缺口）：进程在「已提交付费请求、但还没写回 job 状态」时崩溃，
+ * 重启后 job 仍是 running。此时直接重提会**重复付费**，所以先看产物是否已落盘：
+ * 落盘 → 转 done 直接复用；未落盘 → 才允许重提（且由 attempts 上限兜底）。
+ */
+async function reconcileLanded(rel: string | undefined, baseDir: string): Promise<boolean> {
+  if (!rel) return false
+  try {
+    const abs = path.isAbsolute(rel) ? rel : path.join(baseDir, path.basename(rel))
+    const st = await fsp.stat(abs)
+    return st.size > 0
+  } catch {
+    return false
+  }
+}
+
 /** 分镜 LLM：省钱档（用户口径：推理模型用 flash） */
 export const SCRIPT_MODEL = 'qwen3.8-flash'
 export const IMAGE_MODEL_DEFAULT = 'z-image-turbo'
@@ -227,6 +243,18 @@ export async function runStage(input: RunStageInput, registry: {
       progress(job.id, 0.2 + (0.5 * (i + 1)) / shotInputs.length, `镜头 ${i + 1}/${shotInputs.length} 复用`)
       continue
     }
+    if (decision.action === 'reconcile') {
+      const landed = await reconcileLanded(job.output_asset_id, input.imageDir)
+      if (landed && job.output_asset_id) {
+        imagePaths.push(job.output_asset_id)
+        job = registry.put(markDone(job, job.output_asset_id))
+        jobs[jobs.length - 1] = job
+        input.audit?.({ plan_id: input.planId, stage_id: input.stageId, event: 'video_job_reconcile', detail: `镜头 ${i + 1} 崩溃对账：产物已落盘，转 done（不重复付费）`, request_id: job.request_id })
+        progress(job.id, 0.2 + (0.5 * (i + 1)) / shotInputs.length, `镜头 ${i + 1}/${shotInputs.length} 对账复用`)
+        continue
+      }
+      input.audit?.({ plan_id: input.planId, stage_id: input.stageId, event: 'video_job_reconcile', detail: `镜头 ${i + 1} 崩溃对账：未发现产物，按未完成重提`, request_id: job.request_id })
+    }
     if (input.shouldCancel?.()) {
       input.audit?.({ plan_id: input.planId, stage_id: input.stageId, event: 'video_cancel', detail: `用户取消：镜头 ${i + 1} 未执行` })
       return { ok: false, code: 'CANCELLED', reason: '已取消（后续付费步骤未执行）', estimate: gate.estimate, jobs, script, imagePaths, spentCny: charges.reduce((s, c) => s + c.cny, 0), charges, msg: '已取消' }
@@ -278,6 +306,15 @@ export async function runStage(input: RunStageInput, registry: {
       audioRel = ttsJob.output_asset_id
       audioAbs = path.join(input.videoDir, path.basename(ttsJob.output_asset_id))
       input.audit?.({ plan_id: input.planId, stage_id: input.stageId, event: 'video_job_reuse', detail: '配音复用既有产物' })
+    } else if (
+      decision.action === 'reconcile' &&
+      ttsJob.output_asset_id &&
+      (await reconcileLanded(ttsJob.output_asset_id, input.videoDir))
+    ) {
+      audioRel = ttsJob.output_asset_id
+      audioAbs = path.join(input.videoDir, path.basename(ttsJob.output_asset_id))
+      ttsJob = registry.put(markDone(ttsJob, ttsJob.output_asset_id))
+      input.audit?.({ plan_id: input.planId, stage_id: input.stageId, event: 'video_job_reconcile', detail: '配音崩溃对账：产物已落盘，转 done（不重复付费）', request_id: ttsJob.request_id })
     } else if (decision.action !== 'blocked' && script.narration.trim()) {
       ttsJob = registry.put(markRunning(ttsJob))
       progress(ttsJob.id, 0.75, '配音合成')

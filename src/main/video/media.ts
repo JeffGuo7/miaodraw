@@ -30,7 +30,7 @@ export const TTS_DEFAULT_BASE_URL = 'https://dashscope.aliyuncs.com/api/v1'
 
 export function buildTtsUrl(baseUrl?: string): string {
   const base = String(baseUrl || process.env.MIAODRAW_TTS_BASE_URL || TTS_DEFAULT_BASE_URL).replace(/\/+$/, '')
-  const withApi = /\/api\/v1$/.test(base) ? base : `${base}/api/v1`
+  const withApi = base.endsWith('/api/v1') ? base : `${base}/api/v1`
   return `${withApi}/services/aigc/multimodal-generation/generation`
 }
 

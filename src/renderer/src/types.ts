@@ -239,6 +239,8 @@ export interface UpdateInfo {
   assetName?: string
   assetUrl?: string
   assetSize?: number
+  /** 更新源签发的摘要（electron-builder sha512 base64 或 GitHub "sha256:<hex>"） */
+  assetSha512?: string
   source?: 'feed' | 'github'
   out?: string
 }
@@ -288,7 +290,7 @@ export interface Api {
   appInfo(): Promise<AppInfo>
   /** 检查更新（自研更新器：GitHub Releases 或自定义更新源） */
   updateCheck(): Promise<UpdateInfo>
-  updateDownload(payload: { url: string; name: string; size?: number }): Promise<{ ok: boolean; file?: string; out?: string }>
+  updateDownload(payload: { url: string; name: string; size?: number; sha512?: string }): Promise<{ ok: boolean; file?: string; out?: string }>
   updateCancel(): Promise<{ ok: boolean }>
   updateInstall(file: string): Promise<{ ok: boolean; out?: string }>
   onUpdateProgress(cb: (p: UpdateProgress) => void): () => void
@@ -367,6 +369,8 @@ export interface Api {
   /** 读全量（看板渲染用） */
   planAuthored(planId: string): Promise<unknown>
   planList(): Promise<unknown>
+  /** 重启恢复：主进程工作集为空时，用 IndexedDB 里未完成的计划快照回灌（只补缺失） */
+  planRestore(snapshots: unknown[]): Promise<{ restored: number; skipped: number }>
   /** 一次只 author 当前阶段 */
   planAuthorStage(payload: { planId: string; stageOrder?: number; expectedRevision?: number }): Promise<unknown>
   /** 乐观锁内容编辑：revision 不匹配返回 conflict */

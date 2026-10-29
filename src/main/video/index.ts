@@ -47,6 +47,14 @@ export interface VideoOptions {
   /** V1 executor 需要的目录与凭证（由主进程注入，模块本身不读 electron） */
   paths?: { imageDir: () => string; videoDir: () => string; tmpDir: () => string }
   bailian?: { origin: () => string; apiKey: () => string }
+  /**
+   * 编排状态机的当前 revision（避免视频模块依赖 orchestrator）。
+   * 用于 video:confirm 校验「用户确认的 revision」是否仍是当前版本——
+   * 否则渲染层可以自填 revision 再自证，token 的 revision 绑定形同虚设。
+   */
+  stageRevision?: (planId: string, stageId: string) => number | null
+  /** 阶段执行成功后回写状态机（execution_done），否则视频执行完 stage 永远停在 doing */
+  onStageDone?: (args: { planId: string; stageId: string }) => void
 }
 
 /** 一次性凭证暂存（按 planId:stageId 存最新一张；用后作废） */
@@ -122,6 +130,11 @@ export function registerVideoHandlers(
   handle('video:confirm', (_e, payload: { planId: string; stageId: string; revision: number; items: CostItem[]; acceptUnpriced?: boolean }) => {
     const items = payload?.items ?? []
     if (!items.length) throw new Error('没有可确认的付费项（先做一次预估）')
+    // 凭证的 revision 不能由渲染层自证：必须与编排状态机的当前 revision 一致
+    const currentRevision = opts.stageRevision?.(payload?.planId, payload?.stageId) ?? null
+    if (currentRevision !== null && currentRevision !== (Number(payload?.revision) || 0)) {
+      throw new Error(`阶段已更新（当前 revision=${currentRevision}，确认时=${Number(payload?.revision) || 0}），请重新预估后再确认`)
+    }
     const token = issueConfirmToken({
       stageId: payload?.stageId,
       revision: Number(payload?.revision) || 0,
@@ -221,6 +234,9 @@ export function registerVideoHandlers(
     if (res.ok) {
       const tok = payload?.confirmToken ?? tokens.get(key)
       if (tok) usedTokens.add(tok.token)
+      // 执行成功 → 回写状态机（doing → waiting_user(result_review)），
+      // 否则视频跑完 stage 永远停在 doing，计划卡不会出现「通过/重跑」闸门。
+      opts.onStageDone?.({ planId, stageId })
     }
     return { ...res, spentBefore, spentTotal: ledger.spentOf(planId), remaining: Math.max(0, Math.round((opts.budgetCny() - ledger.spentOf(planId)) * 100) / 100) }  })
 

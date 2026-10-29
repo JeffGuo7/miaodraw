@@ -33,7 +33,7 @@ const api = {
     ipcRenderer.invoke('settings:set', patch),
   appInfo: (): Promise<unknown> => ipcRenderer.invoke('app:info'),
   updateCheck: (): Promise<unknown> => ipcRenderer.invoke('update:check'),
-  updateDownload: (payload: { url: string; name: string; size?: number }): Promise<unknown> =>
+  updateDownload: (payload: { url: string; name: string; size?: number; sha512?: string }): Promise<unknown> =>
     ipcRenderer.invoke('update:download', payload),
   updateCancel: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('update:cancel'),
   updateInstall: (file: string): Promise<{ ok: boolean; out?: string }> => ipcRenderer.invoke('update:install', file),
@@ -95,6 +95,8 @@ const api = {
     ipcRenderer.invoke('plan:create', payload),
   planAuthored: (planId: string): Promise<unknown> => ipcRenderer.invoke('plan:authored', { planId }),
   planList: (): Promise<unknown> => ipcRenderer.invoke('plan:list'),
+  /** 重启恢复：把 IndexedDB 里未完成的计划快照送回主进程工作集（只补缺失，不覆盖内存新状态） */
+  planRestore: (snapshots: unknown[]): Promise<unknown> => ipcRenderer.invoke('plan:restore', { snapshots }),
   planAuthorStage: (payload: { planId: string; stageOrder?: number; expectedRevision?: number }): Promise<unknown> =>
     ipcRenderer.invoke('plan:authorStage', payload),
   planPatchStage: (payload: { planId: string; stageId: string; patch: unknown; expectedRevision: number }): Promise<unknown> =>

@@ -50,6 +50,13 @@ export function registerOrchestratorHandlers(
 
   handle('plan:list', (): PlanRecord[] => registry.list())
 
+  /**
+   * 重启恢复（C6 续跑）：主进程 registry 是纯内存工作集，重启即空。
+   * 渲染层启动时把 IndexedDB 里未完成的计划快照送回这里，否则计划卡永远停在「载入计划…」。
+   * 只补内存缺失的计划，已存在的一律跳过。
+   */
+  handle('plan:restore', (_e, payload: { snapshots?: PlanSnapshot[] }) => registry.restore(payload?.snapshots ?? []))
+
   handle('plan:events', (_e, payload?: { planId?: string }): PlanEvent[] => registry.listEvents(payload?.planId))
 
   handle('plan:authorStage', (_e, payload: { planId: string; stageOrder?: number; expectedRevision?: number }) => {

@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Button, Space, Tag, Tooltip } from 'antd'
+import { App as AntdApp, Button, Space, Tag, Tooltip } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 
 import type { PlanRecord, StageRecord } from './plan-types'
@@ -68,6 +68,7 @@ if (typeof window !== 'undefined') {
 }
 
 export default function PlanCard({ planId }: Props): JSX.Element {
+  const { message } = AntdApp.useApp()
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [nowTick, setNowTick] = useState(0)
@@ -119,6 +120,17 @@ export default function PlanCard({ planId }: Props): JSX.Element {
       }
     }
   }, [planId, refresh, scheduleFullRefresh])
+
+  /** 统一动作入口：把失败/冲突/重复显式告诉用户（此前返回值被丢弃，表现为「点了没反应」） */
+  const runAction = useCallback(
+    async (stage: StageRecord, action: 'confirm_plan' | 'confirm_result' | 'retry'): Promise<void> => {
+      const out = await actViaCard(planId, stage, action)
+      if (out.status === 'error') message.error(out.detail ?? '操作失败')
+      else if (out.status === 'conflict') message.warning('计划已更新，请按最新版本重新确认')
+      else if (out.status === 'skipped') message.info(out.detail ?? '该动作已处理')
+    },
+    [planId, message]
+  )
 
   const draftEmpty = snap?.plan.status === 'drafting' && (snap?.stages.length ?? 0) === 0
   // 只有停在 drafting 且零物化时才需要按秒重算 stale，其他状态不用每 5 秒重渲染
@@ -212,7 +224,7 @@ export default function PlanCard({ planId }: Props): JSX.Element {
               {stage.waiting_reason === 'plan_review' && (
                 <Space size={4} className="ivc-plancard-actions">
                   <Tooltip title="生成一条等价消息并推进（与聊天确认同路）">
-                    <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void actViaCard(planId, stage, 'confirm_plan')}>
+                    <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => void runAction(stage, 'confirm_plan')}>
                       确认计划
                     </Button>
                   </Tooltip>
@@ -220,10 +232,10 @@ export default function PlanCard({ planId }: Props): JSX.Element {
               )}
               {stage.waiting_reason === 'result_review' && (
                 <Space size={4} className="ivc-plancard-actions">
-                  <Button size="small" type="primary" onClick={() => void actViaCard(planId, stage, 'confirm_result')}>
+                  <Button size="small" type="primary" onClick={() => void runAction(stage, 'confirm_result')}>
                     通过
                   </Button>
-                  <Button size="small" icon={<ReloadOutlined />} onClick={() => void actViaCard(planId, stage, 'retry')}>
+                  <Button size="small" icon={<ReloadOutlined />} onClick={() => void runAction(stage, 'retry')}>
                     重跑
                   </Button>
                 </Space>

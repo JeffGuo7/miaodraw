@@ -204,6 +204,80 @@ test('insert_stage：新阶段直接进入 plan_review（不预铺后续）', ()
   assert.equal(inserted.work_items[0].id.includes('_extra_1'), true)
 })
 
+test('重启恢复：restore 只补内存缺失的计划，跳过已有与不自洽快照', () => {
+  const { reg, planId } = setup()
+  reg.authorFirstStage(planId)
+  const snap = reg.get(planId)
+
+  // 内存已有 → 全部跳过（内存状态永远比磁盘新）
+  const dup = reg.restore([snap])
+  assert.equal(dup.restored, 0)
+  assert.equal(dup.skipped, 1)
+
+  // 新 registry（模拟应用重启）→ 能装回
+  const reg2 = new PlanRegistry()
+  const r2 = reg2.restore([snap])
+  assert.equal(r2.restored, 1)
+  assert.equal(reg2.get(planId).plan.id, planId)
+  assert.equal(reg2.get(planId).stages.length, snap.stages.length)
+
+  // 不自洽快照（阶段 order 不在 outline 内）→ 拒绝，避免造出死卡
+  const bad = { plan: { ...snap.plan, id: 'p_bad' }, stages: [{ ...snap.stages[0], id: 'x_bad', order: 99 }] }
+  const r3 = new PlanRegistry().restore([bad])
+  assert.equal(r3.restored, 0)
+  assert.equal(r3.skipped, 1)
+
+  // 重复 order 也要拒绝
+  const dupOrder = { plan: { ...snap.plan, id: 'p_dup' }, stages: [snap.stages[0], { ...snap.stages[0], id: 'y_dup' }] }
+  assert.equal(new PlanRegistry().restore([dupOrder]).skipped, 1)
+})
+
+test('阶段接力：某阶段确认完成后自动 author 下一阶段（多阶段流程不会停在第 1 阶段）', () => {
+  const { reg, planId: pid } = setup()
+  const s1 = reg.authorFirstStage(pid).value.stages.find((s) => s.order === 1)
+  const a1 = reg.advance(pid, s1.id, 'confirm_plan', s1.revision)
+  const a2 = reg.advance(pid, s1.id, 'execution_done', a1.value.revision)
+  assert.equal(reg.get(pid).stages.length, 1, '未完成时应只有一个阶段（滚动细化，不预铺）')
+
+  const a3 = reg.advance(pid, s1.id, 'confirm_result', a2.value.revision)
+  assert.equal(a3.value.status, 'done')
+
+  const snap = reg.get(pid)
+  assert.equal(snap.stages.length, 2, '确认完成后必须自动 author 出下一阶段')
+  const s2 = snap.stages.find((s) => s.order === 2)
+  assert.equal(s2.status, 'waiting_user')
+  assert.equal(s2.waiting_reason, 'plan_review', '新阶段应直接进计划确认闸门')
+  assert.equal(s2.depends_on.includes(s1.id), true, '依赖边指向前一阶段')
+})
+
+test('阶段接力幂等：全部阶段已 author 后再完成最后一个阶段，不重复物化', () => {
+  const { reg, planId: pid } = setup()
+  const s1 = completeStage(reg, pid) // 完成后 s2 已自动 author
+  const s2 = reg.get(pid).stages.find((s) => s.order === 2)
+  const before = reg.get(pid).stages.length
+  const a1 = reg.advance(pid, s2.id, 'confirm_plan', s2.revision)
+  const a2 = reg.advance(pid, s2.id, 'execution_done', a1.value.revision)
+  reg.advance(pid, s2.id, 'confirm_result', a2.value.revision)
+  // doc-to-video 有 4 阶段：继续完成到最后一个，阶段数只能增加不能重复
+  let guard = 0
+  while (guard++ < 10) {
+    const snap = reg.get(pid)
+    const pending = snap.stages.find((s) => s.status !== 'done')
+    if (!pending) break
+    const x1 = reg.advance(pid, pending.id, 'confirm_plan', pending.revision)
+    if (!x1.ok) break
+    const x2 = reg.advance(pid, pending.id, 'execution_done', x1.value.revision)
+    if (!x2.ok) break
+    const x3 = reg.advance(pid, pending.id, 'confirm_result', x2.value.revision)
+    if (!x3.ok) break
+  }
+  const final = reg.get(pid)
+  assert.equal(final.plan.status, 'done', '四阶段全部完成后计划应为 done')
+  assert.equal(final.stages.length, final.plan.stage_outline.length, '阶段数与大纲一致，无重复物化')
+  assert.equal(new Set(final.stages.map((s) => s.order)).size, final.stages.length, 'order 不重复')
+  assert.equal(final.stages.length >= before, true)
+})
+
 test('plan:cancel 语义：标记终态，阶段保持原状，并记审计事件', () => {
   const { reg, planId, events } = setup()
   reg.authorFirstStage(planId)

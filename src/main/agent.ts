@@ -1,7 +1,7 @@
 import path from 'node:path'
 import fsp from 'node:fs/promises'
 import { extractJson, plannerSystem, validatePlan, type PlanStep } from './tools'
-import { httpChat, httpBailianImage, persistImage, writeImageSidecar, clampRefs, DASHSCOPE_ORIGIN, type ModelConn, type RefImage } from './http'
+import { httpChat, httpBailianImage, persistImage, writeImageSidecar, clampRefs, compatBase, DASHSCOPE_ORIGIN, type ModelConn, type RefImage } from './http'
 import { httpGenerate } from './providers'
 import { auditPlannedPrompt, neutralizePrompt, refCapCheck } from './prompt-guards'
 import { log } from './logger'
@@ -131,7 +131,12 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
   let content: string
   try {
     content = await httpChat({
-      apiBase: (opts.textConn.apiBase || '').trim(),
+      // bailian 的 ModelConn 只有 origin、没有 apiBase；直接取 apiBase 会拼出相对 URL（/chat/completions）
+      // 导致 Agent 规划必然失败。与 distill 等调用点保持同一规则。
+      apiBase:
+        opts.textConn.kind === 'bailian'
+          ? compatBase(opts.textConn.origin || DASHSCOPE_ORIGIN)
+          : (opts.textConn.apiBase || '').trim(),
       apiKey: opts.textConn.apiKey,
       model: opts.textConn.model,
       system: plannerSystem(context),
@@ -244,9 +249,11 @@ export async function runAgent(opts: RunOpts): Promise<AgentRunResult> {
         outputsDir
       )
 
-    let res = await genOnce(guardedPrompt, guardNegative)
+    // 首次用「已中性化 prompt」出图；命中编造时再用加固参数重试一次。
+    // 两轮参数必须不同（prompt 追加文字来源约束、negative 追加守卫）；
+    // 若两轮传同一组参数，就不是"换参数重试"而是同 prompt 重复抽卡，白烧一张图。
+    let res = await genOnce(fixedPrompt, baseNegative)
     if (fabricationRetry) {
-      // 已用改参数后的 prompt 重生成过一次（同 prompt 不重复抽卡）
       log('info', `步骤 ${i} 触发编造防护重试（改用 negative 守卫 + 文字来源约束）`)
       opts.onEvent({
         runId,
