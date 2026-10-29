@@ -172,6 +172,38 @@ export const canvasStore = {
     emitKey('selection')
   },
 
+  /** 批量选中（框选/全选用）；空数组即清空 */
+  setSelection(ids: string[]): void {
+    state = { ...state, selectedIds: [...new Set(ids)], selectedConnectionId: null }
+    emitKey('selection')
+  },
+
+  /** Shift 点选：已选则移除，未选则追加并置顶 */
+  toggleSelection(id: string): void {
+    const has = state.selectedIds.includes(id)
+    const ids = has ? state.selectedIds.filter((s) => s !== id) : [...state.selectedIds, id]
+    state = { ...state, selectedIds: ids, selectedConnectionId: null }
+    if (!has) {
+      const z = state.zCounter + 1
+      state = { ...state, zCounter: z }
+      patchNode(id, { zIndex: z })
+    }
+    emitKey('selection')
+  },
+
+  /** 多选拖动热路径：按「起点坐标 + 本次增量」批量提交，一次通知几何层 */
+  moveNodes(origins: Array<{ id: string; x: number; y: number }>, dx: number, dy: number): void {
+    if (!origins.length) return
+    const byId = new Map(origins.map((o) => [o.id, o]))
+    const nodes = state.nodes.map((n) => {
+      const o = byId.get(n.id)
+      return o ? { ...n, x: Math.round(o.x + dx), y: Math.round(o.y + dy) } : n
+    })
+    state = { ...state, nodes, geometryVersion: state.geometryVersion + 1 }
+    for (const o of origins) emitNode(o.id)
+    emitGeometry()
+  },
+
   /** 选中连线（与节点选择互斥） */
   selectConnection(id: string | null): void {
     state = { ...state, selectedConnectionId: id, selectedIds: [] }

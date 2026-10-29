@@ -207,7 +207,6 @@ export default function App(): JSX.Element {
           onClick={(e) => setView(e.key as ViewKey)}
         />
         <div className="sider-foot">
-          {version && <Typography.Text type="secondary">v{version}</Typography.Text>}
           <Typography.Text type="secondary">百炼 API 驱动</Typography.Text>
         </div>
       </Layout.Sider>
@@ -280,7 +279,7 @@ export default function App(): JSX.Element {
             <SettingsView visible={view === 'settings'} />
           </div>
         </Layout.Content>
-        <StatusBar onOpenPalette={() => setPalOpen(true)} version={version} />
+        <StatusBar onOpenPalette={() => setPalOpen(true)} version={version} health={health} />
       </Layout>
       <CommandPalette
         open={palOpen}

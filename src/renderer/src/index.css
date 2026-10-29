@@ -911,6 +911,18 @@ body {
 }
 
 /* ---------- 底部状态栏 ---------- */
+/* 状态栏服务状态点（替代重复的 antd Badge，视觉更轻） */
+.sb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  background: #c0c4cc;
+}
+.sb-dot-ok { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }
+.sb-dot-bad { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+
 .statusbar {
   height: 30px;
   display: flex;

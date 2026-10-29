@@ -39,20 +39,34 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
   const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
     e.stopPropagation()
-    canvasStore.select(node.id)
-    const origin = { x: node.x, y: node.y }
+    // Shift 点选：增删选中，不进入拖动
+    if (e.shiftKey) {
+      canvasStore.toggleSelection(node.id)
+      return
+    }
+    const before = canvasStore.getState().selectedIds
+    const movingIds = before.includes(node.id) && before.length > 1 ? before : [node.id]
+    if (!before.includes(node.id)) canvasStore.select(node.id)
+    // 多选拖动：记录所有被选节点的起点，按同一增量平移
+    const all = canvasStore.getState().nodes
+    const origins = movingIds
+      .map((id) => {
+        const n = all.find((x) => x.id === id)
+        return n ? { id: n.id, x: n.x, y: n.y } : null
+      })
+      .filter((o): o is { id: string; x: number; y: number } => !!o)
     const start = { x: e.clientX, y: e.clientY }
     const k = canvasStore.getState().viewport.k || 1
-    let next = { x: node.x, y: node.y }
+    let delta = { x: 0, y: 0 }
     let frame: number | null = null
 
     const flush = (): void => {
       frame = null
-      // 每帧提交：拖动过程中位置可见（原实现只在 pointerup 提交，导致拖动期间不动）
-      canvasStore.applyNodeMove(node.id, Math.round(next.x), Math.round(next.y))
+      // 每帧提交：拖动过程中位置可见；多选时一次提交全部被拖节点
+      canvasStore.moveNodes(origins, delta.x / k, delta.y / k)
     }
     const move = (ev: PointerEvent): void => {
-      next = { x: origin.x + (ev.clientX - start.x) / k, y: origin.y + (ev.clientY - start.y) / k }
+      delta = { x: ev.clientX - start.x, y: ev.clientY - start.y }
       if (frame === null) frame = requestAnimationFrame(flush)
     }
     const up = (): void => {

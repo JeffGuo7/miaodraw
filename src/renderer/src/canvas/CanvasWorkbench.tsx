@@ -203,11 +203,11 @@ export default function CanvasWorkbench(): JSX.Element {
       const el = e.target instanceof Element ? e.target : null
       if (el?.closest("input,textarea,select,[contenteditable='true']")) return
       const st = canvasStore.getState()
-      const selectedNode = st.selectedIds[0]
+      const selectedNodes = st.selectedIds
       const selectedConn = st.selectedConnectionId
-      if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedNode || selectedConn)) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedNodes.length || selectedConn)) {
         e.preventDefault()
-        if (selectedNode) canvasStore.removeNode(selectedNode)
+        if (selectedNodes.length) for (const id of selectedNodes) canvasStore.removeNode(id)
         else if (selectedConn) canvasStore.removeConnection(selectedConn)
       } else if (e.key === '+' || e.key === '=') {
         zoomBy(1.2)
