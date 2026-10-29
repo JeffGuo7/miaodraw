@@ -20,7 +20,7 @@ import {
 
 import { InfiniteCanvas } from './InfiniteCanvas'
 import { CanvasNode } from './CanvasNode'
-import { canvasStore, useCanvasState } from './store'
+import { canvasStore, useConnections, useGeometryVersion, useIsSelected, useNode, useNodeIds, useSelectedConnection, useViewport } from './store'
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
 import { getCanvasRect } from './rect-cache'
@@ -113,8 +113,17 @@ function ensurePlanNode(planId: string): void {
   canvasStore.updateNode(id, { metadata: { planId } })
 }
 
+/** 节点宿主：只订阅自己的节点与选中态 —— 拖动一个节点不会重渲染其它节点（P1-10） */
+function CanvasNodeHost({ id }: { id: string }): JSX.Element | null {
+  const node = useNode(id)
+  const selected = useIsSelected(id)
+  if (!node) return null
+  return <CanvasNode node={node} selected={selected} />
+}
+
 export default function CanvasWorkbench(): JSX.Element {
-  const state = useCanvasState()
+  const ids = useNodeIds()
+  const viewport = useViewport()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [tool, setTool] = useState<'select' | 'pan'>('select')
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
@@ -220,7 +229,7 @@ export default function CanvasWorkbench(): JSX.Element {
     <div style={{ position: 'relative', height: '100%' }}>
       <InfiniteCanvas
         containerRef={containerRef}
-        viewport={state.viewport}
+        viewport={viewport}
         tool={tool}
         onViewportChange={setViewport}
         onCanvasDeselect={() => {
@@ -243,8 +252,8 @@ export default function CanvasWorkbench(): JSX.Element {
         }}
       >
         <ConnectionLayer />
-        {state.nodes.map((n) => (
-          <CanvasNode key={n.id} node={n} selected={state.selectedIds.includes(n.id)} />
+        {ids.map((id) => (
+          <CanvasNodeHost key={id} id={id} />
         ))}
       </InfiniteCanvas>
 
@@ -270,7 +279,7 @@ export default function CanvasWorkbench(): JSX.Element {
 
       <div className="ivc-zoomctrl ivc-no-zoom">
         <Button size="small" type="text" onClick={() => zoomBy(1 / 1.2)}>−</Button>
-        <span style={{ minWidth: 44, textAlign: 'center' }}>{Math.round(state.viewport.k * 100)}%</span>
+        <span style={{ minWidth: 44, textAlign: 'center' }}>{Math.round(viewport.k * 100)}%</span>
         <Button size="small" type="text" onClick={() => zoomBy(1.2)}>＋</Button>
         <Button size="small" type="text" onClick={resetView}>复位</Button>
       </div>
@@ -328,25 +337,29 @@ export default function CanvasWorkbench(): JSX.Element {
  * 容器尺寸走 rect-cache，渲染期不再读布局、也不再 document.querySelector。
  */
 function MiniMap(): JSX.Element {
-  const state = useCanvasState()
+  // 只在几何（节点移动/尺寸）或视口变化时重算包围盒；节点内容变化不触发
+  useGeometryVersion()
+  useNodeIds()
+  const viewport = useViewport()
+  const nodes = canvasStore.getState().nodes
   const W = 168
   const H = 112
   const rect = getCanvasRect()
   const vw = rect.width || 800
   const vh = rect.height || 600
   const view = useMemo(() => {
-    if (state.nodes.length === 0) return null
+    if (nodes.length === 0) return null
     let minX = Infinity
     let minY = Infinity
     let maxX = -Infinity
     let maxY = -Infinity
-    for (const n of state.nodes) {
+    for (const n of nodes) {
       minX = Math.min(minX, n.x)
       minY = Math.min(minY, n.y)
       maxX = Math.max(maxX, n.x + n.width)
       maxY = Math.max(maxY, n.y + n.height)
     }
-    const vp = state.viewport
+    const vp = viewport
     minX = Math.min(minX, -vp.x / vp.k)
     minY = Math.min(minY, -vp.y / vp.k)
     maxX = Math.max(maxX, (vw - vp.x) / vp.k)
@@ -357,7 +370,7 @@ function MiniMap(): JSX.Element {
     maxX += pad
     maxY += pad
     return { minX, minY, scale: Math.min(W / (maxX - minX), H / (maxY - minY)) }
-  }, [state.nodes, state.viewport, vw, vh])
+  }, [nodes, viewport, vw, vh])
 
   if (!view) {
     return (
@@ -381,7 +394,7 @@ function MiniMap(): JSX.Element {
   return (
     <div className="ivc-minimap ivc-no-zoom" onClick={onClick}>
       <svg width={W} height={H}>
-        {state.nodes.map((n) => {
+        {nodes.map((n) => {
           const [x, y] = toMap(n.x, n.y)
           return (
             <rect
@@ -408,7 +421,12 @@ function MiniMap(): JSX.Element {
  * 通过把 SVG 定位到当前视口对应的世界矩形、并用 <g> 平移回原点，避免 SVG 布局盒随缩放爆炸。
  */
 function ConnectionLayer(): JSX.Element {
-  const { nodes, connections, viewport, selectedConnectionId } = useCanvasState()
+  // 几何变化才重算贝塞尔（节点内容/对话变化不触发）
+  useGeometryVersion()
+  const connections = useConnections()
+  const viewport = useViewport()
+  const selectedConnectionId = useSelectedConnection()
+  const nodes = canvasStore.getState().nodes
   const [pendingActive, setPendingActive] = useState(() => Boolean(getPending()))
   const pathRef = useRef<SVGPathElement | null>(null)
   const dotRef = useRef<SVGCircleElement | null>(null)
