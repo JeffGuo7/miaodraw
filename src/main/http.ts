@@ -2,6 +2,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { log } from './logger'
 import { vendorCardFor } from './prompt-guards'
+import { makeImageFileName, sniffImageExt } from './image-file'
 
 /**
  * HTTP 直连层（Cherry Studio 式架构：API Key + Base URL + 模型，纯 HTTP，无外部进程依赖）。
@@ -641,10 +642,16 @@ export async function writeImageSidecar(outputsDir: string, file: string, meta: 
   await fsp.writeFile(path.join(outputsDir, `${file}.json`), sidecarBody(meta))
 }
 
+let persistSeq = 0
+
+
 export async function persistImage(buffer: Buffer, outputsDir: string, meta: PersistMeta): Promise<{ file: string; url: string }> {
   await fsp.mkdir(outputsDir, { recursive: true })
   const t = Date.now()
-  const file = `image_${t}.png`
+  // 组图（wan2.7 支持一次 12 张）会在同一毫秒内连续落盘：
+  // 只用时间戳命名会让后面的图覆盖前面的（静默丢图），必须带序号。
+  persistSeq += 1
+  const file = makeImageFileName(t, persistSeq, sniffImageExt(buffer))
   const abs = path.join(outputsDir, file)
   await fsp.writeFile(abs, buffer)
   await writeImageSidecar(outputsDir, file, meta)
