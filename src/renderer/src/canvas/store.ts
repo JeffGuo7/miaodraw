@@ -12,6 +12,8 @@ export interface CanvasState {
   connections: CanvasConnection[]
   viewport: ViewportTransform
   selectedIds: string[]
+  /** 选中的连线（连线是一等对象：可选中、可删除；与节点选择互斥） */
+  selectedConnectionId: string | null
   zCounter: number
 }
 
@@ -20,6 +22,7 @@ let state: CanvasState = {
   connections: [],
   viewport: { x: 80, y: 80, k: 1 },
   selectedIds: [],
+  selectedConnectionId: null,
   zCounter: 1
 }
 
@@ -92,8 +95,27 @@ export const canvasStore = {
     emit()
   },
 
+  /**
+   * 选中即置顶（Excalidraw/Figma 的通用直觉）：此前只加 zCounter 却不改节点 zIndex，
+   * 选中后节点仍在底层，被别的节点盖住且点不到。
+   */
   select(id: string | null): void {
-    set({ selectedIds: id ? [id] : [], zCounter: state.zCounter + (id ? 1 : 0) })
+    if (!id) {
+      set({ selectedIds: [] })
+      return
+    }
+    const z = state.zCounter + 1
+    set({
+      nodes: state.nodes.map((n) => (n.id === id ? { ...n, zIndex: z } : n)),
+      selectedIds: [id],
+      selectedConnectionId: null,
+      zCounter: z
+    })
+  },
+
+  /** 选中连线（与节点选择互斥） */
+  selectConnection(id: string | null): void {
+    set({ selectedConnectionId: id, selectedIds: [] })
   },
 
   removeNode(id: string): void {
@@ -111,7 +133,10 @@ export const canvasStore = {
   },
 
   removeConnection(id: string): void {
-    set({ connections: state.connections.filter((c) => c.id !== id) })
+    set({
+      connections: state.connections.filter((c) => c.id !== id),
+      selectedConnectionId: state.selectedConnectionId === id ? null : state.selectedConnectionId
+    })
   },
 
   /** 某节点的上游输入节点（连线来源） */

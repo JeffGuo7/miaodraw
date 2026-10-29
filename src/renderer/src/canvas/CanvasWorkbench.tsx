@@ -2,8 +2,8 @@
  * 画布工作台 — miaodraw 画布模式一级视图
  * 引擎/节点移植自 basketikun/infinite-canvas（MIT），见各文件头署名。
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { JSX, RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import { Button, Progress, Tooltip } from 'antd'
 import {
   BgColorsOutlined,
@@ -193,10 +193,13 @@ export default function CanvasWorkbench(): JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       const el = e.target instanceof Element ? e.target : null
       if (el?.closest("input,textarea,select,[contenteditable='true']")) return
-      const selected = canvasStore.getState().selectedIds[0]
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+      const st = canvasStore.getState()
+      const selectedNode = st.selectedIds[0]
+      const selectedConn = st.selectedConnectionId
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedNode || selectedConn)) {
         e.preventDefault()
-        canvasStore.removeNode(selected)
+        if (selectedNode) canvasStore.removeNode(selectedNode)
+        else if (selectedConn) canvasStore.removeConnection(selectedConn)
       } else if (e.key === '+' || e.key === '=') {
         zoomBy(1.2)
       } else if (e.key === '-' || e.key === '_') {
@@ -222,6 +225,7 @@ export default function CanvasWorkbench(): JSX.Element {
         onViewportChange={setViewport}
         onCanvasDeselect={() => {
           canvasStore.select(null)
+          canvasStore.selectConnection(null)
           setCtxMenu(null)
         }}
         onContextMenu={(e) => {
@@ -309,7 +313,7 @@ export default function CanvasWorkbench(): JSX.Element {
         </div>
       )}
 
-      <MiniMap containerRef={containerRef} />
+      <MiniMap />
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
 
@@ -318,56 +322,60 @@ export default function CanvasWorkbench(): JSX.Element {
   )
 }
 
-/** 小地图：节点包围盒 + 视口框，点击跳转 */
-function MiniMap({ containerRef }: { containerRef: RefObject<HTMLDivElement | null> }): JSX.Element {
+/**
+ * 小地图：节点包围盒 + 视口框，点击跳转。
+ * 包围盒用 useMemo 缓存（只在 nodes/viewport/尺寸变化时 O(N) 重算），
+ * 容器尺寸走 rect-cache，渲染期不再读布局、也不再 document.querySelector。
+ */
+function MiniMap(): JSX.Element {
   const state = useCanvasState()
   const W = 168
   const H = 112
-  if (state.nodes.length === 0) {
+  const rect = getCanvasRect()
+  const vw = rect.width || 800
+  const vh = rect.height || 600
+  const view = useMemo(() => {
+    if (state.nodes.length === 0) return null
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    for (const n of state.nodes) {
+      minX = Math.min(minX, n.x)
+      minY = Math.min(minY, n.y)
+      maxX = Math.max(maxX, n.x + n.width)
+      maxY = Math.max(maxY, n.y + n.height)
+    }
+    const vp = state.viewport
+    minX = Math.min(minX, -vp.x / vp.k)
+    minY = Math.min(minY, -vp.y / vp.k)
+    maxX = Math.max(maxX, (vw - vp.x) / vp.k)
+    maxY = Math.max(maxY, (vh - vp.y) / vp.k)
+    const pad = 80
+    minX -= pad
+    minY -= pad
+    maxX += pad
+    maxY += pad
+    return { minX, minY, scale: Math.min(W / (maxX - minX), H / (maxY - minY)) }
+  }, [state.nodes, state.viewport, vw, vh])
+
+  if (!view) {
     return (
       <div className="ivc-minimap ivc-no-zoom" style={{ opacity: 0.5 }}>
         <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>空画布</div>
       </div>
     )
   }
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-  for (const n of state.nodes) {
-    minX = Math.min(minX, n.x)
-    minY = Math.min(minY, n.y)
-    maxX = Math.max(maxX, n.x + n.width)
-    maxY = Math.max(maxY, n.y + n.height)
-  }
-  // 视口也算进包围盒（用传入的容器 ref，避免每次渲染都 document.querySelector）
-  const el = containerRef.current
-  if (el) {
-    const vp = state.viewport
-    minX = Math.min(minX, -vp.x / vp.k)
-    minY = Math.min(minY, -vp.y / vp.k)
-    maxX = Math.max(maxX, (el.clientWidth - vp.x) / vp.k)
-    maxY = Math.max(maxY, (el.clientHeight - vp.y) / vp.k)
-  }
-  const pad = 80
-  minX -= pad
-  minY -= pad
-  maxX += pad
-  maxY += pad
-  const scale = Math.min(W / (maxX - minX), H / (maxY - minY))
+  const { minX, minY, scale } = view
   const toMap = (x: number, y: number): [number, number] => [(x - minX) * scale, (y - minY) * scale]
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>): void => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const wx = (e.clientX - rect.left) / scale + minX
-    const wy = (e.clientY - rect.top) / scale + minY
-    const root = document.querySelector<HTMLElement>('.ivc-root')
+    const r = e.currentTarget.getBoundingClientRect()
+    const wx = (e.clientX - r.left) / scale + minX
+    const wy = (e.clientY - r.top) / scale + minY
     const k = canvasStore.getState().viewport.k
-    canvasStore.setViewport({
-      x: (root?.clientWidth ?? 800) / 2 - wx * k,
-      y: (root?.clientHeight ?? 600) / 2 - wy * k,
-      k
-    })
+    const size = getCanvasRect()
+    canvasStore.setViewport({ x: (size.width || 800) / 2 - wx * k, y: (size.height || 600) / 2 - wy * k, k })
   }
 
   return (
@@ -400,7 +408,7 @@ function MiniMap({ containerRef }: { containerRef: RefObject<HTMLDivElement | nu
  * 通过把 SVG 定位到当前视口对应的世界矩形、并用 <g> 平移回原点，避免 SVG 布局盒随缩放爆炸。
  */
 function ConnectionLayer(): JSX.Element {
-  const { nodes, connections, viewport } = useCanvasState()
+  const { nodes, connections, viewport, selectedConnectionId } = useCanvasState()
   const [pendingActive, setPendingActive] = useState(() => Boolean(getPending()))
   const pathRef = useRef<SVGPathElement | null>(null)
   const dotRef = useRef<SVGCircleElement | null>(null)
@@ -439,15 +447,24 @@ function ConnectionLayer(): JSX.Element {
           const b = byId.get(c.to)
           if (!a || !b) return null
           const mx = (a.x + a.width + b.x) / 2
+          const d = `M ${a.x + a.width} ${a.y + a.height / 2} C ${mx} ${a.y + a.height / 2}, ${mx} ${b.y + b.height / 2}, ${b.x} ${b.y + b.height / 2}`
+          const on = selectedConnectionId === c.id
           return (
-            <path
-              key={c.id}
-              d={`M ${a.x + a.width} ${a.y + a.height / 2} C ${mx} ${a.y + a.height / 2}, ${mx} ${b.y + b.height / 2}, ${b.x} ${b.y + b.height / 2}`}
-              stroke="#4096ff"
-              strokeWidth={2 / k}
-              fill="none"
-              opacity={0.7}
-            />
+            <g key={c.id}>
+              <path d={d} stroke={on ? '#1677ff' : '#4096ff'} strokeWidth={(on ? 3 : 2) / k} fill="none" opacity={on ? 1 : 0.7} />
+              {/* 透明加粗命中带（16px 屏幕像素）：让连线成为可点/可选/可删的一等对象 */}
+              <path
+                d={d}
+                stroke="transparent"
+                strokeWidth={16 / k}
+                fill="none"
+                style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                  canvasStore.selectConnection(c.id)
+                }}
+              />
+            </g>
           )
         })}
         {pendingActive && (

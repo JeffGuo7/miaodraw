@@ -45,6 +45,9 @@ export function InfiniteCanvas({
   const scaleRef = useRef(viewport.k)
   const frameRef = useRef<number | null>(null)
   const nextViewportRef = useRef<ViewportTransform | null>(null)
+  /** 滚轮累加：同一帧内多次 wheel 只提交一次，避免连续滚轮互相覆盖与整页多次重渲染 */
+  const wheelRef = useRef<{ k: number; mx: number; my: number } | null>(null)
+  const wheelRaf = useRef<number | null>(null)
   const [spacePressed, setSpacePressed] = useState(false)
   const [ctrlPressed, setCtrlPressed] = useState(false)
   const [panning, setPanning] = useState(false)
@@ -62,6 +65,7 @@ export function InfiniteCanvas({
   useEffect(
     () => () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current)
+      if (wheelRaf.current) cancelAnimationFrame(wheelRaf.current)
     },
     []
   )
@@ -106,21 +110,27 @@ export function InfiniteCanvas({
     const el = e.target instanceof Element ? e.target : null
     if (el?.closest('.ivc-no-zoom')) return
 
-    // 必须读 store 里的最新视口：props 的 viewport 在同一帧内可能已过期，
-    // 连续滚轮会用旧 k 反复覆盖，表现为「触控板快滚缩放变慢/回弹」。
+    // 读 store 最新视口（props 可能同帧过期）；deltaMode/ctrl 归一化参考 d3-zoom 的 defaultWheelDelta：
+    // 触控板 pinch 表现为 ctrl+wheel 的小 delta，需要放大 10 倍才有等价手感。
     const vp = canvasStore.getState().viewport
-    const factor = Math.pow(1.1, -e.deltaY / 100)
-    const newScale = Math.min(Math.max(vp.k * factor, MIN_SCALE), MAX_SCALE)
-    if (newScale === vp.k) return
-    // 容器 rect 由 rect-cache 维护（ResizeObserver + scroll），热路径不再强制读布局
+    const unit = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002
+    const delta = -e.deltaY * unit * (e.ctrlKey ? 10 : 1)
+    const prevK = wheelRef.current?.k ?? vp.k
+    const nextK = Math.min(Math.max(prevK * Math.pow(2, delta), MIN_SCALE), MAX_SCALE)
     const rect = getCanvasRect()
-
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-    const worldX = (mouseX - vp.x) / vp.k
-    const worldY = (mouseY - vp.y) / vp.k
-
-    onViewportChange({ x: mouseX - worldX * newScale, y: mouseY - worldY * newScale, k: newScale })
+    wheelRef.current = { k: nextK, mx: e.clientX - rect.left, my: e.clientY - rect.top }
+    if (wheelRaf.current) return
+    wheelRaf.current = requestAnimationFrame(() => {
+      wheelRaf.current = null
+      const pending = wheelRef.current
+      wheelRef.current = null
+      if (!pending) return
+      const cur = canvasStore.getState().viewport
+      if (pending.k === cur.k) return
+      const worldX = (pending.mx - cur.x) / cur.k
+      const worldY = (pending.my - cur.y) / cur.k
+      onViewportChange({ x: pending.mx - worldX * pending.k, y: pending.my - worldY * pending.k, k: pending.k })
+    })
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
