@@ -9,7 +9,12 @@ export default defineConfig({
       // hidden sourcemap：产物无 .map 引用，map 单独归档排障，不进安装包
       sourcemap: 'hidden',
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/main/index.ts') }
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          // 探针独立 entry → 产出 out/main/probes/shot.js，与生产入口分离：
+          // index.ts 里用动态 import('./probes/shot') 加载，生产运行路径不会加载该 chunk
+          'probes/shot': resolve(__dirname, 'src/main/probes/shot.ts')
+        }
       }
     }
   },
