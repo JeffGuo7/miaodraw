@@ -1,5 +1,35 @@
 /* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构 */
 
+/* 空画布引导：居中但不拦截画布拖拽（容器 pointer-events: none，按钮单独放开） */
+.ivc-empty {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+  max-width: 420px;
+}
+.ivc-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+.ivc-empty-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.ivc-empty-actions {
+  pointer-events: auto;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
 /* 吸附对齐线（拖动时出现；宽度按 1/k 换算，缩放时保持 1 屏幕像素） */
 .ivc-guide {
   position: absolute;

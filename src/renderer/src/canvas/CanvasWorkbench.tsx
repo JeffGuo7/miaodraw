@@ -16,6 +16,7 @@ import {
   GroupOutlined,
   DragOutlined,
   MessageOutlined,
+  QuestionCircleOutlined,
   ThunderboltOutlined,
   UndoOutlined,
   RedoOutlined
@@ -34,6 +35,7 @@ import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
+import ShortcutsModal from './ShortcutsModal'
 import type { CanvasNodeType, ViewportTransform } from './types'
 import type { PlanRecord, StageRecord } from '../../../shared/plan-types'
 import './canvas.css'
@@ -137,6 +139,7 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
   const [tool, setTool] = useState<'select' | 'pan'>('select')
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   /** 框选矩形（屏幕坐标，相对画布容器）；null 表示未在框选 */
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
@@ -346,6 +349,9 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         zoomBy(1 / 1.2)
       } else if (e.key === '0') {
         canvasStore.setViewport({ x: 80, y: 80, k: 1 })
+      } else if (!mod && (e.key === '?' || (e.key === '/' && e.shiftKey))) {
+        e.preventDefault()
+        setShortcutsOpen((v) => !v)
       } else if (!mod && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
         if (e.shiftKey) focusSelected()
@@ -394,6 +400,26 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         ))}
       </InfiniteCanvas>
 
+      {ids.length === 0 && (
+        <div className="ivc-empty ivc-no-zoom" data-empty-canvas="true">
+          <div className="ivc-empty-title">空白画布</div>
+          <div className="ivc-empty-desc">
+            从上方工具条新建节点，或直接把图片拖进来；也可以打开「对话」，用一句话让它自动搭流程。
+          </div>
+          <div className="ivc-empty-actions">
+            <Button size="small" type="primary" onClick={() => canvasStore.addNode('text')}>
+              新建文本
+            </Button>
+            <Button size="small" onClick={() => setChatOpen(true)}>
+              打开对话
+            </Button>
+            <Button size="small" type="text" onClick={() => setShortcutsOpen(true)}>
+              快捷键
+            </Button>
+          </div>
+        </div>
+      )}
+
       {marquee && (
         <div
           className="ivc-marquee ivc-no-zoom"
@@ -420,6 +446,9 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
           <Button size="small" type={chatOpen ? 'primary' : 'default'} icon={<MessageOutlined />} onClick={() => setChatOpen((v) => !v)}>
             对话
           </Button>
+        </Tooltip>
+        <Tooltip title="快捷键（?）">
+          <Button size="small" type="text" icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} data-shortcuts="true" />
         </Tooltip>
         {onOpenCompose && (
           <Tooltip title="精修合成（图层拼合 / 抠图 / 导出）">
@@ -484,6 +513,8 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
       <MiniMap />
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <MigrationOverlay />
     </div>

@@ -2147,6 +2147,29 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-marquee:', r)
     check('canvas-marquee', r)
   }
+  if (process.env.SHOT_CANVAS_HELP === '1') {
+    // 快捷键面板探针：按 ? 打开，断言弹层出现且列出关键快捷键
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true, bubbles: true }))
+        await sleep(500)
+        const modal = [...document.querySelectorAll('.ant-modal')].find(m => m.textContent.includes('画布快捷键'))
+        const text = modal ? modal.textContent : ''
+        return JSON.stringify({
+          open: !!modal,
+          hasUndo: text.includes('Ctrl') && text.includes('撤销'),
+          hasSnap: text.includes('Alt') && text.includes('吸附'),
+          ok: !!modal && text.includes('撤销') && text.includes('吸附')
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-help:', r)
+    check('canvas-help', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(
