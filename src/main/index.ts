@@ -39,6 +39,25 @@ import { registerOrchestratorHandlers } from './orchestrator'
 import { registerVideoHandlers } from './video'
 import { checkImageBudget, estimateImageBatch } from './image-cost'
 
+// ---------- 验收截图模式的 profile 隔离 ----------
+// 探针会大量建节点/计划，且多数断言依赖「干净初始状态」：
+// 1) 与正式实例的数据、单实例锁彻底隔离（放在路径常量之前，连 outputs/IndexedDB 一起隔离）
+// 2) 默认每次运行前重置 profile，保证探针可重复；需要保留现场时设 SHOT_KEEP_PROFILE=1
+if (process.env.TEST_MODE === 'screenshot') {
+  const shotProfile = process.env.SHOT_PROFILE_DIR
+    ? path.resolve(process.env.SHOT_PROFILE_DIR)
+    : path.join(app.getPath('appData'), 'miaodraw-shot')
+  if (process.env.SHOT_KEEP_PROFILE !== '1') {
+    try {
+      fs.rmSync(shotProfile, { recursive: true, force: true })
+    } catch {
+      // 清理失败不阻塞：最坏情况是沿用上一次的 profile
+    }
+  }
+  app.setPath('userData', shotProfile)
+  console.log('[shot] profile =', shotProfile)
+}
+
 // ---------- 路径 ----------
 const APP_ROOT = app.getAppPath()
 const isPackaged = app.isPackaged
@@ -51,10 +70,6 @@ const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json')
 const REF_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'])
 
 // ---------- 单实例 ----------
-// 验收截图模式使用独立 userData，避免与正在运行的正式实例抢单实例锁
-if (process.env.TEST_MODE === 'screenshot') {
-  app.setPath('userData', path.join(app.getPath('userData'), 'shot-session'))
-}
 if (!app.requestSingleInstanceLock()) {
   console.log('[debug] single-instance lock denied, quitting')
   app.quit()
