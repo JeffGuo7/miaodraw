@@ -2107,6 +2107,45 @@ async function screenshotMode(w: BrowserWindow): Promise<void> {
     console.log('[shot] canvas-clip:', r)
     check('canvas-clip', r)
   }
+  if (process.env.SHOT_CANVAS_MARQUEE === '1') {
+    // 框选探针：建两个节点后在空白处拖出覆盖框，断言两个节点都被选中
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const beforeIds = new Set([...document.querySelectorAll('[data-node-id]')].map(n => n.getAttribute('data-node-id')))
+        byText('文本').click()
+        await sleep(150)
+        byText('图片').click()
+        await sleep(400)
+        const rootEl = document.querySelector('.ivc-root')
+        const root = rootEl.getBoundingClientRect()
+        const nodes = [...document.querySelectorAll('[data-node-id]')].filter(n => !beforeIds.has(n.getAttribute('data-node-id')))
+        if (nodes.length < 2) return JSON.stringify({ err: 'newNodes<2', n: nodes.length })
+        const rects = nodes.slice(0, 2).map(n => n.getBoundingClientRect())
+        const minL = Math.min(...rects.map(r => r.left)), minT = Math.min(...rects.map(r => r.top))
+        const maxR = Math.max(...rects.map(r => r.right)), maxB = Math.max(...rects.map(r => r.bottom))
+        const sx = Math.max(root.left + 4, minL - 40), sy = Math.max(root.top + 4, minT - 40)
+        const ex = Math.min(root.right - 4, maxR + 40), ey = Math.min(root.bottom - 4, maxB + 40)
+        rootEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: sx, clientY: sy, pointerId: 11, button: 0, buttons: 1 }))
+        await sleep(60)
+        for (let i = 1; i <= 8; i++) {
+          window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + (ex - sx) * i / 8, clientY: sy + (ey - sy) * i / 8, pointerId: 11, buttons: 1 }))
+          await sleep(30)
+        }
+        const sawMarquee = !!document.querySelector('[data-marquee="true"]')
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: ex, clientY: ey, pointerId: 11, button: 0 }))
+        await sleep(300)
+        const selected = document.querySelectorAll('.ivc-node-selected').length
+        return JSON.stringify({ selected, sawMarquee, ok: selected >= 2 })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-marquee:', r)
+    check('canvas-marquee', r)
+  }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边
     const r = await w.webContents.executeJavaScript(

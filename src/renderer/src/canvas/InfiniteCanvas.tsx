@@ -29,6 +29,19 @@ interface InfiniteCanvasProps {
 const MIN_SCALE = 0.05
 const MAX_SCALE = 5
 
+/**
+ * 安全地捕获指针。
+ * setPointerCapture 在「没有该 id 的活跃指针」时会抛 NotFoundError（合成事件、部分触控笔/远程桌面
+ * 输入、指针已释放的竞态）。捕获失败不影响后续拖拽/框选逻辑，所以绝不能让它中断交互。
+ */
+function capturePointer(el: HTMLElement, pointerId: number): void {
+  try {
+    el.setPointerCapture(pointerId)
+  } catch {
+    // 忽略：没有捕获也能靠 window 上的 pointermove/pointerup 完成交互
+  }
+}
+
 export function InfiniteCanvas({
   containerRef,
   viewport,
@@ -143,7 +156,7 @@ export function InfiniteCanvas({
 
     if (shouldPan) {
       e.preventDefault()
-      e.currentTarget.setPointerCapture(e.pointerId)
+      capturePointer(e.currentTarget, e.pointerId)
       panState.current = { isPanning: true, startX: e.clientX, startY: e.clientY, initialX: viewport.x, initialY: viewport.y, hasMoved: false, startedOnBackground: isBackgroundClick }
       setPanning(true)
       document.body.style.cursor = 'grabbing'
@@ -152,7 +165,7 @@ export function InfiniteCanvas({
 
     if (e.button === 0 && isBackgroundClick) {
       e.preventDefault()
-      e.currentTarget.setPointerCapture(e.pointerId)
+      capturePointer(e.currentTarget, e.pointerId)
       onCanvasMouseDown?.(e)
     }
   }

@@ -3,7 +3,7 @@
  * 引擎/节点移植自 basketikun/infinite-canvas（MIT），见各文件头署名。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { JSX } from 'react'
+import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 import { Button, Progress, Tooltip } from 'antd'
 import {
   BgColorsOutlined,
@@ -133,10 +133,64 @@ export default function CanvasWorkbench(): JSX.Element {
   const [tool, setTool] = useState<'select' | 'pan'>('select')
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; nodeId: string | null } | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  /** 框选矩形（屏幕坐标，相对画布容器）；null 表示未在框选 */
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
   const setViewport = useCallback((vp: ViewportTransform): void => {
     canvasStore.setViewport(vp)
   }, [])
+
+  /**
+   * 框选（marquee）：背景按住拖动 → 世界矩形与节点 AABB 相交即选中。
+   * 移动 < 3px 视为「点空白」→ 清空选择（顺带补齐此前空白点击无法取消选择的问题）。
+   */
+  const startMarquee = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>): void => {
+      if (tool !== 'select') return
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const sx = e.clientX - rect.left
+      const sy = e.clientY - rect.top
+      let cur = { x: sx, y: sy }
+      let frame: number | null = null
+      let moved = false
+      const apply = (): void => {
+        frame = null
+        const w = Math.abs(cur.x - sx)
+        const h = Math.abs(cur.y - sy)
+        if (w < 3 && h < 3) return
+        moved = true
+        const vp = canvasStore.getState().viewport
+        const wx1 = (Math.min(sx, cur.x) - vp.x) / vp.k
+        const wy1 = (Math.min(sy, cur.y) - vp.y) / vp.k
+        const wx2 = (Math.max(sx, cur.x) - vp.x) / vp.k
+        const wy2 = (Math.max(sy, cur.y) - vp.y) / vp.k
+        const ids = canvasStore
+          .getState()
+          .nodes.filter((n) => n.x + n.width >= wx1 && n.x <= wx2 && n.y + n.height >= wy1 && n.y <= wy2)
+          .map((n) => n.id)
+        canvasStore.setSelection(ids)
+        setMarquee({ x: Math.min(sx, cur.x), y: Math.min(sy, cur.y), w, h })
+      }
+      const move = (ev: PointerEvent): void => {
+        cur = { x: ev.clientX - rect.left, y: ev.clientY - rect.top }
+        if (frame === null) frame = requestAnimationFrame(apply)
+      }
+      const up = (): void => {
+        if (frame !== null) cancelAnimationFrame(frame)
+        apply()
+        if (!moved) canvasStore.setSelection([])
+        setMarquee(null)
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+        window.removeEventListener('pointercancel', up)
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+      window.addEventListener('pointercancel', up)
+    },
+    [tool]
+  )
 
   // 撤销/重做：订阅画布变更（250ms 合并），并暴露给探针
   useEffect(() => attachHistory(), [])
@@ -277,6 +331,7 @@ export default function CanvasWorkbench(): JSX.Element {
         viewport={viewport}
         tool={tool}
         onViewportChange={setViewport}
+        onCanvasMouseDown={startMarquee}
         onCanvasDeselect={() => {
           canvasStore.select(null)
           canvasStore.selectConnection(null)
@@ -301,6 +356,14 @@ export default function CanvasWorkbench(): JSX.Element {
           <CanvasNodeHost key={id} id={id} />
         ))}
       </InfiniteCanvas>
+
+      {marquee && (
+        <div
+          className="ivc-marquee ivc-no-zoom"
+          data-marquee="true"
+          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+        />
+      )}
 
       <div className="ivc-toolbar ivc-no-zoom">
         <Tooltip title="选择 / 拖拽节点">

@@ -1,5 +1,15 @@
 /* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构 */
 
+/* 框选矩形：屏幕坐标覆盖层 */
+.ivc-marquee {
+  position: absolute;
+  border: 1px solid #0071e3;
+  background: rgba(0, 113, 227, 0.08);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 6;
+}
+
 .ivc-root {
   position: relative;
   height: 100%;
