@@ -4,6 +4,7 @@ import '@ant-design/v5-patch-for-react-19'
 import { ConfigProvider, theme, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import App from './App'
+import './styles/tokens.css'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

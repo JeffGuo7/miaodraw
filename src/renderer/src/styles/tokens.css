@@ -1,0 +1,54 @@
+/**
+ * 设计变量（唯一来源）—— 颜色 / 圆角 / 阴影 / 间距 / 字体。
+ *
+ * 收敛背景：此前 index.css 一套 Apple 风 token（#0071e3）、canvas.css 用 antd 蓝 #4096ff、
+ * settings.css 用 geekblue #2f54eb，同一个「主色」在一套界面里出现三种蓝。
+ * 现在统一到 --brand 一套；新增样式一律引用变量，不要再写死色值。
+ */
+:root {
+  /* 主色 */
+  --brand: #0071e3;
+  --brand-deep: #0a5cc0;
+  --brand-soft: rgba(0, 113, 227, 0.08);
+  --brand-grad: linear-gradient(135deg, #5b8cff, #8b5cf6);
+
+  /* 文字 */
+  --ink: #1d1d1f;
+  --ink-2: #6e6e73;
+  --ink-3: #86868b;
+  --ink-4: #94a3b8;
+
+  /* 背景与描边 */
+  --bg-app: #f5f5f7;
+  --bg-panel: #fbfbfd;
+  --line: #e8e8ed;
+  --line-2: #e2e6ee;
+
+  /* 语义色 */
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --guide: #f43f5e;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.05);
+  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+  /* 圆角 */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+
+  /* 间距 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+
+  /* 字体 */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

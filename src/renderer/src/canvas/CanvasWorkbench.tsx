@@ -696,7 +696,7 @@ function ConnectionLayer(): JSX.Element {
           const on = selectedConnectionId === c.id
           return (
             <g key={c.id}>
-              <path d={d} stroke={on ? '#1677ff' : '#4096ff'} strokeWidth={(on ? 3 : 2) / k} fill="none" opacity={on ? 1 : 0.7} />
+              <path d={d} stroke={on ? '#0a5cc0' : '#0071e3'} strokeWidth={(on ? 3 : 2) / k} fill="none" opacity={on ? 1 : 0.7} />
               {/* 透明加粗命中带（16px 屏幕像素）：让连线成为可点/可选/可删的一等对象 */}
               <path
                 d={d}
@@ -714,8 +714,8 @@ function ConnectionLayer(): JSX.Element {
         })}
         {pendingActive && (
           <>
-            <path ref={pathRef} data-pending-line="1" stroke="#4096ff" strokeWidth={2 / k} strokeDasharray="6 4" fill="none" opacity={0.9} />
-            <circle ref={dotRef} data-pending-dot="1" r={4 / k} fill="#4096ff" opacity={0.9} />
+            <path ref={pathRef} data-pending-line="1" stroke="#0071e3" strokeWidth={2 / k} strokeDasharray="6 4" fill="none" opacity={0.9} />
+            <circle ref={dotRef} data-pending-dot="1" r={4 / k} fill="#0071e3" opacity={0.9} />
           </>
         )}
       </g>

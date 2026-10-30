@@ -105,6 +105,7 @@ env.d.ts[XC4T]: F:渲染层全局类型声明：Vite 客户端类型与 window �
 main.tsx[EC5T]: F:渲染层启动入口：挂载 React 根、接入 AntD 与 React 19 适配补丁 | R:code:src/renderer/index.html,code:src/renderer/src/App.tsx | A:- | S:必须引入 antd 的 v5 React19 兼容补丁，去掉会出现组件样式/行为异常；根节点 id 与 index.html 保持一致
 App.tsx[AU7M]: F:渲染层根组件：左侧 6 项导航、页面常驻切换、全局健康检查与命令面板 | R:code:src/renderer/src/views/SettingsView.tsx,code:src/renderer/src/canvas/CanvasWorkbench.tsx | A:App | S:页面用 display 常驻不卸载，需要感知「切回」的组件要用 visible/props 而不是 mount；合成页不在导航里，入口是画布工具条与命令面板（onOpenCompose/onBack 成对）；health 在此统一轮询并向下传，子组件不要各自轮询
 types.ts[EG8L]: F:渲染层 API 类型契约：window.api 全部方法的签名与返回结构 | R:code:src/preload/index.ts,code:src/main/index.ts | A:window.api 类型声明、RefImage、ImageEditOp、UpdateInfo 等 | S:与 preload 实现和主进程通道三处必须一致，改一处就要同步另两处；类型写宽了会掩盖运行时 undefined，写窄了会挡住探针调用；UpdateInfo 必须带 assetSha512，否则更新器拿不到摘要、等于没有完整性校验
+styles/tokens.css[FU8T]: F:设计变量唯一来源：品牌色/文字/背景/语义色/阴影/圆角/间距/字体 | R:code:src/renderer/src/main.tsx,code:src/renderer/src/index.css,code:src/renderer/src/canvas/canvas.css,code:src/renderer/src/views/settings/settings.css | A:- | S:main.tsx 必须最先 import 本文件（早于 index.css 与各页面样式），否则 var() 取不到值；新增样式一律引用变量，不要再写死色值——此前 canvas 用 #4096ff、settings 用 #2f54eb，同一界面出现三种蓝
 
 ===D:/project/miaodraw/scripts/===
 run_logos.cjs[XV5T]: F:批量跑 Logo 候选生成的脚本（调用出图能力产出候选图） | R:code:scripts/logo_prompts.json,code:scripts/make_icon.cjs | A:- | S:会真实调用付费出图接口，跑之前先确认额度与模型档次；候选图与日志不入库，只留选定结果

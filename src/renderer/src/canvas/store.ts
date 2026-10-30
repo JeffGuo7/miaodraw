@@ -131,8 +131,13 @@ export const canvasStore = {
     const spec = NODE_SPECS[type]
     const id = `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     const vp = state.viewport
-    const x = at?.x ?? (-vp.x + vp.k > 0 ? (window.innerWidth / 2 - vp.x) / vp.k - spec.width / 2 : spec.width)
-    const y = at?.y ?? (window.innerHeight / 2 - vp.y) / vp.k - spec.height / 2
+    // 新建节点错位摆放：连点工具条时不再全部堆在视口中心（Excalidraw 同款 32px 步进）
+    const slot = state.nodes.length % 15
+    const stagger = { x: (slot % 5) * 32, y: Math.floor(slot / 5) * 32 }
+    const centerX = -vp.x + vp.k > 0 ? (window.innerWidth / 2 - vp.x) / vp.k - spec.width / 2 : spec.width
+    const centerY = (window.innerHeight / 2 - vp.y) / vp.k - spec.height / 2
+    const x = at?.x ?? centerX + stagger.x
+    const y = at?.y ?? centerY + stagger.y
     const node: CanvasNodeData = {
       id,
       type,

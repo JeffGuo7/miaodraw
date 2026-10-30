@@ -504,7 +504,7 @@
 .model-avatar.src-extra,
 .model-avatar.src-custom {
   background: #eef3ff;
-  color: #2f54eb;
+  color: var(--brand);
 }
 
 .model-avatar.src-fetched {
@@ -586,7 +586,7 @@
   letter-spacing: 0;
 }
 
-.pv-avatar.tone-a { background: #eef3ff; color: #2f54eb; }
+.pv-avatar.tone-a { background: #eef3ff; color: var(--brand); }
 .pv-avatar.tone-b { background: #f9f0ff; color: #722ed1; }
 .pv-avatar.tone-c { background: #fff7e6; color: #d46b08; }
 .pv-avatar.tone-d { background: #f6ffed; color: #389e0d; }

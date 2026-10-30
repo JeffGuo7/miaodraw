@@ -33,7 +33,7 @@
 /* 吸附对齐线（拖动时出现；宽度按 1/k 换算，缩放时保持 1 屏幕像素） */
 .ivc-guide {
   position: absolute;
-  background: #f43f5e;
+  background: var(--guide);
   pointer-events: none;
   z-index: 7;
 }
@@ -98,17 +98,17 @@
 
 /* P0-5：连线落点高亮 */
 .ivc-node-drop {
-  border-color: #4096ff;
+  border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(64, 150, 255, 0.35), 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 /* 正在连线的源节点 */
 .ivc-node-connecting {
-  border-color: #4096ff;
+  border-color: var(--brand);
 }
 
 .ivc-node-selected {
-  border-color: #4096ff;
+  border-color: var(--brand);
   box-shadow: 0 0 0 2px rgba(64, 150, 255, 0.25), 0 2px 8px rgba(15, 23, 42, 0.1);
 }
 
@@ -225,7 +225,7 @@
   height: 14px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #4096ff;
+  border: 2px solid var(--brand);
   cursor: crosshair;
   z-index: 3;
 }
@@ -239,7 +239,7 @@
 }
 
 .ivc-node-port:hover {
-  background: #4096ff;
+  background: var(--brand);
 }
 
 /* 出图节点 */
@@ -541,7 +541,7 @@
 /* ── C3：闸门审阅卡（聊天流内锚定） ── */
 .ivc-reviewcard {
   border: 1px solid #e2e6ee;
-  border-left: 3px solid #4096ff;
+  border-left: 3px solid var(--brand);
   border-radius: 8px;
   padding: 8px;
   margin-top: 6px;

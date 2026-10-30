@@ -1117,23 +1117,7 @@ body {
    —— 追加样式，不改动上方既有规则；如需回滚整段删除即可
    ================================================================== */
 
-:root {
-  --brand: #0071e3;
-  --brand-deep: #0a5cc0;
-  --brand-soft: rgba(0, 113, 227, 0.08);
-  --brand-grad: linear-gradient(135deg, #5b8cff, #8b5cf6);
-  --ink: #1d1d1f;
-  --ink-2: #6e6e73;
-  --ink-3: #86868b;
-  --bg-app: #f5f5f7;
-  --line: #e8e8ed;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.05);
-  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.1);
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 18px;
-}
+/* 设计变量统一在 styles/tokens.css（main.tsx 首个 import），本文件只消费不定义 */
 
 /* ---------- 侧栏质感 ---------- */
 .app-sider {
