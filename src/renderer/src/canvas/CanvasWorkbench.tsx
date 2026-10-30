@@ -214,6 +214,14 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
     if (vp) canvasStore.setViewport(vp)
   }, [])
 
+  // 删除计划卡 = 放弃该计划：同步取消主进程计划，避免重启后被 plan:restore 重新拉起
+  useEffect(() => {
+    canvasStore.setPlanDeleteHandler((planId) => {
+      void window.api.planCancel(planId).catch(() => undefined)
+    })
+    return () => canvasStore.setPlanDeleteHandler(null)
+  }, [])
+
   // 撤销/重做：订阅画布变更（250ms 合并），并暴露给探针
   useEffect(() => attachHistory(), [])
   useEffect(() => {

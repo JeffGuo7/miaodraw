@@ -44,6 +44,9 @@ export type CanvasKey = 'nodes' | 'viewport' | 'selection' | 'connections'
 /** 进程内剪贴板（Ctrl+C/V 用；系统剪贴板与跨窗口不在本期范围） */
 let clipboard: { nodes: CanvasNodeData[]; connections: CanvasConnection[] } | null = null
 
+/** 删除计划卡时的外部回调（Workbench 注入：同步取消主进程计划，避免重启后被 plan:restore 拉回来） */
+let planDeleteHandler: ((planId: string) => void) | null = null
+
 const listeners = new Set<(key: CanvasKey) => void>()
 const nodeListeners = new Map<string, Set<() => void>>()
 const geometryListeners = new Set<() => void>()
@@ -303,7 +306,14 @@ export const canvasStore = {
     emitKey('selection')
   },
 
+  setPlanDeleteHandler(fn: ((planId: string) => void) | null): void {
+    planDeleteHandler = fn
+  },
+
   removeNode(id: string): void {
+    const removed = state.nodes.find((n) => n.id === id)
+    // 计划卡被删除 = 用户放弃该计划：必须同步取消，否则重启恢复（plan:restore）会把它重新拉回来
+    if (removed?.type === 'plan' && removed.metadata?.planId) planDeleteHandler?.(String(removed.metadata.planId))
     state = {
       ...state,
       nodes: state.nodes.filter((n) => n.id !== id),
