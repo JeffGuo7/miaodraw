@@ -1,11 +1,5 @@
 import type { JSX } from 'react'
-import {
-  DatabaseOutlined,
-  InfoCircleOutlined,
-  PictureOutlined,
-  SettingOutlined,
-  ThunderboltOutlined
-} from '@ant-design/icons'
+import { InfoCircleOutlined, PictureOutlined, SettingOutlined } from '@ant-design/icons'
 import type { SectionKey } from './shared'
 
 interface NavItem {
@@ -14,21 +8,11 @@ interface NavItem {
   icon: JSX.Element
 }
 
-const GROUPS: Array<{ title?: string; items: NavItem[] }> = [
-  {
-    items: [
-      { key: 'services', label: '模型服务', icon: <SettingOutlined /> },
-      { key: 'defaults', label: '默认模型', icon: <PictureOutlined /> },
-      { key: 'status', label: '服务状态', icon: <ThunderboltOutlined /> }
-    ]
-  },
-  {
-    title: '偏好',
-    items: [
-      { key: 'data', label: '数据与目录', icon: <DatabaseOutlined /> },
-      { key: 'about', label: '关于', icon: <InfoCircleOutlined /> }
-    ]
-  }
+/** 设置分区（5 → 3）：百炼密钥与服务状态合进「模型服务」，数据与关于合进「关于与数据」 */
+const ITEMS: NavItem[] = [
+  { key: 'services', label: '模型服务', icon: <SettingOutlined /> },
+  { key: 'defaults', label: '默认模型', icon: <PictureOutlined /> },
+  { key: 'about', label: '关于与数据', icon: <InfoCircleOutlined /> }
 ]
 
 export default function SettingsNav({
@@ -41,24 +25,19 @@ export default function SettingsNav({
   return (
     <nav className="settings-nav">
       <div className="sn-title">设置</div>
-      {GROUPS.map((g, gi) => (
-        <div key={g.title ?? `g${gi}`}>
-          {g.title && <div className="sn-group">{g.title}</div>}
-          {g.items.map((it) => (
-            <div
-              key={it.key}
-              className={`sn-item${active === it.key ? ' active' : ''}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => onChange(it.key)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onChange(it.key)
-              }}
-            >
-              <span className="sn-icon">{it.icon}</span>
-              <span className="sn-label">{it.label}</span>
-            </div>
-          ))}
+      {ITEMS.map((it) => (
+        <div
+          key={it.key}
+          className={`sn-item${active === it.key ? ' active' : ''}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => onChange(it.key)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onChange(it.key)
+          }}
+        >
+          <span className="sn-icon">{it.icon}</span>
+          <span className="sn-label">{it.label}</span>
         </div>
       ))}
     </nav>

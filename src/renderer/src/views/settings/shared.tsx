@@ -2,7 +2,7 @@ import type { JSX } from 'react'
 import type { ModelCap } from '../../types'
 
 /** 设置页二级分区 */
-export type SectionKey = 'services' | 'defaults' | 'status' | 'data' | 'about'
+export type SectionKey = 'services' | 'defaults' | 'about'
 
 /** 模型条目来源：内置模板 / 用户追加 / 服务端拉取 / 自定义供应商自带 */
 export type ModelSource = 'builtin' | 'extra' | 'fetched' | 'custom'

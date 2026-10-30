@@ -140,9 +140,12 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     return [...builtins, ...customs]
   }, [mc, pkInfo, bk, baseUrlInput, savedBaseUrl])
 
-  const activeProviderId = providers.some((p) => p.id === selectedProvider)
+  // 5→3 合并后：百炼（密钥/工作空间/接入点）由 StatusSection 独立管理，
+  // 服务商列表只展示第三方，避免同一把密钥在页面里出现两套输入框
+  const thirdPartyProviders = useMemo(() => providers.filter((p) => p.id !== 'bailian'), [providers])
+  const activeThirdPartyId = thirdPartyProviders.some((p) => p.id === selectedProvider)
     ? selectedProvider
-    : providers[0]?.id ?? ''
+    : thirdPartyProviders[0]?.id ?? ''
   const keyDrafts = useMemo<Record<string, string>>(() => ({ ...drafts, bailian: bkInput }), [drafts, bkInput])
 
   // ---------- 模型配置写入 ----------
@@ -380,54 +383,61 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
       <SettingsNav active={section} onChange={setSection} />
       <div className="settings-main">
         {section === 'services' && (
-          <ServicesSection
-            providers={providers}
-            selectedId={activeProviderId}
-            onSelect={setSelectedProvider}
-            search={providerSearch}
-            onSearch={setProviderSearch}
-            onAddProvider={() => setCpModal(true)}
-            onToggle={(id, v) => void toggleProvider(id, v)}
-            keyDrafts={keyDrafts}
-            onKeyDraft={setKeyDraft}
-            onSaveKey={(id) => void saveKeyFor(id)}
-            onClearKey={(id) => void clearKeyFor(id)}
-            onTest={(id) => void testKeyFor(id)}
-            testingId={testing}
-            fetchingId={fetching}
-            onFetchModels={(id) => void fetchModelList(id)}
-            onBaseUrlChange={changeBaseUrl}
-            onSaveBaseUrl={(id) => void saveBaseUrl(id)}
-            customEdits={customEdits}
-            onCustomEdit={editCustom}
-            onRemoveProvider={(id) => void removeCustom(id)}
-            onAddModel={(id, m) => void addModel(id, m)}
-            onRemoveModel={(id, mid) => void removeModel(id, mid)}
-          />
+          <>
+            {/* 百炼：密钥 + 工作空间 + 接入点 + 健康状态（原「服务状态」分区并入） */}
+            <StatusSection
+              health={health}
+              bk={bk}
+              keyDraft={bkInput}
+              onKeyDraft={setBkInput}
+              onSaveKey={() => void saveBailianKey()}
+              onClearKey={() => void clearKeyFor('bailian')}
+              onTest={() => void testKeyFor('bailian')}
+              testing={testing === 'bailian'}
+              fetching={fetching === 'bailian'}
+              onFetchModels={() => void fetchModelList('bailian')}
+              onRecheck={refresh}
+              wsInput={wsInput}
+              onWsInput={setWsInput}
+              baseUrlInput={baseUrlInput}
+              onBaseUrlInput={setBaseUrlInput}
+              onSaveWs={() => void saveWorkspace()}
+            />
+            {/* 第三方供应商（百炼不在此列，避免同一把密钥出现两套输入框） */}
+            <ServicesSection
+              providers={thirdPartyProviders}
+              selectedId={activeThirdPartyId}
+              onSelect={setSelectedProvider}
+              search={providerSearch}
+              onSearch={setProviderSearch}
+              onAddProvider={() => setCpModal(true)}
+              onToggle={(id, v) => void toggleProvider(id, v)}
+              keyDrafts={keyDrafts}
+              onKeyDraft={setKeyDraft}
+              onSaveKey={(id) => void saveKeyFor(id)}
+              onClearKey={(id) => void clearKeyFor(id)}
+              onTest={(id) => void testKeyFor(id)}
+              testingId={testing}
+              fetchingId={fetching}
+              onFetchModels={(id) => void fetchModelList(id)}
+              onBaseUrlChange={changeBaseUrl}
+              onSaveBaseUrl={(id) => void saveBaseUrl(id)}
+              customEdits={customEdits}
+              onCustomEdit={editCustom}
+              onRemoveProvider={(id) => void removeCustom(id)}
+              onAddModel={(id, m) => void addModel(id, m)}
+              onRemoveModel={(id, mid) => void removeModel(id, mid)}
+            />
+          </>
         )}
         {section === 'defaults' && <DefaultsSection mc={mc} onSetDefault={(k, key) => void setDefault(k, key)} />}
-        {section === 'status' && (
-          <StatusSection
-            health={health}
-            bk={bk}
-            keyDraft={bkInput}
-            onKeyDraft={setBkInput}
-            onSaveKey={() => void saveBailianKey()}
-            onClearKey={() => void clearKeyFor('bailian')}
-            onTest={() => void testKeyFor('bailian')}
-            testing={testing === 'bailian'}
-            fetching={fetching === 'bailian'}
-            onFetchModels={() => void fetchModelList('bailian')}
-            onRecheck={refresh}
-            wsInput={wsInput}
-            onWsInput={setWsInput}
-            baseUrlInput={baseUrlInput}
-            onBaseUrlInput={setBaseUrlInput}
-            onSaveWs={() => void saveWorkspace()}
-          />
+        {section === 'about' && (
+          <>
+            {/* 数据与目录 并入「关于」，减少一个一级分区 */}
+            <AboutSection info={info} health={health} onRecheck={refresh} />
+            <DataSection info={info} onOpen={(k) => void window.api.openPath(k)} />
+          </>
         )}
-        {section === 'data' && <DataSection info={info} onOpen={(k) => void window.api.openPath(k)} />}
-        {section === 'about' && <AboutSection info={info} health={health} onRecheck={refresh} />}
       </div>
 
       <Modal
