@@ -1,5 +1,5 @@
 /**
- * M1 历史数据迁移（docs/m1-migration-plan.md 的实现）：
+ * M1 历史数据迁移（docs/archive/m1-migration-plan.md 的实现）：
  * 只建索引不搬文件；三道防重（meta 状态 / path 查重 / 常态对账）；
  * 失败按 migrationId 清半成品重跑；50 条一批事务提交，可中断。
  */

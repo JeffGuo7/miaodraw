@@ -1,6 +1,6 @@
 /**
  * assets / asset_dependencies 两表 IndexedDB schema（M1 数据层）
- * 结构依据 docs/m1-migration-plan.md，参照 minimax-reference-pack 01 思路自写实现。
+ * 结构依据 docs/archive/m1-migration-plan.md，参照 minimax-reference-pack 01 思路自写实现。
  * 原生 IndexedDB API，零新依赖。
  */
 import type { ChatMessage, PlanEvent, PlanRecord, StageRecord } from '../../../shared/plan-types'

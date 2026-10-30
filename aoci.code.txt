@@ -9,8 +9,8 @@ tsconfig.json[FV6T]: F:TypeScript 根配置：向 node 与 web 两份子配置�
 electron.vite.config.ts[FV6T]: F:electron-vite 构建配置：main、preload、renderer 三份入口与别名、外部依赖与产物目录 | R:code:package.json,code:src/main/index.ts | A:- | S:renderer 侧把 Node 内置模块判为 external，渲染层误引会在运行时报错而不是构建失败；产物固定输出到 out/，路径被 main 的入口与打包 files 白名单依赖
 electron-builder.yml[FV6T]: F:Electron 打包描述：应用 id、ASCII 产品名 MiaoDraw、file 白名单与 extraResources 携带 library 素材 | R:code:package.json,code:.gitignore | A:- | S:productName 必须纯 ASCII（NSIS 卸载器名与更新链路处理不了非 ASCII），中文名只进快捷方式与窗口标题；放开已排除的 sourcemap 会显著增大安装包
 .gitignore[FC6T]: F:声明不入库的产物与临时文件：node_modules、out、dist、vendor、outputs、videos 及各类日志/临时文件 | R:code:package.json,code:electron-builder.yml | A:- | S:outputs/ 与 videos/ 是运行期产物（AI 生图与成片），删掉行会让上百 MB 资产误入库；assets/key.tmp 与 *.pid 涉及密钥残留和残留进程，必须保持忽略
-README.md[SG7T]: F:项目总览与上手入口：说明 miaodraw 是什么、怎么装、怎么跑、有哪些能力 | R:code:package.json,code:docs/video-pipeline-design.md,code:AGENTS.md | A:- | S:对外承诺的功能清单必须与 package.json scripts 和 docs/ 保持一致；已于 2026-10 按纯 HTTP 直连现状重写（删除了已废弃的内置 bailian-cli / npm run vendor 描述），再改引擎或目录结构必须同步本文件
-AGENTS.md[SG7S]: F:仓库级 agent 工作规程：项目定位、目录约定、构建与测试命令、协作边界 | R:code:package.json,code:docs/legacy-design-audit.md | A:- | S:所有 bot 与自动化都以本文件为行为约束，改动等于改所有人的工作规程；其中「不打包、不推 GitHub、不碰第三方仓库」等边界由用户口头授权变更，不要自行放宽
+README.md[SG7T]: F:项目总览与上手入口：说明 miaodraw 是什么、怎么装、怎么跑、有哪些能力 | R:code:package.json,code:docs/archive/video-pipeline-design.md,code:AGENTS.md | A:- | S:对外承诺的功能清单必须与 package.json scripts 和 docs/ 保持一致；已于 2026-10 按纯 HTTP 直连现状重写（删除了已废弃的内置 bailian-cli / npm run vendor 描述），再改引擎或目录结构必须同步本文件
+AGENTS.md[SG7S]: F:仓库级 agent 工作规程：项目定位、目录约定、构建与测试命令、协作边界 | R:code:package.json,code:docs/archive/legacy-design-audit.md | A:- | S:所有 bot 与自动化都以本文件为行为约束，改动等于改所有人的工作规程；其中「不打包、不推 GitHub、不碰第三方仓库」等边界由用户口头授权变更，不要自行放宽
 .oxlintrc.json[FQ6T]: F:oxlint 规则入口：correctness 报错、suspicious 警告，no-empty 关闭、no-unused-vars 降级为警告 | R:code:package.json | A:- | S:ignorePatterns 排除了 out/dist/node_modules/vendor/library/scripts，因此 library/ 与 scripts/ 里的问题不会在任何 check 里出现；correctness=error 表示这类问题会直接挡住 npm run lint
 tsconfig.web.json[FV6T]: F:渲染层 TypeScript 配置：包含 src/renderer 与 src/shared，启用 JSX 与 DOM 类型 | R:code:tsconfig.json,code:src/renderer/src/main.tsx | A:- | S:渲染层可跨目录引用主进程的纯函数模块（如 prompt-guards、video-protocol），因此这些模块必须保持零 node 依赖，否则打包或运行会炸
 .gitattributes[FC7T]: F:锁定全仓库换行与文本属性，保证 AOCI 基线在各平台按原始字节逐位一致 | R:- | A:- | S:必须保持 text=auto eol=lf：Windows 默认 autocrlf 会把整棵树改写成 CRLF，导致所有对象被判 stale；二进制由 git 自动识别，不要在此加二进制规则
@@ -18,17 +18,10 @@ start.cmd[XV5T]: F:Windows 一键启动脚本：安装依赖并启动开发态�
 
 ===D:/project/miaodraw/docs/===
 settings-ui-redesign.md[SU6S]: F:设置页模型服务的视觉重设计方案：三栏主从结构、参考截图与分步拆解 | R:code:src/renderer/src/views/SettingsView.tsx | A:- | S:现状问题是 Card 堆叠加 Tag 罗列；新结构尚未落地，动手前按文末实施拆解确认批次，不要按设计稿假设已有 API
-legacy-design-audit.md[SQ6T]: F:存量设计体检：逆向资料对照下的问题清单与 P0 修复方案 | R:code:src/main/updater.ts,code:docs/orchestration-design.md | A:- | S:更新器完整性校验 P0 已按指令暂缓（不动 updater.ts 与 dist），文中方案只是留档，动手前需重新确认；「未找到」表示检索无证据，不得据此推断不存在
-todo-cost-guard.md[SP7T]: F:成本闸门现状说明：视频预估、二次确认、硬上限与记账的落地情况，以及内部测试纪律与价目表 | R:code:src/main/video-protocol.ts,code:src/main/video/cost.ts,code:docs/video-pipeline-design.md | A:- | S:视频档位价目仍是预估价（未与账单核实），UI 必须显示以百炼账单为准；内部不主动跑视频付费链路，确需验证时写明实际花费
-m1-migration-plan.md[SD6T]: F:M1 数据层迁移方案：旧 History/Library 字段到 assets 的映射、防重复与失败回滚 | R:code:src/renderer/src/canvas/db.ts,code:src/main/canvasAssets.ts | A:- | S:原则是「建索引不搬文件」，幂等键 path+mtime；v1→v2 的 superseded_by 回填与 assertAssetsMigrated 必须一直保留，后续版本不许短路或降级
-canvas-interaction-tuning.md[SU6S]: F:画布拖拽与连线手感的根因诊断、P0~P2 优化清单与验收依据 | R:code:src/renderer/src/canvas/InfiniteCanvas.tsx,code:src/renderer/src/canvas/CanvasNode.tsx,code:src/renderer/src/canvas/rect-cache.ts | A:- | S:三条根因是拖动无实时反馈、命中判定未按 1/k 补偿、拖动路径频繁 DOM 查询；P1-10 视口重渲染范围与 P2 未做，改订阅模型时要连带处理
+todo-cost-guard.md[SP7T]: F:成本闸门现状说明：视频预估、二次确认、硬上限与记账的落地情况，以及内部测试纪律与价目表 | R:code:src/main/video-protocol.ts,code:src/main/video/cost.ts,code:docs/archive/video-pipeline-design.md | A:- | S:视频档位价目仍是预估价（未与账单核实），UI 必须显示以百炼账单为准；内部不主动跑视频付费链路，确需验证时写明实际花费
 github-ai-image-landscape-2026-10.md[SA5S]: F:2026-10 GitHub 图像创作生态调研：同类客户端、引擎与能力模块对照 | R:code:docs/multi-material-fusion-design.md | A:- | S:数据是 2026-10-03 抓取快照，star 数与活跃度会过期；引用前必须重新核对，不得当成现状事实
-video-pipeline-design.md[SW8M]: F:自建视频管线设计：V1~V4 里程碑、video_jobs 幂等、成本 fail-closed、离屏渲染降级与干净房间 | R:code:src/main/video/index.ts,code:src/main/video/executor.ts,code:src/main/video/jobs.ts,code:docs/todo-cost-guard.md | A:- | S:Pixelle 已彻底出局（只读参考，不改不推不依赖），V3 原稿中「Pixelle 作为可选出片后端」作废；离屏渲染每一级降级都要写 plan_events
-chat-gate-ui-taskcards.md[SU6S]: F:C 批（聊天面板 + 闸门 UI）六张卡的任务规格、交互细节与验收探针 | R:code:src/renderer/src/canvas/ChatPanel.tsx,code:src/renderer/src/canvas/PlanCard.tsx,code:src/renderer/src/canvas/StageReviewCard.tsx | A:- | S:每张卡都以 SHOT_PLAN_CHAT* 探针作为验收，改卡不更新探针等于未交付；C5 冻结前缀与 C6 stale 的语义在此定义，UI 不得自行解释
-orchestration-design.md[SW8M]: F:编排设计二审稿：说需求到自动搭工作流的数据层、节点层、IPC 与闸门落点 | R:code:src/main/orchestrator/registry.ts,code:src/main/orchestrator/state.ts,code:src/renderer/src/canvas/PlanCard.tsx,code:docs/chat-to-workflow-feasibility.md | A:- | S:阶段命名以 O1~O4 为准（M4 已被打磨打包占用，勿复用）；plan 存 IndexedDB、画布节点只是视图；删节点等于删阶段，必须二次确认
+orchestration-design.md[SW8M]: F:编排设计二审稿：说需求到自动搭工作流的数据层、节点层、IPC 与闸门落点 | R:code:src/main/orchestrator/registry.ts,code:src/main/orchestrator/state.ts,code:src/renderer/src/canvas/PlanCard.tsx,code:docs/archive/chat-to-workflow-feasibility.md | A:- | S:阶段命名以 O1~O4 为准（M4 已被打磨打包占用，勿复用）；plan 存 IndexedDB、画布节点只是视图；删节点等于删阶段，必须二次确认
 multi-material-fusion-design.md[SB6S]: F:多素材融合设计：把单参考图升级为 N 张素材加一条指令产出融合图 | R:code:src/main/http.ts,code:src/renderer/src/canvas/generation.ts,code:src/main/prompt-guards.ts | A:- | S:各引擎多图上限不同，必须按模型能力驱动 UI 并由 clampRefs 前置校验，禁止在前端写死上限；参考图角色要先标注再组装 prompt
-chat-to-workflow-feasibility.md[SW7S]: F:聊天式构建/修改工作流的可行性与实现路径（对照 MiniMax 机制 + 我方现状） | R:code:src/main/orchestrator/registry.ts,code:docs/orchestration-design.md,code:src/renderer/src/canvas/ChatPanel.tsx | A:- | S:是 B 批增量协议的规格来源，三档 replan/幂等/CAS 都以它为准；文中 MiniMax 结论仅作机制参考，不得照抄其语义或命名
-p0-prompt-layer-report.md[SB6T]: F:P0 提示词质量层交付报告：改动文件、组装前后对比、校验能力与花费 | R:code:src/main/prompt-guards.ts,code:src/main/tools.ts,code:src/renderer/src/canvas/generation.ts | A:- | S:记录的是 04d16aa/9c09450 时点，其中「z-image-turbo 返回体无 type 导致丢图」等实现细节后来有修正；复审以代码为准，不要按报告结论推断当前行为
 aoci-index-plan.md[SQ7T]: F:AOCI 索引工作规程：开工先读索引、改完代码在稳定态维护条目、条目由宿主 agent 读源码写，以及格式红线 | R:code:AGENTS.md,code:aoci.code.txt | A:- | S:AGENTS.md 的 AOCI 区块由工具托管不得手改，规程细节以本文件为准；E 档位以 verify 的 file_lines 为准，A≤6、R≤8、S 按 token 配额，code 域 B 轴无 K
 
 ===D:/project/miaodraw/src/main/video/===
@@ -60,7 +53,7 @@ Onboarding.tsx[AU5S]: F:首次引导：填写密钥、选择默认模型与尺�
 ===D:/project/miaodraw/src/main/orchestrator/workflows/===
 single-image.json[FW5T]: F:内置工作流：单图生成的直连兜底流程定义 | R:code:src/main/orchestrator/router.ts | A:- | S:视频链路不可用时 router 会降级到这里，因此它必须始终可用，且不得依赖任何付费视频或本地后端能力
 image-to-video.json[FW6T]: F:内置工作流：图生视频的单阶段流程、审查项与画幅锁 | R:code:src/main/orchestrator/workflows/doc-to-video.json,code:src/main/orchestrator/router.ts | A:- | S:必须先有参考图才可路由到此（router 缺图时改为 ask）；与 doc-to-video 共用执行器语义，改动要同时检查两条流程
-doc-to-video.json[FW7T]: F:内置工作流：文案成片四阶段 brief/shots/narration/video 及各阶段审查项与执行锁 | R:code:src/main/orchestrator/registry.ts,code:docs/video-pipeline-design.md | A:- | S:video 阶段 paid=true 会强制前置闸门（确认后才付费执行）；阶段拓扑绑定 stage_outline 不可变，改本文件等于改产品流程与既有计划的兼容性
+doc-to-video.json[FW7T]: F:内置工作流：文案成片四阶段 brief/shots/narration/video 及各阶段审查项与执行锁 | R:code:src/main/orchestrator/registry.ts,code:docs/archive/video-pipeline-design.md | A:- | S:video 阶段 paid=true 会强制前置闸门（确认后才付费执行）；阶段拓扑绑定 stage_outline 不可变，改本文件等于改产品流程与既有计划的兼容性
 
 ===D:/project/miaodraw/src/renderer/src/canvas/===
 video-persistence.ts[PW6T]: F:视频作业持久化：订阅 video:job 事件按 job key 落 IndexedDB，并提供续跑读取入口 | R:code:src/renderer/src/canvas/db.ts,code:src/renderer/src/canvas/VideoStageCard.tsx | A:attachVideoJobPersistence,loadVideoJobs,loadResumableVideoJobs | S:订阅重复挂载会写双份（有 attached 守卫）；落盘用 put 覆盖语义，重复事件不得产生第二条；续跑只返回 failed/running
@@ -118,7 +111,7 @@ make_icon.cjs[XV5T]: F:把选定 Logo 转为应用图标（ico/png 多尺寸）�
 index.html[EU5T]: F:渲染层入口页：挂载 React 根节点、设置窗口标题与基础 meta | R:code:src/renderer/src/App.tsx | A:- | S:窗口标题（妙绘工作台）与打包 productName（ASCII）不同源，改标题只影响界面显示，不影响安装器命名
 
 ===D:/project/miaodraw/src/main/===
-updater.ts[OV6S]: F:自研更新器：检查更新源、下载安装包并触发安装，含摘要完整性校验 | R:code:src/main/index.ts,code:docs/legacy-design-audit.md | A:checkUpdate,downloadUpdate,installUpdate,cancelUpdateDownload | S:下载必须流式计算 sha512/sha256，摘要不符删 .part 且绝不 rename；成功后写 .sha512 sidecar，installUpdate 前复验（缺失 sidecar 仅告警）；非 https 地址拒绝（未打包态例外，便于自测）；feed 的 sha512 与 GitHub asset.digest 都要透传，否则等于没校验
+updater.ts[OV6S]: F:自研更新器：检查更新源、下载安装包并触发安装，含摘要完整性校验 | R:code:src/main/index.ts,code:docs/archive/legacy-design-audit.md | A:checkUpdate,downloadUpdate,installUpdate,cancelUpdateDownload | S:下载必须流式计算 sha512/sha256，摘要不符删 .part 且绝不 rename；成功后写 .sha512 sidecar，installUpdate 前复验（缺失 sidecar 仅告警）；非 https 地址拒绝（未打包态例外，便于自测）；feed 的 sha512 与 GitHub asset.digest 都要透传，否则等于没校验
 providers.ts[IN6T]: F:第三方供应商调用分发：按 provider 组装 OpenAI 兼容请求并返回结果 | R:code:src/main/http.ts,code:src/main/index.ts | A:httpGenerate,PROVIDER_BASE_URLS | S:图片走百炼原生协议而对话走兼容模式的差异由调用方选择，本文件只做兼容分发；自定义供应商 baseUrl 必须去尾斜杠，否则路径会拼错
 video-protocol.test.mjs[TW6S]: F:视频协议单测：请求构造、任务状态映射、下载地址白名单、预估价与失败重试护栏 | R:code:src/main/video-protocol.ts | A:- | S:固定断言缺省档位为 2 秒/720P/prompt_extend=false（成本红线），任何放宽都会先在这里变红
 canvasAssets.ts[IP6S]: F:画布资产信息只读服务：校验相对路径并产出 size/mtime/quickHash/fullHash/宽高/mime | R:code:src/renderer/src/canvas/db.ts,code:src/renderer/src/canvas/generation.ts | A:canvas:assetInfo,registerCanvasAssetHandlers | S:只接受 outputs/、refs/、videos/ 与历史遗留 pixelle/ 前缀且拒绝路径穿越；视频只读头部 4MB 做指纹（整读会卡死大文件），pixelle 前缀仅用于读旧资产
@@ -180,3 +173,12 @@ styles.json[FB6L]: F:灵感库风格表：风格名、分类与提示词片段�
 
 ===D:/project/miaodraw/src/main/probes/===
 shot.ts[TW7L]: F:SHOT 截图验收探针集合（39 个 SHOT_* 分支）：切视图/建节点/拖拽/撤销/剪贴板/框选/计划对话/视频面板等端到端断言，并决定进程退出码 | R:code:src/main/index.ts,code:src/main/prompt-guards.ts | A:runScreenshotProbes,ProbeCtx | S:仅在 TEST_MODE=screenshot 下由 index.ts 动态 import，生产路径不执行；内部自行 app.exit（失败退出码 1），调用方不要 await；VIEW_INDEX 与侧栏 6 项必须一致，改导航必须同步这里；新增探针要配套 console.log('[shot] ...') 与 check()
+
+===D:/project/miaodraw/docs/archive/===
+legacy-design-audit.md[SQ6T]: F:存量设计体检：逆向资料对照下的问题清单与 P0 修复方案 | R:code:src/main/updater.ts,code:docs/orchestration-design.md | A:- | S:更新器完整性校验 P0 已按指令暂缓（不动 updater.ts 与 dist），文中方案只是留档，动手前需重新确认；「未找到」表示检索无证据，不得据此推断不存在
+m1-migration-plan.md[SD6T]: F:M1 数据层迁移方案：旧 History/Library 字段到 assets 的映射、防重复与失败回滚 | R:code:src/renderer/src/canvas/db.ts,code:src/main/canvasAssets.ts | A:- | S:原则是「建索引不搬文件」，幂等键 path+mtime；v1→v2 的 superseded_by 回填与 assertAssetsMigrated 必须一直保留，后续版本不许短路或降级
+canvas-interaction-tuning.md[SU6S]: F:画布拖拽与连线手感的根因诊断、P0~P2 优化清单与验收依据 | R:code:src/renderer/src/canvas/InfiniteCanvas.tsx,code:src/renderer/src/canvas/CanvasNode.tsx,code:src/renderer/src/canvas/rect-cache.ts | A:- | S:三条根因是拖动无实时反馈、命中判定未按 1/k 补偿、拖动路径频繁 DOM 查询；P1-10 视口重渲染范围与 P2 未做，改订阅模型时要连带处理
+video-pipeline-design.md[SW8M]: F:自建视频管线设计：V1~V4 里程碑、video_jobs 幂等、成本 fail-closed、离屏渲染降级与干净房间 | R:code:src/main/video/index.ts,code:src/main/video/executor.ts,code:src/main/video/jobs.ts,code:docs/todo-cost-guard.md | A:- | S:Pixelle 已彻底出局（只读参考，不改不推不依赖），V3 原稿中「Pixelle 作为可选出片后端」作废；离屏渲染每一级降级都要写 plan_events
+chat-gate-ui-taskcards.md[SU6S]: F:C 批（聊天面板 + 闸门 UI）六张卡的任务规格、交互细节与验收探针 | R:code:src/renderer/src/canvas/ChatPanel.tsx,code:src/renderer/src/canvas/PlanCard.tsx,code:src/renderer/src/canvas/StageReviewCard.tsx | A:- | S:每张卡都以 SHOT_PLAN_CHAT* 探针作为验收，改卡不更新探针等于未交付；C5 冻结前缀与 C6 stale 的语义在此定义，UI 不得自行解释
+chat-to-workflow-feasibility.md[SW7S]: F:聊天式构建/修改工作流的可行性与实现路径（对照 MiniMax 机制 + 我方现状） | R:code:src/main/orchestrator/registry.ts,code:docs/orchestration-design.md,code:src/renderer/src/canvas/ChatPanel.tsx | A:- | S:是 B 批增量协议的规格来源，三档 replan/幂等/CAS 都以它为准；文中 MiniMax 结论仅作机制参考，不得照抄其语义或命名
+p0-prompt-layer-report.md[SB6T]: F:P0 提示词质量层交付报告：改动文件、组装前后对比、校验能力与花费 | R:code:src/main/prompt-guards.ts,code:src/main/tools.ts,code:src/renderer/src/canvas/generation.ts | A:- | S:记录的是 04d16aa/9c09450 时点，其中「z-image-turbo 返回体无 type 导致丢图」等实现细节后来有修正；复审以代码为准，不要按报告结论推断当前行为

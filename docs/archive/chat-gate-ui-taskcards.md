@@ -1,6 +1,6 @@
 # C 批次任务卡：聊天面板 + 闸门 UI
 
-作者：Rea。状态：待 Coder 施工（先出卡，未写代码）。规格来源：`docs/chat-to-workflow-feasibility.md`；依赖 O1（已合入 `0861122`）+ B 批次增量协议。
+作者：Rea。状态：待 Coder 施工（先出卡，未写代码）。规格来源：`docs/archive/chat-to-workflow-feasibility.md`；依赖 O1（已合入 `0861122`）+ B 批次增量协议。
 证据约定：行号对应当前分支；契约名以 B 批次实际落地为准，若命名变更需同步本节「共用契约」。
 
 ## 共用契约与约定
