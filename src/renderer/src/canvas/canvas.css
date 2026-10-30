@@ -1,5 +1,13 @@
 /* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构 */
 
+/* 吸附对齐线（拖动时出现；宽度按 1/k 换算，缩放时保持 1 屏幕像素） */
+.ivc-guide {
+  position: absolute;
+  background: #f43f5e;
+  pointer-events: none;
+  z-index: 7;
+}
+
 /* 框选矩形：屏幕坐标覆盖层 */
 .ivc-marquee {
   position: absolute;

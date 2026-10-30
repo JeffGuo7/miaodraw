@@ -12,6 +12,8 @@ import { PlayCircleOutlined } from '@ant-design/icons'
 import type { CanvasNodeData } from './types'
 import { NODE_SPECS } from './types'
 import { canvasStore } from './store'
+import { computeSnap } from './snapping'
+import { clearGuides, setGuides } from './guides'
 import { runGenerateNode } from './generation'
 import { runVideoNode, DEFAULT_VIDEO_SPEC, VIDEO_DURATIONS, VIDEO_RATIOS, VIDEO_RESOLUTIONS, ratioLabel, estimateVideoCost, normalizeVideoSpec, canAutoRetry } from './videoGeneration'
 import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
@@ -58,15 +60,35 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
     const start = { x: e.clientX, y: e.clientY }
     const k = canvasStore.getState().viewport.k || 1
     let delta = { x: 0, y: 0 }
+    let altPressed = false
     let frame: number | null = null
 
     const flush = (): void => {
       frame = null
-      // 每帧提交：拖动过程中位置可见；多选时一次提交全部被拖节点
-      canvasStore.moveNodes(origins, delta.x / k, delta.y / k)
+      const worldDx = delta.x / k
+      const worldDy = delta.y / k
+      const primary = origins.find((o) => o.id === node.id) ?? origins[0]
+      // 按住 Alt 临时关闭吸附（Excalidraw/Figma 同款约定）
+      if (!primary || altPressed) {
+        clearGuides()
+        canvasStore.moveNodes(origins, worldDx, worldDy)
+        return
+      }
+      const st = canvasStore.getState()
+      const movingSet = new Set(movingIds)
+      const others = st.nodes.filter((n) => !movingSet.has(n.id))
+      const snap = computeSnap(
+        { x: primary.x + worldDx, y: primary.y + worldDy, width: node.width, height: node.height },
+        others,
+        // 阈值按屏幕 6px 折算到世界坐标，保证不同缩放下手感一致；无邻居时退化为 8px 网格
+        { threshold: 6 / k, grid: 8 }
+      )
+      setGuides(snap.guides)
+      canvasStore.moveNodes(origins, worldDx + snap.dx, worldDy + snap.dy)
     }
     const move = (ev: PointerEvent): void => {
       delta = { x: ev.clientX - start.x, y: ev.clientY - start.y }
+      altPressed = ev.altKey
       if (frame === null) frame = requestAnimationFrame(flush)
     }
     const up = (): void => {
@@ -75,6 +97,7 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
         frame = null
       }
       flush() // 收尾：确保末帧位置落库
+      clearGuides()
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)

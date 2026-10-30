@@ -11,7 +11,7 @@
                     "typecheck:node":  "tsc --noEmit -p tsconfig.node.json --composite false",
                     "typecheck:web":  "tsc --noEmit -p tsconfig.web.json --composite false",
                     "typecheck":  "npm run typecheck:node \u0026\u0026 npm run typecheck:web",
-                    "test:canvas":  "node --test src/renderer/src/canvas/connection-hit.test.mjs src/renderer/src/canvas/frozen-scope.test.mjs src/renderer/src/canvas/plan-recover.test.mjs src/renderer/src/canvas/viewport-fit.test.mjs",
+                    "test:canvas":  "node --test src/renderer/src/canvas/connection-hit.test.mjs src/renderer/src/canvas/frozen-scope.test.mjs src/renderer/src/canvas/plan-recover.test.mjs src/renderer/src/canvas/viewport-fit.test.mjs src/renderer/src/canvas/snapping.test.mjs",
                     "test:orchestrator":  "node --test src/main/orchestrator/state.test.mjs src/main/orchestrator/registry.test.mjs",
                     "test:prompt":  "node --test src/main/prompt-guards.test.mjs",
                     "test:video":  "node --test src/main/video-protocol.test.mjs src/main/video/jobs.test.mjs src/main/video/cost.test.mjs src/main/video/pipeline.test.mjs",

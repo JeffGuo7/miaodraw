@@ -29,6 +29,7 @@ import { getPending, registerPendingElements, subscribePending } from './pending
 import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
 import { getCanvasRect } from './rect-cache'
 import { fitView, focusNode } from './viewport-fit'
+import { useGuides } from './guides'
 import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
@@ -387,6 +388,7 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         }}
       >
         <ConnectionLayer />
+        <SnapGuideLayer />
         {ids.map((id) => (
           <CanvasNodeHost key={id} id={id} />
         ))}
@@ -485,6 +487,43 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
 
       <MigrationOverlay />
     </div>
+  )
+}
+
+/**
+ * 吸附对齐线：拖动时显示。位置按 1/k 换算，保证缩放后仍是 1 屏幕像素宽。
+ */
+function SnapGuideLayer(): JSX.Element | null {
+  const guides = useGuides()
+  const viewport = useViewport()
+  if (!guides.length) return null
+  const k = viewport.k > 0 ? viewport.k : 1
+  const rect = getCanvasRect()
+  const worldLeft = -viewport.x / k
+  const worldTop = -viewport.y / k
+  const worldW = (rect.width || 1920) / k
+  const worldH = (rect.height || 1080) / k
+  const thin = Math.max(1 / k, 0.4)
+  return (
+    <>
+      {guides.map((g, i) =>
+        g.axis === 'x' ? (
+          <div
+            key={'gx' + i}
+            className="ivc-guide"
+            data-guide="x"
+            style={{ left: g.world, top: worldTop, width: thin, height: worldH }}
+          />
+        ) : (
+          <div
+            key={'gy' + i}
+            className="ivc-guide"
+            data-guide="y"
+            style={{ left: worldLeft, top: g.world, width: worldW, height: thin }}
+          />
+        )
+      )}
+    </>
   )
 }
 
