@@ -1527,8 +1527,12 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
         toolbar('图片').click(); await sleep(600)
         toolbar('出图').click(); await sleep(600)
-        const img = nodesByTitle('图片')[0]
-        const gen = nodesByTitle('出图')[0]
+        // 画布可能已有历史节点：必须取「最新创建」的一对，否则悬停点可能被别的节点盖住，
+        // 高亮断言会随机失败（探针多次运行后必然踩到）
+        const imgs = nodesByTitle('图片')
+        const gens = nodesByTitle('出图')
+        const img = imgs[imgs.length - 1]
+        const gen = gens[gens.length - 1]
         if (!img || !gen) return 'ERR: 节点未创建'
         const port = img.querySelector('.ivc-node-port')
         if (!port) return 'ERR: 图片节点无端口'
@@ -1547,15 +1551,15 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const d = path.getAttribute('d') || ''
         const m = d.match(/M\\s+(-?[\\d.]+)\\s+(-?[\\d.]+)/)
         if (!m) return 'ERR: path d 解析失败: ' + d
-        const OFF = 100000
         const world = document.querySelector('.ivc-world')
         const tm = (world.style.transform || '').match(/translate\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px\\)\\s*scale\\(([\\d.]+)\\)/)
         const k = tm ? Number(tm[3]) : 1
         const vx = tm ? Number(tm[1]) : 0
         const vy = tm ? Number(tm[2]) : 0
         const rootRect = document.querySelector('.ivc-root').getBoundingClientRect()
-        const startX = rootRect.left + vx + (Number(m[1]) - OFF) * k
-        const startY = rootRect.top + vy + (Number(m[2]) - OFF) * k
+        // 连线层已在 world 坐标系内（<g> 负责回原点），path 的 d 直接是世界坐标，无需 OFF 偏移
+        const startX = rootRect.left + vx + Number(m[1]) * k
+        const startY = rootRect.top + vy + Number(m[2]) * k
         const dx = Math.abs(startX - portCx)
         const dy = Math.abs(startY - portCy)
         window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, button: 0 }))
@@ -1725,6 +1729,56 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     )
     console.log('[shot] canvas-help:', r)
     check('canvas-help', r)
+  }
+  if (process.env.SHOT_CANVAS_CONNECT === '1') {
+    // 连线探针：文本→出图应连通；音频→出图应被类型校验拒绝
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const connCount = () => document.querySelectorAll('.ivc-connections > g > g').length
+        const before = new Set([...document.querySelectorAll('[data-node-id]')].map(n => n.getAttribute('data-node-id')))
+        byText('文本').click()
+        await sleep(200)
+        byText('出图').click()
+        await sleep(400)
+        const fresh = [...document.querySelectorAll('[data-node-id]')].filter(n => !before.has(n.getAttribute('data-node-id')))
+        const base = connCount()
+        const drag = (fromEl, toEl) => {
+          const port = fromEl.querySelector('.ivc-node-port')
+          if (!port) return false
+          const pr = port.getBoundingClientRect()
+          const tr = toEl.getBoundingClientRect()
+          port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 21, button: 0, buttons: 1 }))
+          const tx = tr.left + tr.width / 2, ty = tr.top + tr.height / 2
+          window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: tx, clientY: ty, pointerId: 21, buttons: 1 }))
+          window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: tx, clientY: ty, pointerId: 21, button: 0 }))
+          return true
+        }
+        await sleep(100)
+        const okDrag = fresh.length >= 2 ? drag(fresh[0], fresh[1]) : false
+        await sleep(300)
+        const afterValid = connCount()
+        byText('音频').click()
+        await sleep(300)
+        const all = [...document.querySelectorAll('[data-node-id]')].filter(n => !before.has(n.getAttribute('data-node-id')))
+        const audio = all[all.length - 1]
+        if (audio) drag(audio, fresh[1])
+        await sleep(300)
+        const afterInvalid = connCount()
+        return JSON.stringify({
+          base, okDrag, afterValid, afterInvalid,
+          validOk: afterValid === base + 1,
+          invalidRejected: afterInvalid === afterValid,
+          ok: afterValid === base + 1 && afterInvalid === afterValid
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-connect-rules:', r)
+    check('canvas-connect-rules', r)
   }
   if (process.env.SHOT_CANVAS_ASSETS === '1') {
     // 画布数据层自测（零成本）：直接读 IndexedDB，核对资产入库与血统边

@@ -17,6 +17,7 @@ import { clearGuides, setGuides } from './guides'
 import { runGenerateNode } from './generation'
 import { runVideoNode, DEFAULT_VIDEO_SPEC, VIDEO_DURATIONS, VIDEO_RATIOS, VIDEO_RESOLUTIONS, ratioLabel, estimateVideoCost, normalizeVideoSpec, canAutoRetry } from './videoGeneration'
 import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
+import { canConnect } from './connection-rules'
 import { clientToWorld, invalidateCanvasRect } from './rect-cache'
 import { beginPending, endPending, updatePending } from './pending-connection'
 import PlanCard from './PlanCard'
@@ -184,7 +185,13 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
         const world = clientToWorld(client.x, client.y, vp)
         const hit = hitTestConnectionTarget(canvasStore.getState().nodes, world, { scale: vp.k, excludeId: node.id })
         if (hit.nodeId) {
-          canvasStore.addConnection(node.id, hit.nodeId)
+          // 类型校验：拒绝「连上了但生成时被静默忽略」的非法组合
+          const st = canvasStore.getState()
+          const fromNode = st.nodes.find((n) => n.id === node.id)
+          const toNode = st.nodes.find((n) => n.id === hit.nodeId)
+          const check = fromNode && toNode ? canConnect(fromNode, toNode) : { ok: false, reason: '节点不存在' }
+          if (check.ok) canvasStore.addConnection(node.id, hit.nodeId)
+          else message.warning(check.reason ?? '这两类节点之间没有数据依赖')
         } else {
           message.info('没落到节点上，已取消连线')
         }

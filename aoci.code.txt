@@ -95,6 +95,7 @@ snapping.ts[KU6T]: F:吸附对齐纯函数：左/中/右（上/中/下）与其�
 guides.ts[DU6T]: F:吸附对齐线状态：拖动中每帧写入，SnapGuideLayer 订阅渲染 | R:code:src/renderer/src/canvas/snapping.ts,code:src/renderer/src/canvas/CanvasWorkbench.tsx | A:setGuides,clearGuides,useGuides | S:比较后再通知，避免无变化也重渲染；空数组复用稳定引用（useSyncExternalStore 要求稳定快照）
 viewport-fit.ts[KU6T]: F:视口适配纯函数：全部节点 fitView、单节点 focusNode，含 0.05~5 缩放夹紧 | R:code:src/renderer/src/canvas/CanvasWorkbench.tsx | A:fitView,focusNode,MIN_K,MAX_K | S:空列表返回 null 由调用方保持原视口；居中按包围盒中心对齐容器中心，改公式要同步单测
 ShortcutsModal.tsx[AU5T]: F:画布快捷键帮助面板（? 打开，按导航/编辑/拖动分组） | R:code:src/renderer/src/canvas/CanvasWorkbench.tsx | A:ShortcutsModal | S:快捷键清单是产品契约，CanvasWorkbench 新增快捷键必须同步这里；纯展示，不做按键处理
+connection-rules.ts[KU6T]: F:连线类型校验纯函数：按节点语义定义「谁可以喂给谁」（文本/图片/配置→出图；图片/音频/出图→视频；分组与计划卡不参与） | R:code:src/renderer/src/canvas/CanvasNode.tsx | A:canConnect | S:规则刻意宽松，只拦明显没有数据依赖的组合，避免误伤真实工作流；新增节点类型或新连线语义必须同步 ALLOWED 表与单测；拒绝理由要可读（用户看到的是中文原因而不是静默失败）
 
 ===D:/project/miaodraw/src/renderer/src/===
 utils.ts[CC5T]: F:渲染层通用小工具函数 | R:code:src/renderer/src/App.tsx | A:工具函数集合 | S:保持纯函数、无副作用，不要在工具层引入状态或 IPC 调用
