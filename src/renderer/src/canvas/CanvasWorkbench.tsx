@@ -7,6 +7,7 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 import { Button, Progress, Tooltip } from 'antd'
 import {
   BgColorsOutlined,
+  BlockOutlined,
   FileTextOutlined,
   FileImageOutlined,
   PlayCircleOutlined,
@@ -113,7 +114,8 @@ function ensurePlanNode(planId: string): void {
   const nodes = canvasStore.getState().nodes
   if (nodes.some((n) => n.type === 'plan' && n.metadata.planId === planId)) return
   const count = nodes.filter((n) => n.type === 'plan').length
-  const id = canvasStore.addNode('plan', { x: 24 + (count % 3) * 460, y: 24 + Math.floor(count / 3) * 420 })
+  // 计划卡实际高度随阶段数增长（4 阶段约 700px+），行距按 780 留足，避免多计划卡叠在一起
+  const id = canvasStore.addNode('plan', { x: 24 + (count % 3) * 520, y: 24 + Math.floor(count / 3) * 780 })
   canvasStore.updateNode(id, { metadata: { planId } })
 }
 
@@ -125,7 +127,7 @@ function CanvasNodeHost({ id }: { id: string }): JSX.Element | null {
   return <CanvasNode node={node} selected={selected} />
 }
 
-export default function CanvasWorkbench(): JSX.Element {
+export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () => void } = {}): JSX.Element {
   const ids = useNodeIds()
   const viewport = useViewport()
   const undoable = useSyncExternalStore(subscribeHistory, canUndo)
@@ -409,6 +411,13 @@ export default function CanvasWorkbench(): JSX.Element {
             对话
           </Button>
         </Tooltip>
+        {onOpenCompose && (
+          <Tooltip title="精修合成（图层拼合 / 抠图 / 导出）">
+            <Button size="small" icon={<BlockOutlined />} onClick={onOpenCompose} data-open-compose="true">
+              合成
+            </Button>
+          </Tooltip>
+        )}
         {ADD_BUTTONS.map((b) => (
           <Button key={b.type} size="small" icon={b.icon} onClick={() => canvasStore.addNode(b.type)}>
             {b.label}

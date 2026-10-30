@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { App as AntdApp, Badge, Button, Layout, Menu, Tooltip, Typography } from 'antd'
 import {
   AppstoreOutlined,
-  BlockOutlined,
   EditOutlined,
   HistoryOutlined,
   PictureOutlined,
@@ -45,7 +44,6 @@ interface DistillSeed {
 const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
   { key: 'create', icon: <EditOutlined />, label: '创 作' },
   { key: 'canvas', icon: <PictureOutlined />, label: '画布' },
-  { key: 'compose', icon: <BlockOutlined />, label: '合成' },
   { key: 'library', icon: <AppstoreOutlined />, label: '灵感库' },
   { key: 'distill', icon: <ScanOutlined />, label: '提示词反推' },
   { key: 'history', icon: <HistoryOutlined />, label: '历史记录' },
@@ -54,7 +52,7 @@ const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
 
 // 侧栏视觉分组：保持 NAV 原顺序渲染（自动验收钩子依赖 .ant-menu-item 的扁平顺序）
 const NAV_GROUPS: Array<{ title: string; keys: ViewKey[] }> = [
-  { title: '工作台', keys: ['create', 'canvas', 'compose'] },
+  { title: '工作台', keys: ['create', 'canvas'] },
   { title: '素材与工具', keys: ['library', 'distill'] },
   { title: '记录与设置', keys: ['history', 'settings'] }
 ]
@@ -248,11 +246,12 @@ export default function App(): JSX.Element {
             />
           </div>
           <div style={{ display: view === 'canvas' ? 'block' : 'none', height: '100%' }}>
-            <CanvasWorkbench />
+            <CanvasWorkbench onOpenCompose={() => setView('compose')} />
           </div>
           <div style={{ display: view === 'compose' ? 'block' : 'none' }}>
             <ComposeView
               visible={view === 'compose'}
+              onBack={() => setView('canvas')}
               onSendToCreate={(f) => {
                 // 合成画布产物 → 创作页素材托盘（精修合成路径：先摆版式，再让模型统一风格）
                 goCreate({ mode: 'fusion', refs: [{ file: f, role: 'ref', source: 'compose' }] })

@@ -4,6 +4,7 @@ import { Stage, Layer, Image as KImage, Text as KText, Rect, Transformer } from 
 import { App as AntdApp, Button, Card, Col, ColorPicker, Input, Menu, Popconfirm, Row, Select, Slider, Space, Tag, Tooltip, Typography, Upload } from 'antd'
 import {
   ArrowDownOutlined,
+  ArrowLeftOutlined,
   ArrowUpOutlined,
   BlockOutlined,
   CompressOutlined,
@@ -46,6 +47,8 @@ interface Props {
   visible: boolean
   /** 把画布产物直接送去创作页当融合素材（不落作品目录，走内存） */
   onSendToCreate?: (file: File) => void
+  /** 返回画布工作台（合成页不再是一级导航，由画布工具条 / 命令面板进入） */
+  onBack?: () => void
 }
 
 const CANVAS_PRESETS = [
@@ -80,7 +83,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-export default function ComposeView({ visible, onSendToCreate }: Props): JSX.Element {
+export default function ComposeView({ visible, onSendToCreate, onBack }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [canvasSize, setCanvasSize] = useState(CANVAS_PRESETS[0])
   const [layers, setLayers] = useState<CompLayer[]>([])
@@ -625,6 +628,11 @@ export default function ComposeView({ visible, onSendToCreate }: Props): JSX.Ele
           className="result-card"
         >
           <div className="compose-toolbar">
+            {onBack && (
+              <Tooltip title="返回画布">
+                <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={onBack} data-compose-back="true" />
+              </Tooltip>
+            )}
             <Space size={6}>
               <Tooltip title="撤销 (Ctrl+Z)">
                 <Button size="small" icon={<UndoOutlined />} onClick={undo} />
