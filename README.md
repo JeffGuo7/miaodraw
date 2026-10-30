@@ -77,6 +77,7 @@ npm run build:win
 - **数据落点**：`outputs/` 产物（同名 `.json` sidecar）、`refs/` 内容寻址留档、`videos/` 成片与中间件；渲染层 IndexedDB 8 张表（schema v5）
 - **案例库**：`library/`（libA 精选 md 案例 + libB 全能 json 案例），打包时经 extraResources 随应用分发
 - **验收探针**：`npm run shot`（构建 + 截图退出）；`SHOT_VIEW=library|distill|history`、`SHOT_GEN=1`、`SHOT_CANVAS=1`、`SHOT_PLAN_CHAT=1` 等 40+ 个 `SHOT_*` 开关可做分页面 / 全链路零成本验收
+  - 探针使用**独立 profile**（`%APPDATA%/miaodraw-shot`，默认每次运行重置，可用 `SHOT_KEEP_PROFILE=1` 保留现场 / `SHOT_PROFILE_DIR` 指定目录），不会读写正式作品数据
 
 ## 成本护栏
 
