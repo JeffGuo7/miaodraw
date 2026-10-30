@@ -27,6 +27,7 @@ import { attachHistory, canRedo, canUndo, historyDepth, redo, subscribeHistory, 
 import { getPending, registerPendingElements, subscribePending } from './pending-connection'
 import { attachPlanPersistence, loadAllPlans, loadPlan } from './plan-persistence'
 import { getCanvasRect } from './rect-cache'
+import { fitView, focusNode } from './viewport-fit'
 import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
 import { countAssets } from './db'
@@ -192,11 +193,31 @@ export default function CanvasWorkbench(): JSX.Element {
     [tool]
   )
 
+  /** 适配全部节点（F）：缩放并居中到全部内容 */
+  const fitAll = useCallback((): void => {
+    const rect = getCanvasRect()
+    const vp = fitView(canvasStore.getState().nodes, { width: rect.width || 800, height: rect.height || 600 })
+    if (vp) canvasStore.setViewport(vp)
+  }, [])
+
+  /** 聚焦选中的单个节点（Shift+F）：该节点占视口约 60% */
+  const focusSelected = useCallback((): void => {
+    const st = canvasStore.getState()
+    const id = st.selectedIds[0]
+    if (!id) return
+    const node = st.nodes.find((n) => n.id === id)
+    if (!node) return
+    const rect = getCanvasRect()
+    const vp = focusNode(node, { width: rect.width || 800, height: rect.height || 600 })
+    if (vp) canvasStore.setViewport(vp)
+  }, [])
+
   // 撤销/重做：订阅画布变更（250ms 合并），并暴露给探针
   useEffect(() => attachHistory(), [])
   useEffect(() => {
     ;(window as unknown as { __canvasHistory?: unknown }).__canvasHistory = { undo, redo, canUndo, canRedo, depth: historyDepth }
-  }, [])
+    ;(window as unknown as { __canvasView?: unknown }).__canvasView = { fitAll, focusSelected }
+  }, [fitAll, focusSelected])
 
   // 编排（O1）：订阅 plan:changed 落 IndexedDB + 迁移断言（plan 是真相源，画布只是视图）
   useEffect(() => attachPlanPersistence(), [])
@@ -314,11 +335,15 @@ export default function CanvasWorkbench(): JSX.Element {
         zoomBy(1 / 1.2)
       } else if (e.key === '0') {
         canvasStore.setViewport({ x: 80, y: 80, k: 1 })
+      } else if (!mod && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        if (e.shiftKey) focusSelected()
+        else fitAll()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [zoomBy])
+  }, [zoomBy, fitAll, focusSelected])
 
   const resetView = useCallback((): void => {
     canvasStore.setViewport({ x: 80, y: 80, k: 1 })
@@ -396,6 +421,7 @@ export default function CanvasWorkbench(): JSX.Element {
         <span style={{ minWidth: 44, textAlign: 'center' }}>{Math.round(viewport.k * 100)}%</span>
         <Button size="small" type="text" onClick={() => zoomBy(1.2)}>＋</Button>
         <Button size="small" type="text" onClick={resetView}>复位</Button>
+        <Button size="small" type="text" onClick={fitAll} data-fit="true" title="适配全部节点（F）">适配</Button>
       </div>
 
       {ctxMenu && (
