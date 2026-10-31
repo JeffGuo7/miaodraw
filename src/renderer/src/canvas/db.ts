@@ -51,9 +51,10 @@ export interface MigrationState {
 
 const DB_NAME = 'miaodraw-canvas'
 /** v2：plans/stages（O1）；v3：plan_events（B 批审计）；v4：messages（C1 对话面板）；v5：video_jobs（V1 视频作业幂等）
+ *  v6：canvas_docs（画布文档持久化：节点/连线/视口）
  *  注意：任务卡写的「DB_VERSION→3」按当时假设；B 批已把 plan_events 落在 v3，故 messages 顺延 v4、video_jobs 顺延 v5。
  *  v1→v2 的 superseded_by 回填与 assertAssetsMigrated() 一直保留、不短路。 */
-const DB_VERSION = 5
+const DB_VERSION = 6
 
 export const SCHEMA_VERSION = DB_VERSION
 
@@ -116,6 +117,11 @@ export function openCanvasDB(): Promise<IDBDatabase> {
           jobs.createIndex('stage_id', 'stage_id')
           jobs.createIndex('plan_stage', ['plan_id', 'stage_id'])
           jobs.createIndex('status', 'status')
+        }
+        // ── v6：画布文档（节点 + 连线 + 视口），单文档 id='default'；关掉应用重开还在这张画布上 ──
+        if (!db.objectStoreNames.contains('canvas_docs')) {
+          const docs = db.createObjectStore('canvas_docs', { keyPath: 'id' })
+          docs.createIndex('updated_at', 'updated_at')
         }
 
         // 旧资产补 superseded_by=null（重跑留档字段），并做迁移断言
@@ -191,6 +197,22 @@ export async function getMeta<T>(key: string): Promise<T | undefined> {
 
 export async function setMeta(key: string, value: unknown): Promise<void> {
   await tx('meta', 'readwrite', (s) => s.put({ key, value }))
+}
+
+// ---------- canvas_docs（画布文档持久化，v6） ----------
+
+/** 保存整份画布文档（单文档覆盖写；同一 id 天然幂等） */
+export async function saveCanvasDoc(doc: Record<string, unknown>): Promise<void> {
+  await tx('canvas_docs', 'readwrite', (s) => s.put(doc))
+}
+
+export async function loadCanvasDoc(id: string): Promise<Record<string, unknown> | undefined> {
+  return tx<Record<string, unknown> | undefined>('canvas_docs', 'readonly', (s) => s.get(id))
+}
+
+/** 清空画布 = 删除文档（用户主动重置，不保留历史，避免「清了又复活」） */
+export async function clearCanvasDoc(id: string): Promise<void> {
+  await tx('canvas_docs', 'readwrite', (s) => s.delete(id))
 }
 
 // ---------- assets ----------

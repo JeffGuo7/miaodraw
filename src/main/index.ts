@@ -38,6 +38,7 @@ import { estimateVideoCost, normalizeVideoSpec, type VideoSpecInput } from './vi
 import { registerOrchestratorHandlers } from './orchestrator'
 import { registerVideoHandlers } from './video'
 import { checkImageBudget, estimateImageBatch } from './image-cost'
+import { makeImageFileName, sniffImageExt } from './image-file'
 
 // ---------- 验收截图模式的 profile 隔离 ----------
 // 探针会大量建节点/计划，且多数断言依赖「干净初始状态」：
@@ -65,6 +66,11 @@ const LIB_ROOT = libraryRoot(isPackaged, APP_ROOT, process.resourcesPath)
 const OUT_DIR = isPackaged ? path.join(app.getPath('userData'), 'outputs') : path.join(APP_ROOT, 'outputs')
 /** 视频产物目录（V1 直连百炼出片；与 outputs 图片分开，避免历史记录扫描混入大文件） */
 const VIDEO_DIR = isPackaged ? path.join(app.getPath('userData'), 'videos') : path.join(APP_ROOT, 'videos')
+/** 画布上传素材目录：从文件选择/拖入的原始图片落盘到这里，画布文档只存 media://cvs/<file> 短路径。
+ *  不落盘的话节点里会塞 base64 data URL，几 MB 一张图会直接撑爆 IndexedDB 画布文档。 */
+const CANVAS_DIR = path.join(app.getPath('userData'), 'canvas-assets')
+/** 同毫秒连续拖入多张图时的文件名序号（避免互相覆盖） */
+let canvasAssetSeq = 0
 const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json')
 /** 素材留档允许的扩展名（refs:read 白名单，防路径构造） */
 const REF_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'])
@@ -86,6 +92,7 @@ protocol.registerSchemesAsPrivileged([
 function resolveMediaHost(bucket: string): string | null {
   if (bucket === 'out') return OUT_DIR
   if (bucket === 'vid') return VIDEO_DIR
+  if (bucket === 'cvs') return CANVAS_DIR
   if (bucket === 'lib-a') return path.join(LIB_ROOT, 'libA', 'images')
   if (bucket === 'lib-b') return path.join(LIB_ROOT, 'libB', 'data', 'images')
   return null
@@ -1336,6 +1343,24 @@ function registerIpc(): void {
     const abs = path.join(app.getPath('userData'), 'refs', `${h}${x}`)
     if (!fs.existsSync(abs)) throw new Error('素材留档已不在本机（可能被清理）')
     return fsp.readFile(abs)
+  })
+
+  /**
+   * 画布上传素材落盘：文件选择/拖入的图片写进 userData/canvas-assets，
+   * 节点 metadata 只保存 media://cvs/<file>，画布文档因此保持 KB 级、可安全持久化。
+   * 内容寻址不做（同一张图重复拖入按次数落盘），因为用户可能在画布上分别标注/替换。
+   */
+  handle('canvas:importImage', async (_e, payload: { name?: string; data?: Uint8Array | ArrayBuffer }) => {
+    const raw = payload?.data
+    if (!raw) throw new Error('没有收到图片数据')
+    const buf = Buffer.from(raw instanceof ArrayBuffer ? new Uint8Array(raw) : raw)
+    if (!buf.length) throw new Error('图片数据为空')
+    if (buf.length > 64 * 1024 * 1024) throw new Error('图片超过 64MB，请先压缩后再拖入')
+    const ext = sniffImageExt(buf)
+    fs.mkdirSync(CANVAS_DIR, { recursive: true })
+    const name = makeImageFileName(Date.now(), canvasAssetSeq++, ext)
+    await fsp.writeFile(path.join(CANVAS_DIR, name), buf)
+    return { ok: true, url: `media://local/cvs/${name}`, name }
   })
 
   handle('image:save', async (_e, url: string) => {

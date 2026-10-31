@@ -298,23 +298,67 @@ function renderBody(node: CanvasNodeData): JSX.Element {
   }
 }
 
-function ImageBody({ node }: { node: CanvasNodeData }): JSX.Element {  const url = String(node.metadata.content ?? '')
+function ImageBody({ node }: { node: CanvasNodeData }): JSX.Element {
+  const url = String(node.metadata.content ?? '')
+  const dropped = node.metadata.contentDropped === true
+  const [busy, setBusy] = useState(false)
+
+  /**
+   * 上传 = 落盘 + 存短路径。
+   * 早先是 FileReader 转 base64 塞进 metadata.content，几 MB 的图会把画布文档撑爆、
+   * 也无法持久化（IndexedDB 单条记录过大直接失败）。现在统一走主进程 canvas:importImage。
+   */
+  const upload = async (file: File | undefined): Promise<void> => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      message.warning('这里只接受图片文件')
+      return
+    }
+    setBusy(true)
+    try {
+      const data = new Uint8Array(await file.arrayBuffer())
+      const res = await window.api.canvasImportImage({ name: file.name, data })
+      if (!res?.ok || !res.url) throw new Error('主进程没有返回素材路径')
+      canvasStore.updateNode(node.id, {
+        metadata: {
+          ...node.metadata,
+          content: res.url,
+          contentDropped: false,
+          origin: 'upload',
+          fileName: file.name
+        }
+      })
+    } catch (e) {
+      message.error('导入图片失败：' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (url) return <img className="ivc-img" src={url} alt="" draggable={false} />
   return (
-    <label className="ivc-placeholder ivc-upload">
+    <label
+      className="ivc-placeholder ivc-upload"
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        void upload(e.dataTransfer.files?.[0])
+      }}
+    >
       <input
         type="file"
         accept="image/*"
         style={{ display: 'none' }}
         onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (!f) return
-          const reader = new FileReader()
-          reader.onload = () => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, content: String(reader.result) } })
-          reader.readAsDataURL(f)
+          void upload(e.target.files?.[0])
+          e.currentTarget.value = ''
         }}
       />
-      点击或拖入图片
+      {busy ? '正在导入…' : dropped ? '上次保存时丢弃了内联图，重新拖入即可' : '点击或拖入图片'}
     </label>
   )
 }

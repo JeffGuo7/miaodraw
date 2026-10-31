@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
-import { Button, Popover, Progress, Segmented, Switch, Tooltip } from 'antd'
+import { Button, Popconfirm, Popover, Progress, Segmented, Switch, Tooltip, message } from 'antd'
 import {
   BlockOutlined,
   CheckOutlined,
@@ -67,6 +67,13 @@ import { canConnect } from './connection-rules'
 import { resolveNodePlacement } from './placement'
 import { getCanvasPrefs, setCanvasPrefs, subscribeCanvasPrefs, type CanvasBackgroundMode, type CanvasPrefs } from './canvas-prefs'
 import { clearQuickCreate, requestQuickCreate, subscribeQuickCreate, type QuickCreateRequest } from './quick-create'
+import {
+  attachCanvasDocPersistence,
+  canvasDocSavedAt,
+  hydrateCanvasDocument,
+  resetCanvasDocument,
+  saveCanvasDocumentNow
+} from './doc-persistence'
 import type { PlanRecord, StageRecord } from '../../../shared/plan-types'
 import './canvas.css'
 
@@ -447,6 +454,50 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
     [revealNode]
   )
 
+  /**
+   * 拖文件进画布 → 落盘 + 建图片节点。
+   * 空画布引导里一直写着「直接把图片拖进来」，但此前并没有实现，属于承诺与行为不一致。
+   * 落点 = 鼠标位置（世界坐标），多文件按 28px 阶梯错开，避免叠成一张。
+   */
+  const handleFileDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>): void => {
+      const all = Array.from(e.dataTransfer?.files ?? [])
+      const files = all.filter((f) => f.type.startsWith('image/'))
+      if (!files.length) {
+        if (all.length) message.warning('只支持把图片拖进画布')
+        return
+      }
+      const rect = containerRef.current?.getBoundingClientRect()
+      const vp = canvasStore.getState().viewport
+      const sx = e.clientX - (rect?.left ?? 0)
+      const sy = e.clientY - (rect?.top ?? 0)
+      const originX = (sx - vp.x) / vp.k
+      const originY = (sy - vp.y) / vp.k
+      void (async () => {
+        let offset = 0
+        let placed = 0
+        for (const file of files) {
+          try {
+            const data = new Uint8Array(await file.arrayBuffer())
+            const res = await window.api.canvasImportImage({ name: file.name, data })
+            if (!res?.ok || !res.url) throw new Error('素材落盘失败')
+            const id = canvasStore.addNode('image', { x: originX + offset, y: originY + offset })
+            canvasStore.updateNode(id, {
+              metadata: { content: res.url, origin: 'drop', fileName: file.name }
+            })
+            revealNode(id)
+            offset += 28
+            placed++
+          } catch (err) {
+            message.error('导入 ' + file.name + ' 失败：' + (err instanceof Error ? err.message : String(err)))
+          }
+        }
+        if (placed > 1) message.success('已放入 ' + placed + ' 张图片')
+      })()
+    },
+    [revealNode]
+  )
+
   const resetZoom = useCallback((): void => {
     const vp = canvasStore.getState().viewport
     const el = containerRef.current
@@ -467,6 +518,17 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
 
   // 撤销/重做：订阅画布变更（250ms 合并），并暴露给探针
   useEffect(() => attachHistory(), [])
+
+  // 画布文档自动保存（800ms 防抖 + 隐藏/关闭前 flush）；探针可手动触发与查询
+  useEffect(() => attachCanvasDocPersistence(), [])
+  useEffect(() => {
+    ;(window as unknown as { __canvasDoc?: unknown }).__canvasDoc = {
+      save: saveCanvasDocumentNow,
+      hydrate: hydrateCanvasDocument,
+      reset: resetCanvasDocument,
+      savedAt: canvasDocSavedAt
+    }
+  }, [])
   useEffect(() => {
     ;(window as unknown as { __canvasHistory?: unknown }).__canvasHistory = { undo, redo, canUndo, canRedo, depth: historyDepth }
     ;(window as unknown as { __canvasView?: unknown }).__canvasView = { fitAll, focusSelected }
@@ -491,10 +553,14 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
 
   // C6 重启续跑：主进程 registry 是纯内存工作集，重启即空。
   // 不把 IndexedDB 里未完成的计划回灌，计划卡会永远停在「载入计划…」。
+  // 顺序要求：先水合画布文档，再回灌计划——反过来的话计划卡会让内存非空，水合会被跳过。
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
+        const hydrated = await hydrateCanvasDocument().catch(() => null)
+        if (hydrated) console.info('[canvas] 已恢复画布文档：' + hydrated.restored + ' 个节点')
+        if (cancelled) return
         const plans = await loadAllPlans()
         // 只恢复未完成的计划：done / cancelled 是终态，重启不需要回到画布占位
         const unfinished = plans.filter((p) => p.status === 'running' || p.status === 'blocked' || p.status === 'drafting')
@@ -745,6 +811,7 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
             origin: 'double-click'
           })
         }}
+        onDrop={handleFileDrop}
         onContextMenu={(e) => {
           e.preventDefault()
           const el = e.target instanceof Element ? e.target : null
@@ -820,6 +887,18 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         <Tooltip title="快捷键（?）">
           <Button size="small" type="text" icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} data-shortcuts="true" />
         </Tooltip>
+        <Popconfirm
+          title="清空这张画布？"
+          description="节点与连线会被删除，且不可撤销（文档会一起清掉，重开也不会回来）。"
+          okText="清空"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => {
+            void resetCanvasDocument()
+          }}
+        >
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} title="清空画布" data-clear-canvas="true" />
+        </Popconfirm>
       </div>
 
       {/* 下中：新建节点 */}

@@ -59,7 +59,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
   // 探针只验功能，不验引导，统一先跳过。
   await w.webContents
     .executeJavaScript(
-      `(() => { const b = [...document.querySelectorAll('.ant-modal button')].find(x => (x.textContent || '').includes('跳过')); if (b) { b.click(); return 'skipped' } return 'none' })().catch(() => 'err')`
+      `(() => { const b = [...document.querySelectorAll('.ant-modal button')].find(x => (x.textContent || '').includes('跳过')); if (b) b.click(); return b ? 'skipped' : 'none' })()`
     )
     .catch(() => undefined)
   await new Promise((r) => setTimeout(r, 400))
@@ -1656,6 +1656,73 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     )
     console.log('[shot] canvas-actions:', r)
     check('canvas-actions', r)
+  }
+  if (process.env.SHOT_CANVAS_UPLOAD === '1') {
+    // 画布上传落盘探针：canvas:importImage 写 userData/canvas-assets，返回可被 media://cvs 读回的短路径
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+        const res = await window.api.canvasImportImage({ name: 'probe.png', data: bytes })
+        if (!res || !res.ok) return 'ERR:' + JSON.stringify(res)
+        const back = await window.api.imageRead(res.url)
+        const ok = res.url.startsWith('media://local/cvs/') && back.byteLength === bytes.byteLength && back[1] === 0x50
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ url: res.url, bytes: back.byteLength })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-upload:', r)
+    check('canvas-upload', r)
+  }
+  if (process.env.SHOT_CANVAS_PERSIST === '1') {
+    // 画布持久化探针：建节点 → 手动落盘 → reload 渲染进程 → 校验节点/连线回来
+    const setup = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        document.querySelectorAll('.ant-menu-item')[1]?.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
+        byText('文本').click()
+        await sleep(500)
+        byText('图片').click()
+        await sleep(500)
+        const nodes = document.querySelectorAll('[data-node-id]').length
+        const ok = window.__canvasDoc ? await window.__canvasDoc.save() : null
+        await sleep(300)
+        return JSON.stringify({ nodes, saved: ok })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-persist-setup:', setup)
+    await new Promise<void>((resolve) => {
+      w.webContents.once('did-finish-load', () => resolve())
+      w.webContents.reload()
+    })
+    await new Promise((r) => setTimeout(r, 2500))
+    const after = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        // 重载后新手引导可能再次弹出（探针 profile 每次重置），先跳过再进画布
+        const skip = [...document.querySelectorAll('.ant-modal button')].find(x => (x.textContent || '').includes('跳过'))
+        if (skip) { skip.click(); await sleep(400) }
+        document.querySelectorAll('.ant-menu-item')[1]?.click()
+        await sleep(2000)
+        return JSON.stringify({
+          nodes: document.querySelectorAll('[data-node-id]').length,
+          conns: document.querySelectorAll('.ivc-connections > g > [data-connection-id]').length,
+          restored: document.body.textContent.includes('已恢复画布文档') ? true : undefined
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-persist-after:', after)
+    let parsedSetup: { nodes?: number } = {}
+    let parsedAfter: { nodes?: number } = {}
+    try {
+      parsedSetup = JSON.parse(setup)
+      parsedAfter = JSON.parse(after)
+    } catch {
+      // 交给下面的断言报错
+    }
+    const ok = (parsedSetup.nodes ?? 0) >= 2 && parsedAfter.nodes === parsedSetup.nodes
+    check('canvas-persist', (ok ? 'OK:' : 'ERR:') + JSON.stringify({ before: parsedSetup.nodes, after: parsedAfter.nodes }))
   }
   if (process.env.SHOT_CANVAS_DRAG === '1') {
     // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」

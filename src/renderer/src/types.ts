@@ -299,6 +299,8 @@ export interface Api {
   imageRead(url: string): Promise<Uint8Array>
   /** 读取素材留档（内容寻址）；历史「复现」还原素材托盘用 */
   refsRead(hash: string, ext: string): Promise<Uint8Array>
+  /** 画布上传素材落盘：返回 media://cvs/<file> 短路径（节点文档里只存它，不存 base64） */
+  canvasImportImage(payload: { name?: string; data: Uint8Array | ArrayBuffer }): Promise<{ ok: boolean; url: string; name: string }>
   /** 画布资产信息（M1）：outputs/refs 只读取样（size/哈希/宽高），供 assets 索引 */
   canvasAssetInfo(rel: string): Promise<{
     size: number

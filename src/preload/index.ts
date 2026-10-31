@@ -48,6 +48,9 @@ const api = {
   imageRead: (url: string): Promise<Uint8Array> => ipcRenderer.invoke('image:read', url),
   refsRead: (hash: string, ext: string): Promise<Uint8Array> => ipcRenderer.invoke('refs:read', hash, ext),
   canvasAssetInfo: (rel: string): Promise<unknown> => ipcRenderer.invoke('canvas:assetInfo', rel),
+  /** 画布上传素材落盘：返回 media://cvs/<file> 短路径（节点 metadata 只存它，不存 base64） */
+  canvasImportImage: (payload: { name?: string; data: Uint8Array | ArrayBuffer }): Promise<{ ok: boolean; url: string; name: string }> =>
+    ipcRenderer.invoke('canvas:importImage', payload),
   // ── 视频生成（V1）：直连百炼异步任务；进度经 video-progress 回推（零 Pixelle 依赖） ──
   videoGenerate: (payload: { spec: unknown; runId?: string }): Promise<unknown> => ipcRenderer.invoke('video:generate', payload),
   onVideoProgress: (cb: (payload: unknown) => void): (() => void) => {

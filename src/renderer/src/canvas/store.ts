@@ -398,6 +398,11 @@ export function useConnections(): readonly CanvasConnection[] {
   return useSyncExternalStore(subscribeKey('connections'), () => state.connections)
 }
 
+/** 几何变化订阅（位置/尺寸）：文档自动保存用；历史仍只订阅 subscribeAny，避免拖动被拆成多步 */
+export function subscribeGeometryChange(cb: () => void): () => void {
+  return subscribeGeometry(cb)
+}
+
 export function useGeometryVersion(): number {
   return useSyncExternalStore(subscribeGeometry, () => state.geometryVersion)
 }

@@ -134,3 +134,34 @@ node_modules\.bin\electron.cmd .
 画布相关探针：`SHOT_CANVAS` / `SHOT_CANVAS_CONNECT` / `SHOT_CANVAS_CONNECT_RULES` /
 `SHOT_CANVAS_QUICK` / `SHOT_CANVAS_DRAG` / `SHOT_CANVAS_UNDO` / `SHOT_CANVAS_CLIP` /
 `SHOT_CANVAS_MARQUEE` / `SHOT_CANVAS_HELP` / `SHOT_CANVAS_ASSETS`。
+
+## 11. 文档持久化（关掉应用还在）
+
+此前画布状态只活在渲染进程内存里，重开应用只剩计划卡——画了半天全丢。现在的链路：
+
+```
+任意变更 ──subscribeAny / subscribeGeometryChange──▶ 800ms 防抖 ▶ IndexedDB canvas_docs
+页面隐藏 / beforeunload ─────────────────────────▶ 立即 flush
+启动 ──hydrateCanvasDocument()（内存为空才执行）──▶ canvasStore.restore + setViewport
+```
+
+数据库：`db.ts` v6 新增 `canvas_docs`（单文档 `id='default'`）。**持久化顺序不能反**：
+先水合画布文档，再回灌未完成的计划——反过来的话计划卡会让内存非空，水合会被直接跳过。
+
+序列化规则（`canvas-doc.ts`，纯函数可单测）：
+
+- 瞬态字段（`running/progress/status/failCount/pending/submitting`）一律剔除——重启后不该是"还在跑"。
+- 节点/连线/视口逐条校验：坏行丢弃、尺寸夹到 80~4000、缩放夹到 0.05~5、悬空与自连的连线丢弃。
+- **节点里不许有 base64**：上传图片走 `canvas:importImage` 落盘到 `userData/canvas-assets`，
+  metadata 只存 `media://local/cvs/<file>`。历史遗留的超大 data URL 在序列化时丢弃内容并打
+  `contentDropped` 标记（卡片和连线都还在，重新拖一次即可），保证文档永远是 KB~百 KB 级。
+- 空画布 = 删除文档（不写空文档），所以「清空画布」不会被重启后的旧文档复活。
+
+清空入口：左上工具条的红色删除按钮（二次确认，说明不可撤销）。
+
+## 12. 上传与拖入
+
+- 图片节点：点击或把文件拖到节点上 → `canvas:importImage` → 落盘 + 短路径。
+- 画布空白：把图片拖进画布 → 在鼠标落点建图片节点（多文件按 28px 阶梯错开）。
+  空画布引导里"直接把图片拖进来"的承诺到这一步才算兑现。
+- 只接受图片；其它类型给一次 toast 说明，不静默吞掉。
