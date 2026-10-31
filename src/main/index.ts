@@ -645,18 +645,27 @@ function registerIpc(): void {
     } catch {
       /* 保持原样 */
     }
+    // 多供应商：hasKey 仍表示"百炼可用"，但界面判断"是否配过任何模型"要看 hasAnyKey，
+    // 否则只配了硅基流动/OpenAI 的用户在顶栏会一直看到"未配置"。
+    const configuredProviders = Object.keys(readSettings().providerKeysEnc ?? {}).filter(
+      (id) => !!readSettings().providerKeysEnc?.[id]?.enc
+    )
     return {
       ok,
       version: host,
       entry: origin,
       bundled: false,
       hasKey: !!key,
+      hasAnyKey: configuredProviders.length > 0,
+      configuredProviders,
       libraryReady: fs.existsSync(LIB_ROOT),
       outputsDir: OUT_DIR
     }
   })
 
-  handle('library', () => {
+  handle('library', (_e, opts?: { reload?: boolean }) => {
+    // reload=true 时先失效缓存再重扫：否则"重载"按钮只是把内存里的同一份数据再取一遍
+    if (opts?.reload) libPromise = null
     if (!libPromise) {
       libPromise = loadLibrary(LIB_ROOT, path.join(app.getPath('userData'), 'library-hash-cache.json'))
       // 失败后清空缓存允许重试，否则一次解析失败会让灵感库整个会话永久不可用

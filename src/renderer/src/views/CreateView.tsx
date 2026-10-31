@@ -110,6 +110,14 @@ interface Props {
   visible?: boolean
 }
 
+/** 空态示例：让第一次打开的人有"一键开始"的入口，而不是对着一大片空白发呆 */
+const EXAMPLE_PROMPTS: Array<{ label: string; prompt: string }> = [
+  { label: '产品图', prompt: '木质桌面上的一杯热红茶，窗外透入柔和日光，浅景深，商业产品摄影' },
+  { label: '插画', prompt: '一只橘猫趴在旧书堆上打盹，温暖台灯光，水彩插画风格，纸张颗粒质感' },
+  { label: '海报', prompt: '极简咖啡店开业海报，米色背景，居中排版，中文主标题留白，日系设计' },
+  { label: '人像', prompt: '短发女生在秋日街头回头，35mm 胶片质感，暖色调，自然光' }
+]
+
 export default function CreateView({ seed, onDistill, onHealthStale, onGenerated, onOpenSettings, visible = true }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [mode, setMode] = useState<'t2i' | 'fusion'>('t2i')
@@ -147,6 +155,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
   const [agentReply, setAgentReply] = useState('')
   const [editOpen, setEditOpen] = useState(false)
   const [styleOpen, setStyleOpen] = useState(false)
+  const [assistOpen, setAssistOpen] = useState(false)
 
   // 真实阶段进度（主进程推送）
   useEffect(() => {
@@ -174,6 +183,13 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         const flags: Record<string, boolean> = {}
         for (const [k, v] of Object.entries(pk)) flags[k] = !!v?.configured
         setProviderKeys(flags)
+        // 默认模型跟着「已配置密钥的供应商」走：
+        // 只配了硅基流动/OpenAI 的用户，不该默认停在需要百炼密钥的模型上然后生成按钮永远禁用。
+        const currentProvider = am?.provider ?? 'bailian'
+        const usable = byCap(cat, 'image').filter((m) => flags[m.provider])
+        if (usable.length && !flags[currentProvider]) {
+          setActive({ provider: usable[0].provider, model: usable[0].model })
+        }
       })
       .catch(() => undefined)
   }, [])
@@ -669,10 +685,16 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                 }}
                 disabled={busy}
                 style={{ width: '100%' }}
+                data-model-select="true"
                 options={imageModels.map((m) => ({
                   value: modelKey(m.provider, m.model),
-                  label: `${m.label}（${m.price}/张）`
+                  label: `${m.label} · ${m.price}/张`
                 }))}
+                // 收起时只显示模型名（价格在展开的下拉里），否则 180px 宽度一定被截成 "Z-Image Turbo（打样…"
+                labelRender={(opt) => {
+                  const hit = imageModels.find((m) => modelKey(m.provider, m.model) === opt.value)
+                  return <span className="model-select-label">{hit?.label ?? String(opt.label ?? '')}</span>
+                }}
               />
             </Col>
             <Col span={10}>
@@ -900,49 +922,87 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           ) : (
             <div className="result-center">
               <PictureOutlined style={{ fontSize: 54, color: '#c7c7cc' }} />
-              <Typography.Text type="secondary" style={{ marginTop: 16 }}>
-                写下描述，点「生成」，作品会出现在这里
-              </Typography.Text>
+              <div className="result-empty-title">作品会出现在这里</div>
+              <div className="result-empty-sub">左边写描述，或直接从下面挑一个示例开始</div>
+              <div className="result-examples">
+                {EXAMPLE_PROMPTS.map((ex) => (
+                  <button
+                    key={ex.label}
+                    className="result-example"
+                    data-example-prompt="true"
+                    onClick={() => setPrompt(ex.prompt)}
+                  >
+                    <span className="result-example-label">{ex.label}</span>
+                    <span className="result-example-text">{ex.prompt}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         
 
-        <Card
-          title="AI 助手 · 一句话连环创作"
-          size="small"
-          styles={{ body: { padding: 14 } }}
-          style={{ marginTop: 14 }}
-        >
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              value={agentGoal}
-              onChange={(e) => setAgentGoal(e.target.value)}
-              placeholder={result ? '例：把背景换成雪夜街道，然后提高对比度' : '例：画一张日系清新风格的咖啡店招牌'}
-              disabled={agentBusy}
-              onPressEnter={(e) => {
-                e.preventDefault()
-                void runAgentFlow()
-              }}
-            />
-            <Button type="primary" icon={<ThunderboltOutlined />} loading={agentBusy} onClick={() => void runAgentFlow()}>
-              运行
-            </Button>
-          </Space.Compact>
-          {agentSteps.length > 0 && (
-            <div className="agent-steps">
-              {agentSteps.map((s, i) => (
-                <Tag key={i} color={s.done ? 'success' : 'processing'} icon={s.done ? <CheckOutlined /> : <ThunderboltOutlined />}>
-                  {s.label}
-                </Tag>
-              ))}
-            </div>
-          )}
-          {agentReply && (
-            <Typography.Paragraph type="secondary" className="tip-text" style={{ marginBottom: 0 }}>
-              {agentReply}
-            </Typography.Paragraph>
-          )}
         </Card>
+        <Card
+          size="small"
+          className="assist-card"
+          title={
+            <span className="assist-title">
+              AI 助手
+              <span className="assist-sub">一句话让它连做几步（先出图，再按你的话继续改）</span>
+            </span>
+          }
+          extra={
+            <Button size="small" type="text" onClick={() => setAssistOpen((v) => !v)} data-assist-toggle="true">
+              {assistOpen ? '收起' : '展开'}
+            </Button>
+          }
+        >
+          {assistOpen ? (
+            <>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={agentGoal}
+                  onChange={(e) => setAgentGoal(e.target.value)}
+                  placeholder={result ? '例：把背景换成雪夜街道，然后提高对比度' : '例：画一张日系清新风格的咖啡店招牌'}
+                  disabled={agentBusy || needKey}
+                  onPressEnter={(e) => {
+                    e.preventDefault()
+                    if (!needKey) void runAgentFlow()
+                  }}
+                />
+                <Tooltip title={needKey ? '先配置模型密钥' : '让助手自动完成这几步'}>
+                  <Button
+                    icon={<ThunderboltOutlined />}
+                    loading={agentBusy}
+                    disabled={needKey}
+                    data-assist-run="true"
+                    onClick={() => void runAgentFlow()}
+                  >
+                    运行
+                  </Button>
+                </Tooltip>
+              </Space.Compact>
+              {needKey ? (
+                <Typography.Text type="secondary" className="tip-text">
+                  助手会真的调模型并产生费用；未配置密钥时不可用。
+                </Typography.Text>
+              ) : null}
+              {agentSteps.length > 0 && (
+                <div className="agent-steps">
+                  {agentSteps.map((s, i) => (
+                    <Tag key={i} color={s.done ? 'success' : 'processing'} icon={s.done ? <CheckOutlined /> : <ThunderboltOutlined />}>
+                      {s.label}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+              {agentReply && (
+                <Typography.Paragraph type="secondary" className="tip-text" style={{ marginBottom: 0 }}>
+                  {agentReply}
+                </Typography.Paragraph>
+              )}
+            </>
+          ) : null}
         </Card>
         <ImageEditModal
           open={editOpen}

@@ -64,8 +64,8 @@ export default function ServicesSection(props: ServicesProps): JSX.Element {
       <div className="svc-list">
         <div className="svc-list-head">
           <div className="svc-list-title">
-            <span>模型服务</span>
-            <span className="svc-count">{providers.length} 个服务商</span>
+            <span>第三方服务商</span>
+            <span className="svc-count">{providers.length} 个已启用 · 百炼在上方单独配置</span>
           </div>
           <Input
             className="fill-input"

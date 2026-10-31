@@ -23,7 +23,6 @@ import {
   EyeOutlined,
   FileImageOutlined,
   FileTextOutlined,
-  GroupOutlined,
   MessageOutlined,
   PictureOutlined,
   PlayCircleOutlined,
@@ -32,7 +31,6 @@ import {
   RedoOutlined,
   SearchOutlined,
   SettingOutlined,
-  SoundOutlined,
   ThunderboltOutlined,
   UndoOutlined,
   ZoomInOutlined,
@@ -99,17 +97,11 @@ const CREATE_GROUPS: Array<{ title: string; items: CreateAction[] }> = [
     title: '素材',
     items: [
       { type: 'image', icon: <FileImageOutlined />, label: '图片', hint: '拖入或上传一张图' },
-      { type: 'text', icon: <FileTextOutlined />, label: '文本', hint: '写提示词 / 脚本' },
-      { type: 'audio', icon: <SoundOutlined />, label: '音频', hint: '配音 / 背景音' }
-    ]
-  },
-  {
-    title: '结构',
-    items: [
-      { type: 'config', icon: <SettingOutlined />, label: '配置', hint: '模型与参数' },
-      { type: 'group', icon: <GroupOutlined />, label: '分组', hint: '把相关节点框在一起' }
+      { type: 'text', icon: <FileTextOutlined />, label: '文本', hint: '写提示词 / 脚本' }
     ]
   }
+  // 音频 / 配置 / 分组当前只有空壳（点开显示"待接入/备用/后续"）。与其给用户一个
+  // 看起来能点、点开是占位的按钮，不如先不提供；实现后再加回来（见 docs 已知取舍）。
 ]
 
 const ADD_BUTTONS = CREATE_GROUPS.flatMap((g) => g.items)

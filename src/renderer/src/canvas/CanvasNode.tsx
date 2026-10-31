@@ -443,7 +443,7 @@ function GenerateBody({ node }: { node: CanvasNodeData }): JSX.Element {
         disabled={running}
         onChange={(e) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, prompt: e.target.value } })}
       />
-      {upstream.length > 0 && <div className="ivc-gen-refs">参考图 ×{upstream.length}（i2i）</div>}
+      {upstream.length > 0 && <div className="ivc-gen-refs">参考图 ×{upstream.length}</div>}
       <div className="ivc-gen-row">
         <Select
           size="small"

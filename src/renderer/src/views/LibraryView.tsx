@@ -8,6 +8,7 @@ import {
   Image,
   Input,
   Pagination,
+  Result,
   Segmented,
   Select,
   Space,
@@ -61,20 +62,37 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
   const [page, setPage] = useState(0)
   const [favs, setFavs] = useState<FavItem[]>([])
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [loadErr, setLoadErr] = useState('')
+  const [reloading, setReloading] = useState(false)
+
+  const loadLibrary = useCallback((reload = false): void => {
+    setLoadErr('')
+    if (reload) {
+      setReloading(true)
+      setLib(null)
+    }
+    window.api
+      .library({ reload })
+      .then((data) => {
+        setLib(data)
+        setPage(0)
+      })
+      .catch((e) => {
+        // 错误必须留在页面里：只弹一次 toast 会让这里永久停在 spinner，用户没有出口
+        setLoadErr(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => setReloading(false))
+  }, [])
 
   useEffect(() => {
     if (!visible) return
-    if (!lib) {
-      window.api
-        .library()
-        .then(setLib)
-        .catch((e) => message.error(`案例库加载失败：${e.message ?? e}`))
-    }
+    if (!lib && !loadErr) loadLibrary()
     window.api
       .favorites()
       .then(setFavs)
       .catch(() => undefined)
-  }, [visible, lib, message])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, lib, loadErr])
 
   const favKeys = useMemo(() => new Set(favs.map((f) => f.key)), [favs])
   const cats = useMemo(() => Object.entries(lib?.cats ?? {}), [lib])
@@ -254,23 +272,28 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
           }}
         />
         <div className="toolbar-spacer" />
-        <Typography.Text type="secondary">{lib ? `已去重 · ${lib.total} 个案例` : ''}</Typography.Text>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => {
-            setLib(null)
-            setPage(0)
-          }}
-        >
-          重载
+        <Typography.Text type="secondary">{lib ? `共 ${lib.total} 个案例` : ''}</Typography.Text>
+        <Button icon={<ReloadOutlined />} loading={reloading} onClick={() => loadLibrary(true)} data-lib-reload="true">
+          重新扫描
         </Button>
       </div>
 
-      {!lib && view === 'all' ? (
+      {loadErr && !lib ? (
+        <Result
+          status="warning"
+          title="案例库没能加载"
+          subTitle={loadErr}
+          extra={
+            <Button type="primary" icon={<ReloadOutlined />} onClick={() => loadLibrary(true)} data-lib-retry="true">
+              重试
+            </Button>
+          }
+        />
+      ) : !lib && view === 'all' ? (
         <div className="lib-loading">
           <Spin size="large" />
           <Typography.Text type="secondary" style={{ marginTop: 14 }}>
-            正在加载与去重案例库…
+            正在扫描案例库（首次要计算去重指纹，可能需要几十秒）…
           </Typography.Text>
         </div>
       ) : listLen === 0 ? (

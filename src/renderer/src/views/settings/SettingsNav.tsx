@@ -24,7 +24,6 @@ export default function SettingsNav({
 }): JSX.Element {
   return (
     <nav className="settings-nav">
-      <div className="sn-title">设置</div>
       {ITEMS.map((it) => (
         <div
           key={it.key}

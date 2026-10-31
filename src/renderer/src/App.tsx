@@ -42,7 +42,7 @@ interface DistillSeed {
 }
 
 const NAV: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
-  { key: 'create', icon: <EditOutlined />, label: '创 作' },
+  { key: 'create', icon: <EditOutlined />, label: '创作' },
   { key: 'canvas', icon: <PictureOutlined />, label: '画布' },
   { key: 'library', icon: <AppstoreOutlined />, label: '灵感库' },
   { key: 'distill', icon: <ScanOutlined />, label: '提示词反推' },
@@ -69,7 +69,7 @@ const TITLES: Record<ViewKey, string> = {
 
 const SUBTITLES: Record<ViewKey, string> = {
   create: '描述画面或拖入参考图，一键生成',
-  canvas: '无限画布 · 节点化创作（引擎基于 infinite-canvas，MIT）',
+  canvas: '无限画布 · 把素材与模型连成可复用的流程',
   compose: '图层拼合 · 智能抠图 · 导出成品',
   library: '上千个精选提示词案例，点卡片即用',
   distill: '任意图片反推通用提示词',
@@ -205,7 +205,7 @@ export default function App(): JSX.Element {
           onClick={(e) => setView(e.key as ViewKey)}
         />
         <div className="sider-foot">
-          <Typography.Text type="secondary">百炼 API 驱动</Typography.Text>
+          <Typography.Text type="secondary">本地优先 · 多模型服务</Typography.Text>
         </div>
       </Layout.Sider>
       <Layout>
@@ -217,24 +217,47 @@ export default function App(): JSX.Element {
             <span className="header-sub">{SUBTITLES[view]}</span>
           </div>
           <div className="header-right">
-            <Tooltip title={health ? `模型服务 ${health.version || '未检测到'} · 点击刷新` : '点击刷新'}>
+            <Tooltip
+              title={
+                !health
+                  ? '检测中'
+                  : !(health.hasAnyKey ?? health.hasKey)
+                    ? '还没配置模型服务 · 点击去设置'
+                    : health.ok
+                      ? `模型服务 ${health.version || '在线'} · 点击刷新`
+                      : '已配置密钥但连不上 · 点击重试'
+              }
+            >
               <Badge
-                status={health ? (health.ok ? 'success' : 'error') : 'default'}
+                status={health ? (health.ok ? 'success' : (health.hasAnyKey ?? health.hasKey) ? 'error' : 'default') : 'default'}
                 text={
                   <Button
                     type="text"
                     size="small"
-                    className="status-text"
-                    onClick={refreshHealth}
+                    className={health && !(health.hasAnyKey ?? health.hasKey) ? 'status-text status-text-idle' : 'status-text'}
+                    onClick={() => {
+                      // 没配置时「点一下」应该去配置，而不是原地刷新出一个必然失败的结果
+                      if (health && !(health.hasAnyKey ?? health.hasKey)) setView('settings')
+                      else refreshHealth()
+                    }}
+                    data-health-chip="true"
                   >
-                    {health ? (health.ok ? `服务在线 · ${health.version}` : '服务未连接') : '检测服务…'}
+                    {!health
+                      ? '检测服务…'
+                      : !(health.hasAnyKey ?? health.hasKey)
+                        ? '未配置模型 · 去设置'
+                        : health.ok
+                          ? `服务在线 · ${health.version}`
+                          : '服务异常 · 重试'}
                   </Button>
                 }
               />
             </Tooltip>
           </div>
         </Layout.Header>
-        <Layout.Content className={`app-content${view === 'canvas' || view === 'compose' ? ' app-content-flush' : ''}`}>
+        <Layout.Content
+          className={`app-content${view === 'canvas' || view === 'compose' ? ' app-content-flush' : view === 'settings' ? ' app-content-fixed' : ''}`}
+        >
           <div style={{ display: view === 'create' ? 'block' : 'none' }}>
             <CreateView
               seed={createSeed}

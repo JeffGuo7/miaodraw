@@ -75,6 +75,10 @@ body {
   letter-spacing: -0.2px;
 }
 
+.status-text-idle {
+  color: #86868b !important;
+}
+
 .status-text {
   cursor: pointer;
   color: #6e6e73;
@@ -84,13 +88,19 @@ body {
 
 /* ---------- 内容区 ---------- */
 .app-content {
-  padding: 20px 24px;
+  /* 底部留白：列表最后一行不要贴着状态栏（此前卡片会被状态栏"切"掉半行） */
+  padding: 20px 24px 40px;
   overflow-y: auto;
 }
 
 /* 画布类视图满幅铺开：无限画布是「工作台」，不该像卡片一样缩在一圈留白里 */
 .app-content-flush {
   padding: 0;
+  overflow: hidden;
+}
+
+/* 设置页自己是有边界的双栏工作区，外层不要再出现第二条滚动条 */
+.app-content-fixed {
   overflow: hidden;
 }
 
@@ -106,11 +116,22 @@ body {
 
 /* ---------- 创作页 ---------- */
 .create-row {
-  height: calc(100vh - 56px - 40px);
+  /* 视口 - 顶栏(56) - 内容上下留白(20+40) - 状态栏(30)；写少了页面会多出一条外层滚动条 */
+  height: calc(100vh - 146px);
+  min-height: 520px;
 }
 
 .create-side {
   height: 100%;
+}
+
+/* 模型/尺寸这一行的选择器别把模型名截成 "Z-Image Turbo（打样…" */
+.model-select-label {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .create-side .ant-card {
@@ -473,10 +494,32 @@ body {
 
 .create-main {
   min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .result-card {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+/* AI 助手：默认收起成一行，不与「生成」抢主按钮；展开后才是输入区 */
+.assist-card {
+  flex: 0 0 auto;
+}
+
+.assist-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.assist-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-4);
 }
 
 .result-center {
@@ -509,7 +552,7 @@ body {
 
 .result-img-wrap .ant-image img {
   max-width: 100%;
-  max-height: calc(100vh - 330px);
+  max-height: 100%;
   object-fit: contain;
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
@@ -644,6 +687,30 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.hist-title {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.hist-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hist-sub-dim {
+  color: var(--ink-4);
 }
 
 .hist-meta {
@@ -835,22 +902,60 @@ body {
 }
 
 .pal-menu .ant-menu-item {
-  height: 46px;
-  line-height: 46px;
+  /* 行内是「标题 + 摘要/分组」两行：写死 46px + line-height 会让行与行重叠 */
+  height: auto;
+  min-height: 52px;
+  line-height: normal;
+  padding: 7px 12px;
+  margin-block: 2px;
   border-radius: 10px;
   margin-inline: 0;
   width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.pal-menu .ant-menu-item .ant-menu-title-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.pal-menu .ant-menu-item .ant-menu-item-icon {
+  align-self: center;
 }
 
 .pal-label {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 
 .pal-hint {
   font-size: 12px;
+}
+
+/* 行内第二段：左边摘要、右边分组标签（页面/案例/作品） */
+.pal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pal-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.pal-kind {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--bg-app);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
 .pal-loading {
@@ -946,6 +1051,11 @@ body {
 .statusbar .sb-btn {
   -webkit-app-region: no-drag;
   color: #6e6e73;
+  font-size: 12px;
+}
+
+.sb-muted {
+  color: #86868b;
   font-size: 12px;
 }
 
@@ -1259,6 +1369,65 @@ body {
 }
 
 /* ---------- 空态精修：图标衬底 ---------- */
+/* 创作页空态：引导 + 可点击示例 */
+.result-empty-title {
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.result-empty-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+.result-examples {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 200px));
+  gap: 10px;
+}
+
+.result-example {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) ease;
+}
+
+.result-example:hover {
+  border-color: var(--brand);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.result-example-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.result-example-text {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .result-center .anticon {
   padding: 22px;
   border-radius: 50%;

@@ -15,7 +15,7 @@ export default function StatusBar({
 }: {
   onOpenPalette: () => void
   version: string
-  health: { ok: boolean; version: string } | null
+  health: { ok: boolean; version: string; hasKey?: boolean; hasAnyKey?: boolean } | null
 }): JSX.Element {
   const [active, setActive] = useState<{ provider: string; model: string } | null>(null)
 
@@ -31,10 +31,19 @@ export default function StatusBar({
     return () => window.removeEventListener('active-model-changed', refresh)
   }, [])
 
+  // 三态：未配置 ≠ 故障。首屏直接亮红点会让新用户以为软件坏了。
+  const configured = !!(health?.hasAnyKey ?? health?.hasKey)
+  const state: 'ok' | 'bad' | 'idle' | 'unknown' = !health ? 'unknown' : health.ok ? 'ok' : configured ? 'bad' : 'idle'
+  const dotClass = state === 'ok' ? 'sb-dot sb-dot-ok' : state === 'bad' ? 'sb-dot sb-dot-bad' : 'sb-dot'
+  const dotTitle =
+    state === 'ok' ? '模型服务在线' : state === 'bad' ? '已配置密钥但连不上，点顶栏可重试' : state === 'idle' ? '还没配置模型服务（设置 → 模型服务）' : '检测中…'
+
   return (
     <div className="statusbar">
-      <span className={health?.ok ? 'sb-dot sb-dot-ok' : 'sb-dot sb-dot-bad'} />
-      <span className="sb-text">{health ? (health.ok ? '服务在线' : '服务未连接') : '检测服务…'}</span>
+      <Tooltip title={dotTitle}>
+        <span className={dotClass} data-sb-state={state} />
+      </Tooltip>
+      <span className="sb-muted">{state === 'ok' ? '在线' : state === 'bad' ? '连接失败' : state === 'idle' ? '未配置' : '检测中'}</span>
       <span className="sb-sep" />
       <span className="sb-text">
         当前模型：{active ? `${providerLabel(active.provider)} · ${active.model}` : '默认'}

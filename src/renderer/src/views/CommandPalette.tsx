@@ -18,6 +18,8 @@ interface PaletteItem {
   icon: JSX.Element
   label: string
   hint?: string
+  /** 右侧分组标签：页面 / 案例 / 作品（原来靠 "打开：" 前缀区分，读起来很吵） */
+  kind: '页面' | '案例' | '作品'
   action: () => void
 }
 
@@ -28,13 +30,13 @@ interface Props {
   onUsePrompt: (prompt: string) => void
 }
 
-const NAV_ITEMS: Array<{ key: ViewKey; icon: JSX.Element; label: string }> = [
-  { key: 'create', icon: <EditOutlined />, label: '打开：创作' },
-  { key: 'canvas', icon: <PictureOutlined />, label: '打开：画布工作台' },
-  { key: 'library', icon: <AppstoreOutlined />, label: '打开：灵感库' },
-  { key: 'distill', icon: <ScanOutlined />, label: '打开：提示词反推' },
-  { key: 'history', icon: <HistoryOutlined />, label: '打开：历史记录' },
-  { key: 'settings', icon: <SettingOutlined />, label: '打开：设置' }
+const NAV_ITEMS: Array<{ key: ViewKey; icon: JSX.Element; label: string; hint: string }> = [
+  { key: 'create', icon: <EditOutlined />, label: '创作', hint: '描述画面 → 出图' },
+  { key: 'canvas', icon: <PictureOutlined />, label: '画布工作台', hint: '节点化创作 / 自由编排' },
+  { key: 'library', icon: <AppstoreOutlined />, label: '灵感库', hint: '精选提示词案例' },
+  { key: 'distill', icon: <ScanOutlined />, label: '提示词反推', hint: '图片 → 提示词' },
+  { key: 'history', icon: <HistoryOutlined />, label: '历史记录', hint: '本机作品与参数' },
+  { key: 'settings', icon: <SettingOutlined />, label: '设置', hint: '模型服务 / 密钥 / 数据' }
 ]
 
 export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Props): JSX.Element {
@@ -56,8 +58,8 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
     const kw = q.trim().toLowerCase()
     const out: PaletteItem[] = []
     for (const n of NAV_ITEMS) {
-      if (!kw || n.label.toLowerCase().includes(kw)) {
-        out.push({ key: `nav-${n.key}`, icon: n.icon, label: n.label, action: () => onNav(n.key) })
+      if (!kw || n.label.toLowerCase().includes(kw) || n.hint.toLowerCase().includes(kw)) {
+        out.push({ key: `nav-${n.key}`, icon: n.icon, label: n.label, hint: n.hint, kind: '页面', action: () => onNav(n.key) })
       }
     }
     if (lib) {
@@ -72,8 +74,10 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
             out.push({
               key: `case-${cat.label}-${c.n}`,
               icon: <PictureOutlined />,
-              label: `案例：${c.title}`,
-              hint: c.desc?.slice(0, 46),
+              label: c.title,
+              // 案例的 desc 是 JSON 串（结构化标签），当提示没用；直接展示提示词首行更有信息量
+              hint: c.prompt.replace(/\s+/g, ' ').slice(0, 60),
+              kind: '案例',
               action: () => {
                 onUsePrompt(c.prompt)
               }
@@ -89,8 +93,9 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
         out.push({
           key: `hist-${h.name}`,
           icon: <HistoryOutlined />,
-          label: `作品：${h.name}`,
-          hint: h.params ? `${h.params.model} · 种子 ${h.params.seed}` : undefined,
+          label: h.params?.prompt?.replace(/\s+/g, ' ').slice(0, 42) || h.name,
+          hint: h.params ? `${h.params.model} · ${h.params.w}×${h.params.h}` : undefined,
+          kind: '作品',
           action: () => onNav('history')
         })
       }
@@ -153,11 +158,16 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
                     <Typography.Text ellipsis style={{ maxWidth: 420 }}>
                       {it.label}
                     </Typography.Text>
-                    {it.hint && (
-                      <Typography.Text type="secondary" className="pal-hint" ellipsis>
-                        {it.hint}
-                      </Typography.Text>
-                    )}
+                    <span className="pal-row">
+                      {it.hint ? (
+                        <Typography.Text type="secondary" className="pal-hint" ellipsis>
+                          {it.hint}
+                        </Typography.Text>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="pal-kind">{it.kind}</span>
+                    </span>
                   </span>
                 )
               }))}

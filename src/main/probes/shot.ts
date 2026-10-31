@@ -54,6 +54,68 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     },
     watchdogMs
   )
+  if (process.env.SHOT_UI_SHOTS === '1') {
+    // UI 巡检取图：一次跑完 6 个页面并落盘，供人/子智能体按「易用·好用·美观」评审
+    const dir = process.env.SHOT_UI_DIR || path.join(APP_ROOT, 'ui-shots')
+    fs.mkdirSync(dir, { recursive: true })
+    const capture = async (name: string): Promise<void> => {
+      const img = await w.webContents.capturePage()
+      fs.writeFileSync(path.join(dir, name + '.png'), img.toPNG())
+      console.log('[shot] ui-shot:', name)
+    }
+    const clickMenu = async (index: number, waitMs: number): Promise<void> => {
+      await w.webContents.executeJavaScript(`document.querySelectorAll('.ant-menu-item')[${index}]?.click()`)
+      await new Promise((r) => setTimeout(r, waitMs))
+    }
+    // 先给画布铺一点内容，空画布看不出真实观感
+    await clickMenu(1, 1200)
+    await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
+        byText('文本')?.click(); await sleep(400)
+        byText('出图')?.click(); await sleep(500)
+        byText('图片')?.click(); await sleep(500)
+        const nodes = [...document.querySelectorAll('[data-node-id]')]
+        const textNode = nodes.find(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes('文本'))
+        const genNode = [...nodes].reverse().find(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes('出图'))
+        if (!textNode || !genNode) return 'no-nodes'
+        const port = textNode.querySelector('.ivc-node-port')
+        const pr = port.getBoundingClientRect()
+        const gr = genNode.getBoundingClientRect()
+        const cx = pr.left + pr.width / 2, cy = pr.top + pr.height / 2
+        const tx = gr.left + 2, ty = gr.top + gr.height / 2
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 31, button: 0, buttons: 1 }))
+        await sleep(80)
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: tx, clientY: ty, pointerId: 31, buttons: 1 }))
+        await sleep(60)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: tx, clientY: ty, pointerId: 31, button: 0 }))
+        await sleep(400)
+        return 'ok'
+      })().catch(() => 'err')`
+    )
+    await clickMenu(1, 1500)
+    await capture('canvas')
+    const views: Array<[string, number, number]> = [
+      ['create', 0, 2200],
+      ['library', 2, 7000],
+      ['distill', 3, 2000],
+      ['history', 4, 2500],
+      ['settings', 5, 2500]
+    ]
+    for (const [name, index, waitMs] of views) {
+      await clickMenu(index, waitMs)
+      await capture(name)
+    }
+    // 命令面板单独一张
+    await w.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`)
+    await new Promise((r) => setTimeout(r, 800))
+    await capture('palette')
+    console.log('[shot] ui-shots done ->', dir)
+    check('ui-shots', 'OK:' + dir)
+    app.exit(0)
+    return
+  }
   await new Promise((r) => setTimeout(r, 3000))
   // 新 profile 首次启动会弹「新手引导」模态：它会拦截键盘/指针探针（? 键被守卫吃掉、点击落在遮罩上）。
   // 探针只验功能，不验引导，统一先跳过。
@@ -1617,12 +1679,38 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const nodesAfter = document.querySelectorAll('[data-node-id]').length
         const connsAfter = document.querySelectorAll('.ivc-connections > g > [data-connection-id]').length
         const closed = !document.querySelector('[data-quick-create="true"]')
-        const ok = nodesAfter === nodesBefore + 1 && connsAfter === connsBefore + 1 && closed && itemCount >= 7
+        // 新建菜单只列真正可用的节点类型（出图/视频/图片/文本），占位类型已下架
+        const ok = nodesAfter === nodesBefore + 1 && connsAfter === connsBefore + 1 && closed && itemCount >= 4
         return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ nodesBefore, nodesAfter, connsBefore, connsAfter, itemCount, closed })
       })().catch(e => 'ERR:' + e.message)`
     )
     console.log('[shot] canvas-quick:', r)
     check('canvas-quick', r)
+  }
+  if (process.env.SHOT_UI_PALETTE === '1') {
+    // 命令面板表面不透明度探针：面板必须是不透明白底，否则会透出底页内容（观感像坏了）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
+        await sleep(800)
+        const content = document.querySelector('.ant-modal-content')
+        const pal = document.querySelector('.pal')
+        const body = document.querySelector('.ant-modal-body')
+        const cs = (el) => (el ? getComputedStyle(el).backgroundColor : 'none')
+        const menu = document.querySelector('.pal-menu')
+        return JSON.stringify({
+          content: cs(content),
+          pal: cs(pal),
+          body: cs(body),
+          menu: cs(menu),
+          items: document.querySelectorAll('.pal-menu .ant-menu-item').length,
+          groups: document.querySelectorAll('.pal-menu .ant-menu-item-group').length
+        })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] ui-palette:', r)
+    check('ui-palette', r)
   }
   if (process.env.SHOT_CANVAS_ACTIONS === '1') {
     // 节点浮动操作条探针：单选时出现，复制副本 +1、删除回到原数量

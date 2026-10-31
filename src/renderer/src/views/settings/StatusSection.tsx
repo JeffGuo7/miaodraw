@@ -58,18 +58,26 @@ export default function StatusSection({
   const [showKey, setShowKey] = useState(false)
   const [checking, setChecking] = useState(false)
   const ok = !!health?.ok
+  // 三态而不是二态：没配置密钥 ≠ 服务坏了。第一次打开就把页面刷成红色，
+  // 会让新用户以为软件出错，而不是"还差一步配置"。
+  const configured = !!bk?.configured || !!health?.hasKey
+  const state: 'ok' | 'bad' | 'idle' = ok ? 'ok' : configured ? 'bad' : 'idle'
+  const title = ok ? '服务在线' : configured ? '服务离线（检查密钥与接入点）' : '还没配置模型服务'
+  const sub = ok
+    ? health?.entry || '—'
+    : configured
+      ? health?.entry || '—'
+      : '粘贴百炼 API Key（下方）后即可开始生成，密钥只保存在本机'
 
   return (
     <div className="sec">
       <SectionHead title="服务状态" desc="HTTP 直连引擎，无外部进程依赖；接入点与密钥保存后即时生效，无需重启。" />
 
-      <div className={`status-bar${health ? (ok ? ' ok' : ' bad') : ''}`}>
+      <div className={`status-bar ${state}`}>
         <span className="status-dot" />
         <div className="status-main">
-          <div className="status-title">
-            {health ? (ok ? '服务在线' : '服务离线（检查密钥与接入点）') : '检测中…'}
-          </div>
-          <div className="status-sub">{health?.entry || '—'}</div>
+          <div className="status-title">{health ? title : '检测中…'}</div>
+          <div className="status-sub">{health ? sub : '—'}</div>
         </div>
         <Button
           icon={<SyncOutlined />}

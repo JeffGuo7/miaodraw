@@ -3,7 +3,12 @@ export interface HealthInfo {
   version: string
   entry: string
   bundled: boolean
+  /** 百炼密钥是否就绪（历史字段） */
   hasKey: boolean
+  /** 是否配置了任意供应商的密钥（顶栏/状态栏据此显示"未配置"） */
+  hasAnyKey?: boolean
+  /** 已配置密钥的供应商 id 列表 */
+  configuredProviders?: string[]
   libraryReady: boolean
   outputsDir: string
 }
@@ -273,7 +278,7 @@ export interface SettingsShape {
 
 export interface Api {
   health(): Promise<HealthInfo>
-  library(): Promise<LibraryData>
+  library(opts?: { reload?: boolean }): Promise<LibraryData>
   /** 内置风格/提示词库 */
   styles(): Promise<StyleLibraryData>
   history(): Promise<HistoryItem[]>

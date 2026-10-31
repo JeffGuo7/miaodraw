@@ -11,7 +11,7 @@ interface HealthInfo {
 
 const api = {
   health: (): Promise<HealthInfo> => ipcRenderer.invoke('health'),
-  library: (): Promise<unknown> => ipcRenderer.invoke('library'),
+  library: (opts?: { reload?: boolean }): Promise<unknown> => ipcRenderer.invoke('library', opts),
   styles: (): Promise<unknown> => ipcRenderer.invoke('styles'),
   history: (): Promise<unknown> => ipcRenderer.invoke('history'),
   historyDelete: (name: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('history:delete', name),

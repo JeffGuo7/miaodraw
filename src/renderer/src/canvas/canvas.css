@@ -261,6 +261,12 @@
   min-height: 0;
 }
 
+/* 节点内输入框不要露浏览器原生 resize 把手（右下角那个小三角显得很业余） */
+.ivc-gen .ant-input,
+.ivc-gen textarea {
+  resize: none;
+}
+
 .ivc-gen-refs {
   font-size: 12px;
   color: #10b981;
