@@ -215,6 +215,21 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     refreshProviderKeys()
   }, [visible, refreshProviderKeys])
 
+  /**
+   * 密钥状态与当前模型对账：从设置页配好第三方密钥回来时，必须切到能用的模型，
+   * 否则会一直停在"未配置 阿里云百炼 + 生成禁用"的死胡同（第 3 轮评审 P1）。
+   */
+  useEffect(() => {
+    if (!visible) return
+    if (providerKeys[active.provider]) return
+    if (!catalog.length) return
+    // 优先用「默认模型」里配置的出图模型，其次任一已配置密钥供应商的出图模型
+    const preferred = imageModels.find((m) => modelKey(m.provider, m.model) === mc?.defaults?.image && providerKeys[m.provider])
+    const usable = preferred ?? imageModels.filter((m) => providerKeys[m.provider])[0]
+    if (usable) setActive({ provider: usable.provider, model: usable.model })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, providerKeys, imageModels, mc])
+
   // 跨视图流转（从灵感库/历史带提示词或底图过来）
   useEffect(() => {
     if (!seed.ts) return
@@ -670,7 +685,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           />
 
           <Row gutter={10}>
-            <Col span={14}>
+            <Col span={16}>
               <Typography.Text className="field-label">服务商 / 模型</Typography.Text>
               <Select
                 value={`${active.provider}::${active.model}`}
@@ -686,6 +701,8 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                 disabled={busy}
                 style={{ width: '100%' }}
                 data-model-select="true"
+                // 下拉不要跟收起框等宽：等宽会把「百炼 · Z-Image Turbo」截成半截
+                popupMatchSelectWidth={false}
                 // 多个服务商的模型混在一列时，用户分不清"Kolors 可图"是哪家 → 按服务商分组
                 options={Object.keys(PROVIDERS).flatMap((pid: string) => {
                   const list = imageModels.filter((m) => m.provider === pid)
@@ -702,18 +719,14 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                     }
                   ]
                 })}
-                // 收起态显示「服务商 · 模型名」：价格留在展开列表里，避免 180px 宽度截断
+                // 收起态只放模型短名（服务商看展开列表的分组标题），否则 180px 一定截断
                 labelRender={(opt) => {
                   const hit = imageModels.find((m) => modelKey(m.provider, m.model) === opt.value)
-                  return (
-                    <span className="model-select-label">
-                      {hit ? `${providerLabel(hit.provider, mc)} · ${hit.label}` : String(opt.label ?? '')}
-                    </span>
-                  )
+                  return <span className="model-select-label">{hit?.label ?? String(opt.label ?? '')}</span>
                 }}
               />
             </Col>
-            <Col span={10}>
+            <Col span={8}>
               <Typography.Text className="field-label">尺寸</Typography.Text>
               <Select
                 value={size}
@@ -789,11 +802,73 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           )}
           <Typography.Text type="secondary" className="tip-text">
             {needKey
-              ? `先在上方填写 ${providerLabel(provider, mc)} 的 API Key，生成按钮才会可用`
+              ? '填好上面的 API Key 后，这里就可以生成；提示词可以先写起来'
               : i2iUnsupported
                 ? '素材融合需要百炼的双图协议，切回百炼或改用文生图'
                 : `Ctrl + Enter 快速生成 · 出图约 30~60 秒${estimate ? ` · ${estimate}` : ''}`}
           </Typography.Text>
+        </Card>
+        <Card
+          size="small"
+          className="assist-card"
+          title={
+            <span className="assist-title">
+              AI 助手
+              <span className="assist-sub">一句话让它连做几步（先出图，再按你的话继续改）</span>
+            </span>
+          }
+          extra={
+            <Button size="small" type="text" onClick={() => setAssistOpen((v) => !v)} data-assist-toggle="true">
+              {assistOpen ? '收起' : '展开'}
+            </Button>
+          }
+        >
+          {assistOpen ? (
+            <>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={agentGoal}
+                  onChange={(e) => setAgentGoal(e.target.value)}
+                  placeholder={result ? '例：把背景换成雪夜街道，然后提高对比度' : '例：画一张日系清新风格的咖啡店招牌'}
+                  disabled={agentBusy || needKey}
+                  onPressEnter={(e) => {
+                    e.preventDefault()
+                    if (!needKey) void runAgentFlow()
+                  }}
+                />
+                <Tooltip title={needKey ? '先配置模型密钥' : '让助手自动完成这几步'}>
+                  <Button
+                    icon={<ThunderboltOutlined />}
+                    loading={agentBusy}
+                    disabled={needKey}
+                    data-assist-run="true"
+                    onClick={() => void runAgentFlow()}
+                  >
+                    运行
+                  </Button>
+                </Tooltip>
+              </Space.Compact>
+              {needKey ? (
+                <Typography.Text type="secondary" className="tip-text">
+                  助手会真的调模型并产生费用；未配置密钥时不可用。
+                </Typography.Text>
+              ) : null}
+              {agentSteps.length > 0 && (
+                <div className="agent-steps">
+                  {agentSteps.map((s, i) => (
+                    <Tag key={i} color={s.done ? 'success' : 'processing'} icon={s.done ? <CheckOutlined /> : <ThunderboltOutlined />}>
+                      {s.label}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+              {agentReply && (
+                <Typography.Paragraph type="secondary" className="tip-text" style={{ marginBottom: 0 }}>
+                  {agentReply}
+                </Typography.Paragraph>
+              )}
+            </>
+          ) : null}
         </Card>
       </Col>
       <Col flex="auto" className="create-main">
@@ -961,68 +1036,6 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           )}
         
 
-        </Card>
-        <Card
-          size="small"
-          className="assist-card"
-          title={
-            <span className="assist-title">
-              AI 助手
-              <span className="assist-sub">一句话让它连做几步（先出图，再按你的话继续改）</span>
-            </span>
-          }
-          extra={
-            <Button size="small" type="text" onClick={() => setAssistOpen((v) => !v)} data-assist-toggle="true">
-              {assistOpen ? '收起' : '展开'}
-            </Button>
-          }
-        >
-          {assistOpen ? (
-            <>
-              <Space.Compact style={{ width: '100%' }}>
-                <Input
-                  value={agentGoal}
-                  onChange={(e) => setAgentGoal(e.target.value)}
-                  placeholder={result ? '例：把背景换成雪夜街道，然后提高对比度' : '例：画一张日系清新风格的咖啡店招牌'}
-                  disabled={agentBusy || needKey}
-                  onPressEnter={(e) => {
-                    e.preventDefault()
-                    if (!needKey) void runAgentFlow()
-                  }}
-                />
-                <Tooltip title={needKey ? '先配置模型密钥' : '让助手自动完成这几步'}>
-                  <Button
-                    icon={<ThunderboltOutlined />}
-                    loading={agentBusy}
-                    disabled={needKey}
-                    data-assist-run="true"
-                    onClick={() => void runAgentFlow()}
-                  >
-                    运行
-                  </Button>
-                </Tooltip>
-              </Space.Compact>
-              {needKey ? (
-                <Typography.Text type="secondary" className="tip-text">
-                  助手会真的调模型并产生费用；未配置密钥时不可用。
-                </Typography.Text>
-              ) : null}
-              {agentSteps.length > 0 && (
-                <div className="agent-steps">
-                  {agentSteps.map((s, i) => (
-                    <Tag key={i} color={s.done ? 'success' : 'processing'} icon={s.done ? <CheckOutlined /> : <ThunderboltOutlined />}>
-                      {s.label}
-                    </Tag>
-                  ))}
-                </div>
-              )}
-              {agentReply && (
-                <Typography.Paragraph type="secondary" className="tip-text" style={{ marginBottom: 0 }}>
-                  {agentReply}
-                </Typography.Paragraph>
-              )}
-            </>
-          ) : null}
         </Card>
         <ImageEditModal
           open={editOpen}

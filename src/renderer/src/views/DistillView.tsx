@@ -109,7 +109,7 @@ export default function DistillView({ seed, onUsePrompt }: Props): JSX.Element {
   }, [seed])
 
   return (
-    <Row gutter={20} style={{ height: '100%' }} align="stretch">
+    <Row gutter={20} className="distill-row" align="stretch">
       <Col span={9}>
         <Card title="源图片" style={{ height: '100%' }} styles={{ body: { padding: 14 } }}>
           <Segmented

@@ -24,7 +24,10 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
   const { message } = AntdApp.useApp()
   const [step, setStep] = useState(0)
   const [checking, setChecking] = useState(false)
-  const [health, setHealth] = useState<{ ok: boolean; version: string } | null>(null)
+  const [health, setHealth] = useState<{ ok: boolean; version: string; hasKey?: boolean; hasAnyKey?: boolean } | null>(null)
+
+  // 是否已经有任意一个服务商的密钥：引导阶段不该只认百炼
+  const configured = !!(health?.hasAnyKey ?? health?.hasKey)
 
   useEffect(() => {
     if (open && step === 1 && !health && !checking) {
@@ -49,7 +52,7 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
         <Typography.Title level={3} style={{ marginBottom: 4 }}>
           欢迎使用妙绘工作台
         </Typography.Title>
-        <Typography.Text type="secondary">阿里云百炼 API 驱动的 AI 图像创作客户端</Typography.Text>
+        <Typography.Text type="secondary">多模型服务驱动的 AI 图像与视频创作客户端</Typography.Text>
       </div>
       <Steps
         current={step}
@@ -84,9 +87,14 @@ export default function Onboarding({ open, onClose }: Props): JSX.Element {
               </Space>
             ) : (
               <Space direction="vertical" size={4} align="center" style={{ width: '100%' }}>
-                <Badge status="error" text={<span style={{ fontSize: 15 }}>模型服务未就绪</span>} />
+                <Badge
+                  status={configured ? 'success' : 'default'}
+                  text={<span style={{ fontSize: 15 }}>{configured ? '模型服务已配置' : '还没配置模型服务'}</span>}
+                />
                 <Typography.Text type="secondary">
-                  到「设置 → 模型服务」粘贴百炼 API Key（sk- / sk-ws- 均可），保存即可开始创作
+                  {configured
+                    ? '已经配好了密钥，随时可以开始创作；想换模型去「设置 → 模型服务」'
+                    : '到「设置 → 模型服务」粘贴任意一个服务商的 API Key（百炼 / 硅基流动 / OpenAI 均可），保存即可创作'}
                 </Typography.Text>
               </Space>
             )}

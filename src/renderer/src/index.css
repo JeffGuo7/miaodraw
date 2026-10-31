@@ -123,6 +123,18 @@ body {
 
 .create-side {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-side > .ant-card:first-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.create-side > .assist-card {
+  flex: 0 0 auto;
 }
 
 /* 模型/尺寸这一行的选择器别把模型名截成 "Z-Image Turbo（打样…" */
@@ -135,7 +147,6 @@ body {
 }
 
 .create-side .ant-card {
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -1430,6 +1441,24 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 反推页：整页撑满可用高度（父容器是滚动区，不写高度的话 height:100% 落空，页面下半屏全白） */
+.distill-row {
+  height: calc(100vh - 146px);
+  min-height: 520px;
+}
+
+/* 两列卡片内部也撑满：否则等高只让白底变高，内容还是挤在顶部 */
+.distill-row .ant-card-body {
+  height: calc(100% - 46px);
+  display: flex;
+  flex-direction: column;
+}
+
+.distill-row .ref-dragger {
+  flex: 1;
+  min-height: 200px;
 }
 
 /* 反推页空态：三步说明，填充右侧大面积留白 */

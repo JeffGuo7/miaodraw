@@ -58,8 +58,8 @@ export default function ServicesSection(props: ServicesProps): JSX.Element {
       )
     : providers
   const selected = providers.find((p) => p.id === selectedId) ?? listed[0] ?? null
-  // 只数真正启用的：停用的供应商也计入会让「N 个已启用」名不副实
-  const enabledCount = providers.filter((p) => p.enabled).length
+  // 「已启用」≠「已配置密钥」：之前写 N 个已启用，与上方"还没配置模型服务"同屏显得自相矛盾
+  const configuredCount = providers.filter((p) => p.configured).length
 
   return (
     <div className="svc">
@@ -68,7 +68,7 @@ export default function ServicesSection(props: ServicesProps): JSX.Element {
           <div className="svc-list-title">
             <span className="svc-list-name">第三方服务商</span>
             <span className="svc-count">
-              {enabledCount}/{providers.length} 已启用 · 百炼在上方配置
+              {configuredCount} 个已配置密钥 · 共 {providers.length} 个可选 · 百炼在上方
             </span>
           </div>
           <Input

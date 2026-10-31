@@ -96,16 +96,48 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     )
     await clickMenu(1, 1500)
     await capture('canvas')
-    const views: Array<[string, number, number]> = [
-      ['create', 0, 2200],
-      ['library', 2, 7000],
-      ['distill', 3, 2000],
-      ['history', 4, 2500],
-      ['settings', 5, 2500]
+    /**
+     * 等某个选择器出现（或消失），最多 timeoutMs。
+     * 固定 sleep 在"灵感库首次要算 1243 张图的去重指纹"时会被截到加载页，
+     * 后面的页面切换也会因为界面还在忙而不生效。
+     */
+    const waitFor = async (expr: string, timeoutMs = 40000): Promise<boolean> => {
+      const deadline = Date.now() + timeoutMs
+      while (Date.now() < deadline) {
+        const ok = await w.webContents.executeJavaScript(`(() => { try { return !!(${expr}) } catch { return false } })()`)
+        if (ok) return true
+        await new Promise((r) => setTimeout(r, 400))
+      }
+      return false
+    }
+    const views: Array<[string, number, string]> = [
+      ['create', 0, "document.querySelector('.create-row')"],
+      ['library', 2, "document.querySelector('.lib-grid') || document.querySelector('.lib-loading') === null"],
+      ['distill', 3, "document.querySelector('.distill-row')"],
+      ['history', 4, "document.querySelector('.hist-grid') || document.querySelector('.ant-empty')"],
+      ['settings', 5, "document.querySelector('.settings-wrap')"]
     ]
-    for (const [name, index, waitMs] of views) {
-      await clickMenu(index, waitMs)
+    for (const [name, index, probe] of views) {
+      await clickMenu(index, 600)
+      const ready = await waitFor(probe)
+      const title = await w.webContents.executeJavaScript("document.querySelector('.h4-accent')?.textContent || '?'")
+      console.log('[shot] ui-shot target:', name, '| 页面标题:', title, '| ready:', ready)
+      if (!ready) console.log('[shot] ui-shot wait timeout:', name)
+      // 灵感库还要等图片解码一小会儿，避免截到半张图
+      await new Promise((r) => setTimeout(r, name === 'library' ? 2500 : 900))
       await capture(name)
+      if (name === 'distill') {
+        const box = await w.webContents.executeJavaScript(
+          `(() => {
+            const row = document.querySelector('.distill-row')
+            const col = row?.querySelector('.ant-col')
+            const card = row?.querySelector('.ant-card')
+            const r = (el) => (el ? Math.round(el.getBoundingClientRect().height) : -1)
+            return JSON.stringify({ vh: window.innerHeight, row: r(row), col: r(col), card: r(card) })
+          })()`
+        )
+        console.log('[shot] ui-shot distill-box:', box)
+      }
     }
     // 命令面板单独一张
     await w.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`)

@@ -68,6 +68,8 @@ import { resolveNodePlacement } from './placement'
 import { getCanvasPrefs, setCanvasPrefs, subscribeCanvasPrefs, type CanvasBackgroundMode, type CanvasPrefs } from './canvas-prefs'
 import { clearQuickCreate, requestQuickCreate, subscribeQuickCreate, type QuickCreateRequest } from './quick-create'
 import {
+  CANVAS_DOC_SAVED_EVENT,
+  CANVAS_DOC_SAVE_ERROR_EVENT,
   attachCanvasDocPersistence,
   canvasDocSavedAt,
   hydrateCanvasDocument,
@@ -243,6 +245,8 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [viewSettingsOpen, setViewSettingsOpen] = useState(false)
   const [materialsOpen, setMaterialsOpen] = useState(false)
+  /** 文档保存状态：已保存显示时间，失败常驻"未保存"（数据可靠性必须可见） */
+  const [saveState, setSaveState] = useState<{ at: number; failed: boolean }>({ at: 0, failed: false })
   const animRef = useRef<number | null>(null)
   const marqueeRef = useRef<HTMLDivElement | null>(null)
 
@@ -516,6 +520,29 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
 
   // 画布文档自动保存（800ms 防抖 + 隐藏/关闭前 flush）；探针可手动触发与查询
   useEffect(() => attachCanvasDocPersistence(), [])
+  useEffect(() => {
+    const onSaved = (e: Event): void => {
+      const detail = (e as CustomEvent<{ at?: number }>).detail
+      setSaveState({ at: detail?.at ?? Date.now(), failed: false })
+    }
+    let lastToast = 0
+    const onError = (e: Event): void => {
+      const detail = (e as CustomEvent<{ detail?: string }>).detail
+      setSaveState((s) => ({ ...s, failed: true }))
+      const now = Date.now()
+      // 连续失败只提示一次，避免刷屏
+      if (now - lastToast > 30000) {
+        lastToast = now
+        message.error('画布没能保存到本地：' + (detail?.detail ?? '未知原因'))
+      }
+    }
+    window.addEventListener(CANVAS_DOC_SAVED_EVENT, onSaved)
+    window.addEventListener(CANVAS_DOC_SAVE_ERROR_EVENT, onError)
+    return () => {
+      window.removeEventListener(CANVAS_DOC_SAVED_EVENT, onSaved)
+      window.removeEventListener(CANVAS_DOC_SAVE_ERROR_EVENT, onError)
+    }
+  }, [])
   useEffect(() => {
     ;(window as unknown as { __canvasDoc?: unknown }).__canvasDoc = {
       save: saveCanvasDocumentNow,
@@ -883,6 +910,19 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
           <Button size="small" type={materialsOpen ? 'primary' : 'text'} icon={<PictureOutlined />} onClick={() => setMaterialsOpen(true)} data-material-open="true">
             作品
           </Button>
+        </Tooltip>
+        <Tooltip
+          title={
+            saveState.failed
+              ? '画布保存失败，改动可能在重开后丢失（检查磁盘空间后重试）'
+              : saveState.at
+                ? '画布已保存到本地 · ' + new Date(saveState.at).toLocaleTimeString()
+                : '画布会自动保存到本地'
+          }
+        >
+          <span className="ivc-savestate" data-savestate={saveState.failed ? 'failed' : saveState.at ? 'saved' : 'idle'}>
+            {saveState.failed ? '未保存' : saveState.at ? '已保存' : '自动保存'}
+          </span>
         </Tooltip>
         <Tooltip title="快捷键（?）">
           <Button size="small" type="text" icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} data-shortcuts="true" />

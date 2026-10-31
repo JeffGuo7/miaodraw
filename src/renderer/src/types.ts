@@ -277,7 +277,7 @@ export interface SettingsShape {
 }
 
 export interface Api {
-  health(): Promise<HealthInfo>
+  health(opts?: { force?: boolean }): Promise<HealthInfo>
   library(opts?: { reload?: boolean }): Promise<LibraryData>
   /** 内置风格/提示词库 */
   styles(): Promise<StyleLibraryData>

@@ -317,6 +317,18 @@
   padding: 4px;
 }
 
+.ivc-savestate {
+  font-size: 11px;
+  color: var(--ink-4);
+  padding: 0 6px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ivc-savestate[data-savestate='failed'] {
+  color: var(--danger);
+}
+
 .ivc-sep {
   width: 1px;
   height: 16px;

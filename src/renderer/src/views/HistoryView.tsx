@@ -63,7 +63,7 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
 
   const modelOptions = useMemo(() => {
     const set = new Set(items.map((it) => it.params?.model).filter((m): m is string => !!m))
-    return [{ value: 'all', label: '全部模型' }, ...[...set].map((m) => ({ value: m, label: m }))]
+    return [{ value: 'all', label: '全部模型' }, ...[...set].map((m) => ({ value: m, label: modelLabel(m) }))]
   }, [items])
 
   /** 作品库的核心是"找回"：先能搜（提示词/文件名），再能按模型筛 */

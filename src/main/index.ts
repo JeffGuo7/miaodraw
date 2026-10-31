@@ -622,7 +622,12 @@ function registerIpc(): void {
   }
   // ---------- 引擎健康（HTTP 直连：密钥就绪 + 接入点可达，带缓存避免轮询打爆） ----------
   let probeCache: { at: number; ok: boolean } | null = null
-  handle('health', async () => {
+  /** 密钥/接入点一变就必须失效：否则用户点"重新检测"看到的是几十秒前的旧结论 */
+  const invalidateHealthProbe = (): void => {
+    probeCache = null
+  }
+  handle('health', async (_e, opts?: { force?: boolean }) => {
+    if (opts?.force) invalidateHealthProbe()
     const key = bailianApiKey()
     const origin = bailianOrigin()
     let ok = false
@@ -976,6 +981,7 @@ function registerIpc(): void {
     }
     // 落盘后返回公开投影（绝不回传 writeSettings 的合并结果，其中含密钥密文）
     writeSettings(patch)
+    if ('bailianBaseUrl' in patch || 'bailianWorkspace' in patch || 'bailianOrigin' in patch) invalidateHealthProbe()
     return publicSettings()
   })
 
@@ -999,6 +1005,7 @@ function registerIpc(): void {
     const { enc, plainFallback } = encryptSecret(plain)
     next[provider] = { enc, plainFallback }
     writeSettings({ providerKeysEnc: next })
+    invalidateHealthProbe()
     return { ok: true as const, info: providerKeysInfo(), plainFallback }
   })
   handle('provider-key:clear', (_e, provider: string) => {
@@ -1007,6 +1014,7 @@ function registerIpc(): void {
     const next = { ...readSettings().providerKeysEnc }
     delete next[id]
     writeSettings({ providerKeysEnc: next })
+    invalidateHealthProbe()
     return { ok: true as const, info: providerKeysInfo() }
   })
 
@@ -1022,12 +1030,14 @@ function registerIpc(): void {
     const next = { ...readSettings().providerKeysEnc }
     next['bailian'] = encryptSecret(plain)
     writeSettings({ providerKeysEnc: next, bailianKeyEnc: undefined, bailianKeyPlain: undefined })
+    invalidateHealthProbe()
     return { ok: true as const, info: bailianKeyInfo(), plainFallback: next['bailian'].plainFallback }
   })
   handle('bailian-key:clear', () => {
     const next = { ...readSettings().providerKeysEnc }
     delete next['bailian']
     writeSettings({ providerKeysEnc: next, bailianKeyEnc: undefined, bailianKeyPlain: undefined })
+    invalidateHealthProbe()
     return bailianKeyInfo()
   })
   handle('bailian-key:test', async () => {

@@ -14,6 +14,18 @@ import { clearCanvasDoc, loadCanvasDoc, saveCanvasDoc } from './db'
 import { DEFAULT_CANVAS_DOC_ID, deserializeCanvasDocument, isCanvasDocumentEmpty, serializeCanvasDocument } from './canvas-doc'
 import type { CanvasDocRecord } from './canvas-doc'
 
+/** 保存状态事件：画布页据此显示"已保存 / 未保存"并给出失败提示 */
+export const CANVAS_DOC_SAVED_EVENT = 'canvas-doc-saved'
+export const CANVAS_DOC_SAVE_ERROR_EVENT = 'canvas-doc-save-error'
+
+function emitDocEvent(name: string, detail: Record<string, unknown>): void {
+  try {
+    window.dispatchEvent(new CustomEvent(name, { detail }))
+  } catch {
+    /* 非浏览器环境（单测）忽略 */
+  }
+}
+
 /** 写库防抖：拖动结束后 800ms 落盘 */
 const SAVE_DEBOUNCE_MS = 800
 
@@ -59,9 +71,13 @@ export async function saveCanvasDocumentNow(): Promise<SaveResult> {
     const record = serializeCanvasDocument(doc, Date.now())
     await saveCanvasDoc(record as unknown as Record<string, unknown>)
     lastSavedAt = record.updated_at
+    emitDocEvent('canvas-doc-saved', { at: lastSavedAt, nodes: record.nodes.length })
     return { saved: true, nodes: record.nodes.length }
   } catch (e) {
+    // 写库失败不能只 console.warn：用户以为已保存，重开就没了
+    const detail = e instanceof Error ? e.message : String(e)
     console.warn('[canvas] 保存画布文档失败：', e)
+    emitDocEvent('canvas-doc-save-error', { detail })
     return { saved: false, nodes: 0, reason: 'error' }
   }
 }

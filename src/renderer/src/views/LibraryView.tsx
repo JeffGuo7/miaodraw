@@ -165,7 +165,8 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
       // 只在「精选」或调用方显式指定时显示角标：每张卡都挂同一个分类角标（如「广告创意」）
       // 等于没有信息量，还会和底部标签重复
       const chip = opts.c.featured ? '精选' : opts.chip
-      const footTags = (opts.c.tags ?? []).filter((t) => t !== chip).slice(0, 3)
+      // tags[0] 就是分类（如「广告创意」），和顶部筛选重复：底部只留风格标签
+      const footTags = (opts.c.tags ?? []).filter((t) => t !== chip).slice(1, 4)
       return (
         <div
           key={opts.c.key}

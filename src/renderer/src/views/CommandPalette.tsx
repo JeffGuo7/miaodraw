@@ -10,6 +10,7 @@ import {
   SearchOutlined,
   SettingOutlined
 } from '@ant-design/icons'
+import { modelLabel } from '../models'
 
 export type ViewKey = 'create' | 'canvas' | 'compose' | 'library' | 'distill' | 'history' | 'settings'
 
@@ -96,7 +97,7 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
           key: `hist-${h.name}`,
           icon: <HistoryOutlined />,
           label: h.params?.prompt?.replace(/\s+/g, ' ').slice(0, 42) || h.name,
-          hint: h.params ? `${h.params.model} · ${h.params.w}×${h.params.h}` : undefined,
+          hint: h.params ? `${modelLabel(h.params.model)} · ${h.params.w}×${h.params.h}` : undefined,
           kind: '作品',
           action: () => onNav('history')
         })

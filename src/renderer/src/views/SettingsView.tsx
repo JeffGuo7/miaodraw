@@ -287,6 +287,11 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     void window.api.health().then(setHealth).catch(() => undefined)
   }
 
+  /** 任意服务商的密钥/接入点变化后都要重新探测：否则顶栏与创作页仍按旧结论判断 */
+  function refreshHealthNow(): void {
+    void window.api.health({ force: true }).then(setHealth).catch(() => undefined)
+  }
+
   async function saveProviderKey(provider: string): Promise<void> {
     const draft = (drafts[provider] ?? '').trim()
     if (!draft) {
@@ -302,6 +307,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     setDrafts((d) => ({ ...d, [provider]: '' }))
     if (r.plainFallback) message.warning('已保存，但本机系统安全存储不可用，密钥以编码形式保存（仅本机能读）')
     else message.success('密钥已加密保存')
+    refreshHealthNow()
   }
 
   function setKeyDraft(id: string, v: string): void {
