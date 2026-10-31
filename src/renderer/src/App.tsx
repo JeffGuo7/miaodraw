@@ -117,7 +117,15 @@ export default function App(): JSX.Element {
         if (!s.onboarded) setOnboardOpen(true)
       })
       .catch(() => undefined)
-    return () => window.clearInterval(healthTimer.current)
+    // 设置页保存密钥后广播：立即强制重探，不用等 60s 轮询
+    const onHealthChanged = (): void => {
+      void window.api.health({ force: true }).then(setHealth).catch(() => undefined)
+    }
+    window.addEventListener('health-changed', onHealthChanged)
+    return () => {
+      window.clearInterval(healthTimer.current)
+      window.removeEventListener('health-changed', onHealthChanged)
+    }
   }, [refreshHealth])
 
   useEffect(() => {

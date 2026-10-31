@@ -187,8 +187,13 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
         // 只配了硅基流动/OpenAI 的用户，不该默认停在需要百炼密钥的模型上然后生成按钮永远禁用。
         const currentProvider = am?.provider ?? 'bailian'
         const usable = byCap(cat, 'image').filter((m) => flags[m.provider])
+        const preferredDefault = usable.find((m) => `${m.provider}::${m.model}` === c?.defaults?.image)
+        if (!am?.provider && preferredDefault) setActive({ provider: preferredDefault.provider, model: preferredDefault.model })
         if (usable.length && !flags[currentProvider]) {
-          setActive({ provider: usable[0].provider, model: usable[0].model })
+          // 同样落盘：只在内存里切会让状态栏与画布仍停在旧模型
+          const pick = usable.find((m) => `${m.provider}::${m.model}` === c?.defaults?.image) ?? usable[0]
+          setActive({ provider: pick.provider, model: pick.model })
+          saveSettings(pick.provider, pick.model, s.size && SIZES.some((x) => x.value === s.size) ? s.size : SIZES[0].value)
         }
       })
       .catch(() => undefined)
@@ -226,7 +231,11 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
     // 优先用「默认模型」里配置的出图模型，其次任一已配置密钥供应商的出图模型
     const preferred = imageModels.find((m) => modelKey(m.provider, m.model) === mc?.defaults?.image && providerKeys[m.provider])
     const usable = preferred ?? imageModels.filter((m) => providerKeys[m.provider])[0]
-    if (usable) setActive({ provider: usable.provider, model: usable.model })
+    if (usable) {
+      setActive({ provider: usable.provider, model: usable.model })
+      // 必须落盘：状态栏「当前模型」与画布生成的模型解析都读 activeModel
+      saveSettings(usable.provider, usable.model, size)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, providerKeys, imageModels, mc])
 
@@ -534,7 +543,11 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
               type="warning"
               showIcon
               style={{ marginBottom: 12 }}
-              message={`未配置 ${providerLabel(provider, mc)} 的 API Key`}
+              message={
+                Object.values(providerKeys).some(Boolean)
+                  ? `当前模型需要 ${providerLabel(provider, mc)} 的 API Key`
+                  : '还没配置任何模型服务的 API Key'
+              }
               action={
                 <Button size="small" onClick={onOpenSettings}>
                   去设置
@@ -802,7 +815,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           )}
           <Typography.Text type="secondary" className="tip-text">
             {needKey
-              ? '填好上面的 API Key 后，这里就可以生成；提示词可以先写起来'
+              ? '到「设置 → 模型服务」填好 API Key 后即可生成；提示词可以先写起来'
               : i2iUnsupported
                 ? '素材融合需要百炼的双图协议，切回百炼或改用文生图'
                 : `Ctrl + Enter 快速生成 · 出图约 30~60 秒${estimate ? ` · ${estimate}` : ''}`}

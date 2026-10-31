@@ -927,18 +927,6 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         <Tooltip title="快捷键（?）">
           <Button size="small" type="text" icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} data-shortcuts="true" />
         </Tooltip>
-        <Popconfirm
-          title="清空这张画布？"
-          description="节点与连线会被删除，且不可撤销（文档会一起清掉，重开也不会回来）。"
-          okText="清空"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => {
-            void resetCanvasDocument()
-          }}
-        >
-          <Button size="small" type="text" icon={<DeleteOutlined />} title="清空画布" data-clear-canvas="true" />
-        </Popconfirm>
       </div>
 
       {/* 下中：新建节点 */}
@@ -1003,6 +991,24 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
               </div>
               <div className="ivc-viewsettings-hint">
                 滚轮「自动」会区分鼠标滚轮与触控板：滚轮缩放、双指平移。手感不对就手动固定。
+              </div>
+              <div className="ivc-viewsettings-row">
+                <span>画布内容</span>
+                <Popconfirm
+                  title="清空这张画布？"
+                  description="节点与连线会被删除，且不可撤销（文档会一起清掉，重开也不会回来）。"
+                  okText="清空"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => {
+                    setViewSettingsOpen(false)
+                    void resetCanvasDocument()
+                  }}
+                >
+                  <Button size="small" danger data-clear-canvas="true">
+                    清空画布
+                  </Button>
+                </Popconfirm>
               </div>
             </div>
           }

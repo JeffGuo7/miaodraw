@@ -4,7 +4,8 @@
  */
 import { message } from 'antd'
 
-import type { RefImage, RefRole } from '../types'
+import type { ModelConfig, RefImage, RefRole } from '../types'
+import { byCap, resolveModels } from '../models'
 
 import { getAssetByPath, putAssetBatch, putDependencyBatch, type AssetDependencyRecord } from './db'
 import { canvasStore } from './store'
@@ -15,16 +16,41 @@ interface ActiveModel {
   model: string
 }
 
-/** 读取用户当前激活模型（设置里的 activeModel），退回百炼默认 */
+/**
+ * 读取本次生成该用哪个模型。
+ * 顺序：设置里的 activeModel → 「默认模型」里配的出图模型 → 任一已配置密钥供应商的出图模型 → 百炼最便宜档。
+ * 之前无条件回退百炼，只配了第三方服务商的用户在画布点生成会直接报「未配置百炼 API Key」。
+ */
 async function resolveActiveModel(): Promise<ActiveModel> {
+  let active: { provider?: string; model?: string } | undefined
+  let legacyModel = ''
+  let cfg: ModelConfig | undefined
+  let keys: Record<string, { configured?: boolean }> = {}
   try {
-    const s = (await window.api.getSettings()) as { activeModel?: { provider?: string; model?: string }; model?: string }
-    if (s.activeModel?.provider && s.activeModel?.model) return { provider: s.activeModel.provider, model: s.activeModel.model }
-    if (s.model) return { provider: 'bailian', model: s.model }
+    const s = (await window.api.getSettings()) as {
+      activeModel?: { provider?: string; model?: string }
+      model?: string
+      providerKeys?: Record<string, { configured?: boolean }>
+    }
+    active = s.activeModel
+    legacyModel = s.model ?? ''
+    keys = s.providerKeys ?? {}
+    cfg = ((await window.api.modelConfigGet()) as ModelConfig | undefined) ?? undefined
   } catch {
     // 走默认
   }
-  // 省钱档：兜底默认走最便宜的打样模型（用户设置里显式选了别的仍以设置为准）
+  if (active?.provider && active?.model) return { provider: active.provider, model: active.model }
+  const catalog = resolveModels(cfg)
+  const configured = (p: string): boolean => !!keys[p]?.configured
+  const candidates = byCap(catalog, 'image')
+  const preferredKey = cfg?.defaults?.image
+  const preferred = candidates.find((m) => preferredKey && `${m.provider}::${m.model}` === preferredKey && configured(m.provider))
+  if (preferred) return { provider: preferred.provider, model: preferred.model }
+  const usable = candidates.find((m) => configured(m.provider))
+  if (usable) return { provider: usable.provider, model: usable.model }
+  if (legacyModel) return { provider: 'bailian', model: legacyModel }
+  if (configured('bailian')) return { provider: 'bailian', model: 'z-image-turbo' }
+  // 一个都没配：仍然返回默认档，让主进程给出「未配置密钥」的明确报错
   return { provider: 'bailian', model: 'z-image-turbo' }
 }
 

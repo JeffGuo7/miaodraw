@@ -50,7 +50,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
 
   async function refresh(): Promise<void> {
     await Promise.all([
-      window.api.health().then(setHealth).catch(() => undefined),
+      // 带 force："重新检测"必须真的重探，不能拿缓存里的旧结论
+      window.api.health({ force: true }).then(setHealth).catch(() => undefined),
       window.api.appInfo().then(setInfo).catch(() => undefined),
       window.api.bailianKeyGet().then(setBk).catch(() => undefined),
       window.api.providerKeyGet().then(setPkInfo).catch(() => undefined),
@@ -290,6 +291,8 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
   /** 任意服务商的密钥/接入点变化后都要重新探测：否则顶栏与创作页仍按旧结论判断 */
   function refreshHealthNow(): void {
     void window.api.health({ force: true }).then(setHealth).catch(() => undefined)
+    // 顶栏/状态栏挂在 App 上，这里广播一下让它们立即刷新（否则最多滞后 60s 轮询）
+    window.dispatchEvent(new CustomEvent('health-changed'))
   }
 
   async function saveProviderKey(provider: string): Promise<void> {

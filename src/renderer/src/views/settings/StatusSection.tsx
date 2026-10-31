@@ -185,6 +185,10 @@ export default function StatusSection({
         </Typography.Text>
       </div>
 
+      {/* 工作空间与专属接入点都是可选进阶项，默认收起：否则首屏被它们占满，第三方服务商要滚动才看得到 */}
+      <details className="svc-advanced">
+        <summary>高级：工作空间 ID 与专属接入点（可选）</summary>
+        <div className="svc-advanced-body">
       <div className="card-block">
         <div className="svc-field-head">
           <span className="svc-label">工作空间 ID（可选）</span>
@@ -224,6 +228,8 @@ export default function StatusSection({
           </Button>
         </Space>
       </div>
+        </div>
+      </details>
     </div>
   )
 }

@@ -45,6 +45,9 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
   const [modelFilter, setModelFilter] = useState<string>('all')
   /** 分批渲染：作品多时一次性铺 1000 张图会明显卡（首次 60，其余按需） */
   const [visibleCount, setVisibleCount] = useState(60)
+  /** 批量模式：作品多时逐张删太慢，勾选后一次处理 */
+  const [batchMode, setBatchMode] = useState(false)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -76,6 +79,41 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
       return hay.toLowerCase().includes(kw)
     })
   }, [items, q, modelFilter])
+
+  function togglePick(name: string): void {
+    setPicked((old) => {
+      const next = new Set(old)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  async function removePicked(): Promise<void> {
+    const names = [...picked]
+    if (!names.length) return
+    modal.confirm({
+      title: `删除选中的 ${names.length} 件作品？`,
+      content: '会同时删除图片与参数文件，无法恢复。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        let ok = 0
+        for (const n of names) {
+          try {
+            const r = await window.api.historyDelete(n)
+            if (r.ok) ok++
+          } catch {
+            /* 单条失败继续 */
+          }
+        }
+        setPicked(new Set())
+        message.success(`已删除 ${ok} / ${names.length} 件`)
+        await refresh()
+      }
+    })
+  }
 
   async function useAsRef(item: HistoryItem): Promise<void> {
     try {
@@ -128,6 +166,39 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
           data-hist-model-filter="true"
         />
         <div className="toolbar-spacer" />
+        {batchMode ? (
+          <>
+            <Typography.Text type="secondary">已选 {picked.size} 张</Typography.Text>
+            <Button
+              size="middle"
+              onClick={() => {
+                const names = new Set(filtered.slice(0, visibleCount).map((it) => it.name))
+                setPicked(picked.size >= names.size ? new Set() : names)
+              }}
+            >
+              {picked.size >= Math.min(filtered.length, visibleCount) ? '取消全选' : '全选当前'}
+            </Button>
+            <Button danger disabled={!picked.size} onClick={() => void removePicked()} data-hist-batch-delete="true">
+              删除所选
+            </Button>
+            <Button
+              onClick={() => {
+                setBatchMode(false)
+                setPicked(new Set())
+              }}
+            >
+              退出批量
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={() => setBatchMode(true)}
+            data-hist-batch-mode="true"
+            disabled={!filtered.length}
+          >
+            批量选择
+          </Button>
+        )}
         <Button icon={<ReloadOutlined />} loading={loading} onClick={refresh}>
           刷新
         </Button>
@@ -143,10 +214,18 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
             <Card
               key={it.name}
               size="small"
-              className="hist-card"
+              className={`hist-card${batchMode ? ' is-picking' : ''}${picked.has(it.name) ? ' is-picked' : ''}`}
+              onClick={() => {
+                if (batchMode) togglePick(it.name)
+              }}
               styles={{ body: { padding: 8 } }}
               cover={
                 <div className="hist-cover">
+                  {batchMode && (
+                    <span className="hist-pick" data-picked={picked.has(it.name) ? 'true' : 'false'}>
+                      {picked.has(it.name) ? '✓' : ''}
+                    </span>
+                  )}
                   <Image src={`${it.url}?w=340`} preview={{ src: it.url }} loading="lazy" alt={it.name} />
                 </div>
               }

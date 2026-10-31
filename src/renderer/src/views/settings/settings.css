@@ -864,3 +864,38 @@
     transform: none;
   }
 }
+/* 高级项折叠：工作空间 / 专属接入点都属于可选进阶配置 */
+.svc-advanced {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  background: var(--bg-panel);
+}
+
+.svc-advanced > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-2);
+  list-style: none;
+}
+
+.svc-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.svc-advanced > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--ink-4);
+  transition: transform var(--dur-fast) ease;
+}
+
+.svc-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.svc-advanced-body {
+  margin-top: 12px;
+}

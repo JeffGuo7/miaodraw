@@ -268,10 +268,9 @@ export default function LibraryView({ visible, onUsePrompt, onUseRef, onDistill 
             setPage(0)
           }}
           onChange={(e) => {
-            if (!e.target.value) {
-              setQ('')
-              setPage(0)
-            }
+            // 1243 条过滤是纯内存操作，直接实时过滤；只在回车时过滤会白白多点一次
+            setQ(e.target.value)
+            setPage(0)
           }}
         />
         <div className="toolbar-spacer" />
