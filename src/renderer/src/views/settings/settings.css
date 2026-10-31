@@ -45,8 +45,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
-  padding: 0 12px;
+  min-height: 48px;
+  padding: 7px 12px;
   border-radius: 10px;
   font-size: 14px;
   color: var(--ink);
@@ -75,9 +75,23 @@
   color: var(--ink);
 }
 
-.sn-label {
+.sn-text {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sn-desc {
+  font-size: 11px;
+  color: var(--ink-4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -171,15 +185,37 @@
   border-color: var(--brand) !important;
 }
 
-.app-content .green-switch.ant-switch-checked {
-  background: #52c41a;
+/* 开关统一用品牌蓝：绿色在一套蓝色系里像另一个产品的控件 */
+.app-content .ant-switch.ant-switch-checked {
+  background: var(--brand);
 }
 
-.app-content .green-switch.ant-switch-checked:hover {
-  background: #73d13d;
+.app-content .ant-switch.ant-switch-checked:hover {
+  background: var(--brand-deep);
 }
 
 /* ---------- 模型服务：两栏主从 ---------- */
+.svc-list-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.svc-list-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.svc-count {
+  font-size: 11px;
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .svc {
   display: flex;
   min-height: 0;
@@ -686,6 +722,16 @@
 }
 
 /* idle = 还没配置（不是故障）：用中性色，别把首屏刷成红色 */
+.status-bar.ready {
+  background: #f0f7ff;
+  border-color: rgba(0, 113, 227, 0.16);
+}
+
+.status-bar.ready .status-dot {
+  background: var(--brand);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+}
+
 .status-bar.idle {
   background: #fafafa;
   border-color: rgba(0, 0, 0, 0.06);

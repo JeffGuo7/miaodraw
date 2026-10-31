@@ -897,7 +897,7 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
             void resetCanvasDocument()
           }}
         >
-          <Button size="small" type="text" danger icon={<DeleteOutlined />} title="清空画布" data-clear-canvas="true" />
+          <Button size="small" type="text" icon={<DeleteOutlined />} title="清空画布" data-clear-canvas="true" />
         </Popconfirm>
       </div>
 

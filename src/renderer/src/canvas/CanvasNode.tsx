@@ -458,11 +458,26 @@ function GenerateBody({ node }: { node: CanvasNodeData }): JSX.Element {
           type="primary"
           icon={<PlayCircleOutlined />}
           loading={running}
+          data-gen-run="true"
           onClick={() => void runGenerateNode(node.id)}
         >
           生成
         </Button>
       </div>
+      {running ? (
+        <Button
+          size="small"
+          danger
+          type="text"
+          data-gen-cancel="true"
+          onClick={() => {
+            const rid = String(node.metadata.runId ?? '')
+            if (rid) void window.api.cancelRun(rid).catch(() => undefined)
+          }}
+        >
+          取消生成
+        </Button>
+      ) : null}
       {node.metadata.error ? <div className="ivc-gen-error">{String(node.metadata.error)}</div> : null}
     </div>
   )

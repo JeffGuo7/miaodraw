@@ -17,6 +17,7 @@ import DistillView from './views/DistillView'
 import HistoryView from './views/HistoryView'
 import CommandPalette, { type ViewKey } from './views/CommandPalette'
 import SettingsView from './views/SettingsView'
+import { healthChipHint, healthChipText, healthState } from './views/health-state'
 import Onboarding from './views/Onboarding'
 import StatusBar from './views/StatusBar'
 import logoUrl from './assets/logo-64.png'
@@ -98,6 +99,7 @@ export default function App(): JSX.Element {
   const [onboardOpen, setOnboardOpen] = useState(false)
   const healthTimer = useRef<number>(0)
 
+  const chipState = healthState(health)
   const refreshHealth = useCallback((): void => {
     window.api
       .health()
@@ -217,38 +219,22 @@ export default function App(): JSX.Element {
             <span className="header-sub">{SUBTITLES[view]}</span>
           </div>
           <div className="header-right">
-            <Tooltip
-              title={
-                !health
-                  ? '检测中'
-                  : !(health.hasAnyKey ?? health.hasKey)
-                    ? '还没配置模型服务 · 点击去设置'
-                    : health.ok
-                      ? `模型服务 ${health.version || '在线'} · 点击刷新`
-                      : '已配置密钥但连不上 · 点击重试'
-              }
-            >
+            <Tooltip title={healthChipHint(chipState)}>
               <Badge
-                status={health ? (health.ok ? 'success' : (health.hasAnyKey ?? health.hasKey) ? 'error' : 'default') : 'default'}
+                status={chipState === 'ok' ? 'success' : chipState === 'bad' ? 'error' : 'default'}
                 text={
                   <Button
                     type="text"
                     size="small"
-                    className={health && !(health.hasAnyKey ?? health.hasKey) ? 'status-text status-text-idle' : 'status-text'}
+                    className={chipState === 'idle' || chipState === 'ready' ? 'status-text status-text-idle' : 'status-text'}
                     onClick={() => {
-                      // 没配置时「点一下」应该去配置，而不是原地刷新出一个必然失败的结果
-                      if (health && !(health.hasAnyKey ?? health.hasKey)) setView('settings')
+                      // 一个密钥都没配时点一下直接去配置；已配置时点击=重新探测
+                      if (chipState === 'idle') setView('settings')
                       else refreshHealth()
                     }}
                     data-health-chip="true"
                   >
-                    {!health
-                      ? '检测服务…'
-                      : !(health.hasAnyKey ?? health.hasKey)
-                        ? '未配置模型 · 去设置'
-                        : health.ok
-                          ? `服务在线 · ${health.version}`
-                          : '服务异常 · 重试'}
+                    {healthChipText(chipState, health?.version || '在线')}
                   </Button>
                 }
               />

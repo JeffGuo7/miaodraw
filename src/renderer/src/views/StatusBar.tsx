@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button, Tooltip } from 'antd'
 import { FolderOpenOutlined, SearchOutlined } from '@ant-design/icons'
 import { providerLabel } from '../models'
+import { healthLabel, healthState } from './health-state'
 
 /**
  * 底部状态栏：模型/服务状态 + 快捷入口 + 版本。
@@ -31,19 +32,34 @@ export default function StatusBar({
     return () => window.removeEventListener('active-model-changed', refresh)
   }, [])
 
-  // 三态：未配置 ≠ 故障。首屏直接亮红点会让新用户以为软件坏了。
-  const configured = !!(health?.hasAnyKey ?? health?.hasKey)
-  const state: 'ok' | 'bad' | 'idle' | 'unknown' = !health ? 'unknown' : health.ok ? 'ok' : configured ? 'bad' : 'idle'
-  const dotClass = state === 'ok' ? 'sb-dot sb-dot-ok' : state === 'bad' ? 'sb-dot sb-dot-bad' : 'sb-dot'
+  // 统一状态机（顶栏/状态栏/设置页共用）：未配置 / 已配置 / 在线 / 连接失败。
+  // 只配第三方时不能显示"连接失败"——那是百炼的探测结果，与他无关。
+  const state = healthState(health)
+  const dotClass =
+    state === 'ok'
+      ? 'sb-dot sb-dot-ok'
+      : state === 'bad'
+        ? 'sb-dot sb-dot-bad'
+        : state === 'ready'
+          ? 'sb-dot sb-dot-ready'
+          : 'sb-dot'
   const dotTitle =
-    state === 'ok' ? '模型服务在线' : state === 'bad' ? '已配置密钥但连不上，点顶栏可重试' : state === 'idle' ? '还没配置模型服务（设置 → 模型服务）' : '检测中…'
+    state === 'ok'
+      ? '模型服务在线'
+      : state === 'bad'
+        ? '已配置百炼密钥但连不上，点顶栏可重试'
+        : state === 'ready'
+          ? '已配置第三方服务商（百炼未配置，不影响使用）'
+          : state === 'idle'
+            ? '还没配置模型密钥（设置 → 模型服务）'
+            : '检测中…'
 
   return (
     <div className="statusbar">
       <Tooltip title={dotTitle}>
         <span className={dotClass} data-sb-state={state} />
       </Tooltip>
-      <span className="sb-muted">{state === 'ok' ? '在线' : state === 'bad' ? '连接失败' : state === 'idle' ? '未配置' : '检测中'}</span>
+      <span className="sb-muted">{healthLabel(state)}</span>
       <span className="sb-sep" />
       <span className="sb-text">
         当前模型：{active ? `${providerLabel(active.provider)} · ${active.model}` : '默认'}

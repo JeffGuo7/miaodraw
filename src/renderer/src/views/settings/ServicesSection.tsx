@@ -58,14 +58,18 @@ export default function ServicesSection(props: ServicesProps): JSX.Element {
       )
     : providers
   const selected = providers.find((p) => p.id === selectedId) ?? listed[0] ?? null
+  // 只数真正启用的：停用的供应商也计入会让「N 个已启用」名不副实
+  const enabledCount = providers.filter((p) => p.enabled).length
 
   return (
     <div className="svc">
       <div className="svc-list">
         <div className="svc-list-head">
           <div className="svc-list-title">
-            <span>第三方服务商</span>
-            <span className="svc-count">{providers.length} 个已启用 · 百炼在上方单独配置</span>
+            <span className="svc-list-name">第三方服务商</span>
+            <span className="svc-count">
+              {enabledCount}/{providers.length} 已启用 · 百炼在上方配置
+            </span>
           </div>
           <Input
             className="fill-input"
@@ -190,7 +194,7 @@ function ProviderDetail({
           )}
           <Tooltip title={provider.enabled ? '停用后在创作页与默认模型列表中隐藏' : '启用后可用于创作'}>
             <span className="svc-switch">
-              <Switch className="green-switch" checked={provider.enabled} onChange={(v) => onToggle(provider.id, v)} />
+              <Switch checked={provider.enabled} onChange={(v) => onToggle(provider.id, v)} data-provider-toggle="true" />
             </span>
           </Tooltip>
         </div>

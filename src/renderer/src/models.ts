@@ -114,6 +114,12 @@ export const byCap = (models: ResolvedModel[], cap: ModelCap): ResolvedModel[] =
 
 
 
+/** 模型 id → 面向用户的短名（历史记录、标签等处显示，避免把 z-image-turbo 直接印给用户） */
+export function modelLabel(id: string, mc?: ModelConfig): string {
+  const hit = resolveModels(mc).find((m) => m.model === id)
+  return hit?.label ?? id
+}
+
 export function providerLabel(id: string, cfg?: ModelConfig): string {
   return PROVIDERS.find((p) => p.id === id)?.label ?? cfg?.customProviders?.find((c) => c.id === id)?.name ?? id
 }

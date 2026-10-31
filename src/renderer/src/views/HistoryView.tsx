@@ -6,8 +6,8 @@ import {
   Card,
   Empty,
   Image,
+  Dropdown,
   Input,
-  Popconfirm,
   Select,
   Space,
   Tooltip,
@@ -18,6 +18,7 @@ import {
   ControlOutlined,
   CopyOutlined,
   DeleteOutlined,
+  MoreOutlined,
   DownloadOutlined,
   FolderOpenOutlined,
   ReloadOutlined,
@@ -25,6 +26,7 @@ import {
   ScanOutlined
 } from '@ant-design/icons'
 import type { GenParams, HistoryItem } from '../types'
+import { modelLabel } from '../models'
 import { formatSize, mediaUrlData, mediaUrlToFile } from '../utils'
 
 interface Props {
@@ -36,11 +38,13 @@ interface Props {
 }
 
 export default function HistoryView({ visible, version, onUseRef, onDistill, onReproduce }: Props): JSX.Element {
-  const { message } = AntdApp.useApp()
+  const { message, modal } = AntdApp.useApp()
   const [items, setItems] = useState<HistoryItem[]>([])
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
   const [modelFilter, setModelFilter] = useState<string>('all')
+  /** 分批渲染：作品多时一次性铺 1000 张图会明显卡（首次 60，其余按需） */
+  const [visibleCount, setVisibleCount] = useState(60)
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -135,7 +139,7 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
           {filtered.length === 0 && (
             <Empty description="没有匹配的作品，换个关键词或清空筛选" style={{ marginTop: 60 }} />
           )}
-          {filtered.map((it) => (
+          {filtered.slice(0, visibleCount).map((it) => (
             <Card
               key={it.name}
               size="small"
@@ -158,40 +162,28 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
                   {dayjs(it.mtime).format('MM-DD HH:mm')} · {formatSize(it.size)}
                   {it.params ? ` · ${it.params.w}×${it.params.h}` : ''}
                 </div>
-                {it.params ? <div className="hist-sub hist-sub-dim">{it.params.model}{it.params.seed ? ` · 种子 ${it.params.seed}` : ''}</div> : null}
+                {it.params ? (
+                  <div className="hist-sub hist-sub-dim">
+                    {modelLabel(it.params.model)}
+                    {it.params.seed ? ` · 种子 ${it.params.seed}` : ''}
+                  </div>
+                ) : null}
               </div>
-              <Space size={2} className="hist-actions">
+              <Space size={4} className="hist-actions">
                 {it.params && (
-                  <Tooltip title="把提示词、模型、尺寸、种子填回创作台">
-                    <Button
-                      size="small"
-                      type="primary"
-                      ghost
-                      className="repro-btn"
-                      icon={<ControlOutlined />}
-                      onClick={() => onReproduce(it.params as GenParams)}
-                    >
-                      复现
-                    </Button>
-                  </Tooltip>
-                )}
-                {it.params?.prompt && (
-                  <Tooltip title="复制提示词">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      data-copy-prompt="true"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(it.params?.prompt ?? '')
-                        message.success('提示词已复制')
-                      }}
-                    />
-                  </Tooltip>
-                )}
-                <Tooltip title="保存">
                   <Button
-                    type="text"
+                    size="small"
+                    type="primary"
+                    ghost
+                    className="repro-btn"
+                    icon={<ControlOutlined />}
+                    onClick={() => onReproduce(it.params as GenParams)}
+                  >
+                    复现
+                  </Button>
+                )}
+                <Tooltip title="保存到本地">
+                  <Button
                     size="small"
                     icon={<DownloadOutlined />}
                     onClick={async () => {
@@ -199,37 +191,55 @@ export default function HistoryView({ visible, version, onUseRef, onDistill, onR
                       if (r.ok) message.success(`已保存：${r.path}`)
                       else if (r.err !== '已取消') message.error(r.err)
                     }}
-                  />
+                  >
+                    保存
+                  </Button>
                 </Tooltip>
-                <Tooltip title="打开所在文件夹">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<FolderOpenOutlined />}
-                    onClick={() => void window.api.revealImage(it.url)}
-                  />
-                </Tooltip>
-                <Tooltip title="用作底图">
-                  <Button type="text" size="small" icon={<RetweetOutlined />} onClick={() => useAsRef(it)} />
-                </Tooltip>
-                <Tooltip title="反推提示词">
-                  <Button type="text" size="small" icon={<ScanOutlined />} onClick={() => distillItem(it)} />
-                </Tooltip>
-                <Popconfirm
-                  title="删除该作品？"
-                  description="将从作品目录移除图片与其参数文件"
-                  okText="删除"
-                  okButtonProps={{ danger: true }}
-                  cancelText="取消"
-                  onConfirm={() => void removeItem(it)}
+                <Dropdown
+                  menu={{
+                    items: [
+                      { key: 'copy', icon: <CopyOutlined />, label: '复制提示词', disabled: !it.params?.prompt },
+                      { key: 'folder', icon: <FolderOpenOutlined />, label: '打开所在文件夹' },
+                      { key: 'ref', icon: <RetweetOutlined />, label: '用作底图' },
+                      { key: 'distill', icon: <ScanOutlined />, label: '反推提示词' },
+                      { type: 'divider' as const },
+                      { key: 'del', icon: <DeleteOutlined />, label: '删除作品', danger: true }
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === 'copy') {
+                        void navigator.clipboard.writeText(it.params?.prompt ?? '')
+                        message.success('提示词已复制')
+                      } else if (key === 'folder') void window.api.revealImage(it.url)
+                      else if (key === 'ref') void useAsRef(it)
+                      else if (key === 'distill') void distillItem(it)
+                      else if (key === 'del') {
+                        modal.confirm({
+                          title: '删除这张作品？',
+                          content: '会同时删除图片与参数文件，无法恢复。',
+                          okText: '删除',
+                          okButtonProps: { danger: true },
+                          cancelText: '取消',
+                          onOk: () => void removeItem(it)
+                        })
+                      }
+                    }
+                  }}
+                  trigger={['click']}
                 >
-                  <Tooltip title="删除作品">
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                  </Tooltip>
-                </Popconfirm>
+                  <Button size="small" icon={<MoreOutlined />} data-hist-more="true">
+                    更多
+                  </Button>
+                </Dropdown>
               </Space>
             </Card>
           ))}
+        </div>
+      )}
+      {filtered.length > visibleCount && (
+        <div style={{ textAlign: 'center', padding: '18px 0 6px' }}>
+          <Button onClick={() => setVisibleCount((v) => v + 60)} data-hist-more-items="true">
+            加载更多（还有 {filtered.length - visibleCount} 张）
+          </Button>
         </div>
       )}
     </div>

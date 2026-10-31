@@ -2033,11 +2033,12 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const okDrag = fresh.length >= 2 ? drag(fresh[0], fresh[1]) : false
         await sleep(300)
         const afterValid = connCount()
-        byText('音频').click()
+        // 无效组合用「视频 → 文本」：视频节点不产出可喂给文本的输入（音频节点已从 Dock 下架）
+        byText('视频').click()
         await sleep(300)
         const all = [...document.querySelectorAll('[data-node-id]')].filter(n => !before.has(n.getAttribute('data-node-id')))
-        const audio = all[all.length - 1]
-        if (audio) drag(audio, fresh[1])
+        const invalidFrom = all[all.length - 1]
+        if (invalidFrom) drag(invalidFrom, fresh[0])
         await sleep(300)
         const afterInvalid = connCount()
         return JSON.stringify({

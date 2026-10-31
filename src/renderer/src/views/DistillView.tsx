@@ -109,9 +109,9 @@ export default function DistillView({ seed, onUsePrompt }: Props): JSX.Element {
   }, [seed])
 
   return (
-    <Row gutter={20}>
+    <Row gutter={20} style={{ height: '100%' }} align="stretch">
       <Col span={9}>
-        <Card title="源图片" styles={{ body: { padding: 14 } }}>
+        <Card title="源图片" style={{ height: '100%' }} styles={{ body: { padding: 14 } }}>
           <Segmented
             block
             value={local ? 'local' : 'online'}
@@ -167,8 +167,8 @@ export default function DistillView({ seed, onUsePrompt }: Props): JSX.Element {
               </>
             ) : (
               <>
-                <Tag color="blue">qwen3-vl-plus</Tag>
-                视觉模型理解画面后输出一段通用提示词，可直接粘贴到 Midjourney / 即梦 / SD 等任何生图产品使用。
+                <Tag color="blue" title="qwen3-vl-plus">云端视觉模型</Tag>
+                由视觉模型理解画面后输出一段通用提示词，可直接粘贴到 Midjourney / 即梦 / SD 等任何生图产品使用。
               </>
             )}
           </Typography.Paragraph>
@@ -182,6 +182,7 @@ export default function DistillView({ seed, onUsePrompt }: Props): JSX.Element {
       <Col span={15}>
         <Card
           title="反推结果"
+          style={{ height: '100%' }}
           extra={
             srcUrl && (
               <Space>
@@ -253,9 +254,21 @@ export default function DistillView({ seed, onUsePrompt }: Props): JSX.Element {
           ) : (
             <div className="result-center" style={{ minHeight: 380 }}>
               <ScanOutlined style={{ fontSize: 54, color: '#c7c7cc' }} />
-              <Typography.Text type="secondary" style={{ marginTop: 16 }}>
-                上传一张图，自动反推出可复用的提示词
-              </Typography.Text>
+              <div className="result-empty-title">这里会出现反推出的提示词</div>
+              <div className="result-empty-sub">左边放一张图，系统会读懂画面并写成可复用的描述</div>
+              <div className="distill-steps">
+                {[
+                  { n: '1', t: '放图', d: '拖入或点选一张参考图' },
+                  { n: '2', t: '反推', d: '选在线（质量高）或本地（免费）' },
+                  { n: '3', t: '拿去用', d: '复制，或直接送进创作页' }
+                ].map((s) => (
+                  <div key={s.n} className="distill-step">
+                    <span className="distill-step-n">{s.n}</span>
+                    <span className="distill-step-t">{s.t}</span>
+                    <span className="distill-step-d">{s.d}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>

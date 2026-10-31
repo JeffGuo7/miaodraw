@@ -39,7 +39,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import type { ActiveModel, ChainItem, GenOpts, GenResult, ModelConfig, RefImage, RefRole, StyleEntry } from '../types'
-import { byCap, modelKey, providerDef, providerLabel, refLimit, resolveModels } from '../models'
+import { PROVIDERS, byCap, modelKey, providerDef, providerLabel, refLimit, resolveModels } from '../models'
 import CompareSlider from './CompareSlider'
 import ImageEditModal from './ImageEditModal'
 import StyleLibrary from './StyleLibrary'
@@ -686,14 +686,30 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                 disabled={busy}
                 style={{ width: '100%' }}
                 data-model-select="true"
-                options={imageModels.map((m) => ({
-                  value: modelKey(m.provider, m.model),
-                  label: `${m.label} · ${m.price}/张`
-                }))}
-                // 收起时只显示模型名（价格在展开的下拉里），否则 180px 宽度一定被截成 "Z-Image Turbo（打样…"
+                // 多个服务商的模型混在一列时，用户分不清"Kolors 可图"是哪家 → 按服务商分组
+                options={Object.keys(PROVIDERS).flatMap((pid: string) => {
+                  const list = imageModels.filter((m) => m.provider === pid)
+                  if (!list.length) return []
+                  const groupLabel = providerLabel(pid, mc)
+                  return [
+                    {
+                      label: groupLabel,
+                      title: groupLabel,
+                      options: list.map((m) => ({
+                        value: modelKey(m.provider, m.model),
+                        label: `${m.label} · ${m.price}/张`
+                      }))
+                    }
+                  ]
+                })}
+                // 收起态显示「服务商 · 模型名」：价格留在展开列表里，避免 180px 宽度截断
                 labelRender={(opt) => {
                   const hit = imageModels.find((m) => modelKey(m.provider, m.model) === opt.value)
-                  return <span className="model-select-label">{hit?.label ?? String(opt.label ?? '')}</span>
+                  return (
+                    <span className="model-select-label">
+                      {hit ? `${providerLabel(hit.provider, mc)} · ${hit.label}` : String(opt.label ?? '')}
+                    </span>
+                  )
                 }}
               />
             </Col>
@@ -772,7 +788,11 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
             </Button>
           )}
           <Typography.Text type="secondary" className="tip-text">
-            Ctrl + Enter 快速生成 · 出图约 30~60 秒{estimate ? ` · 预估 ${estimate}` : ''}
+            {needKey
+              ? `先在上方填写 ${providerLabel(provider, mc)} 的 API Key，生成按钮才会可用`
+              : i2iUnsupported
+                ? '素材融合需要百炼的双图协议，切回百炼或改用文生图'
+                : `Ctrl + Enter 快速生成 · 出图约 30~60 秒${estimate ? ` · ${estimate}` : ''}`}
           </Typography.Text>
         </Card>
       </Col>

@@ -93,13 +93,47 @@ function parseLibA(root: string): { groups: Array<{ stem: string; label: string;
         title: head[2].trim(),
         prompt,
         img,
-        desc: prompt.replace(/\s+/g, ' ').slice(0, 110),
+        desc: humanizePrompt(prompt),
         tags: [label]
       })
     }
     if (cases.length) groups.push({ stem, label, cases })
   }
   return { groups }
+}
+
+/**
+ * 卡片简介：部分案例的提示词本身是 JSON（结构化画面描述）。
+ * 直接把 {"type": "2x2 grid ...} 印在卡片上非常伤专业感，这里抽成一句可读中文/短句；
+ * 解析不了就退回"结构化提示词"，而不是把原始 JSON 露给用户。
+ */
+export function humanizePrompt(raw: string, maxLen = 110): string {
+  const text = String(raw || '').replace(/\s+/g, ' ').trim()
+  if (!text) return ''
+  if (!text.startsWith('{') && !text.startsWith('[')) return text.slice(0, maxLen)
+  try {
+    const obj = JSON.parse(text) as Record<string, unknown>
+    const pick = (keys: string[]): string => {
+      for (const k of keys) {
+        const v = obj[k]
+        if (typeof v === 'string' && v.trim()) return v.trim()
+        if (Array.isArray(v) && v.length) return v.filter((x) => typeof x === 'string').join('、')
+      }
+      return ''
+    }
+    const parts = [
+      pick(['type', 'layout', 'style']),
+      pick(['theme', 'subject', 'scene']),
+      pick(['palette', 'colors', 'color']),
+      pick(['lighting', 'light'])
+    ].filter(Boolean)
+    if (parts.length) return parts.join(' · ').slice(0, maxLen)
+    const first = Object.values(obj).find((v) => typeof v === 'string' && v.trim())
+    if (typeof first === 'string') return first.slice(0, maxLen)
+  } catch {
+    /* 落到下面的兜底 */
+  }
+  return '结构化提示词 · 点击查看完整内容'
 }
 
 function parseLibB(root: string): Array<{ c: LibCase; key: string; cat: string; absImg: string }> {
@@ -130,7 +164,7 @@ function parseLibB(root: string): Array<{ c: LibCase; key: string; cat: string; 
         title: String(c.title ?? ''),
         prompt,
         img,
-        desc: String(c.promptPreview ?? '').replace(/\s+/g, ' ').slice(0, 110) || prompt.replace(/\s+/g, ' ').slice(0, 110),
+        desc: humanizePrompt(String(c.promptPreview ?? '') || prompt),
         tags,
         source: c.sourceLabel ? String(c.sourceLabel) : undefined,
         featured: String(c.featured ?? '') === 'True'

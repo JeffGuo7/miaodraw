@@ -60,14 +60,24 @@ export default function StatusSection({
   const ok = !!health?.ok
   // 三态而不是二态：没配置密钥 ≠ 服务坏了。第一次打开就把页面刷成红色，
   // 会让新用户以为软件出错，而不是"还差一步配置"。
-  const configured = !!bk?.configured || !!health?.hasKey
-  const state: 'ok' | 'bad' | 'idle' = ok ? 'ok' : configured ? 'bad' : 'idle'
-  const title = ok ? '服务在线' : configured ? '服务离线（检查密钥与接入点）' : '还没配置模型服务'
+  // 统一状态机：只配了第三方服务商时，这一栏不该说"故障"，也不该说"还没配置"
+  const anyConfigured = !!(health?.hasAnyKey ?? health?.hasKey)
+  const bailianConfigured = !!bk?.configured || !!health?.hasKey
+  const state: 'ok' | 'bad' | 'idle' | 'ready' = ok ? 'ok' : bailianConfigured ? 'bad' : anyConfigured ? 'ready' : 'idle'
+  const title = ok
+    ? '百炼在线'
+    : bailianConfigured
+      ? '百炼连不上（检查密钥与接入点）'
+      : anyConfigured
+        ? '百炼未配置，但已有其它服务商可用'
+        : '还没配置模型服务'
   const sub = ok
     ? health?.entry || '—'
-    : configured
+    : bailianConfigured
       ? health?.entry || '—'
-      : '粘贴百炼 API Key（下方）后即可开始生成，密钥只保存在本机'
+      : anyConfigured
+        ? '下面第三方服务商里已配置的可以直接出图；想用百炼再填 Key'
+        : '粘贴任意一个服务商的 API Key 即可开始生成，密钥只保存在本机'
 
   return (
     <div className="sec">
@@ -91,33 +101,6 @@ export default function StatusSection({
         </Button>
       </div>
 
-      <div className="stat-grid">
-        <div className="stat">
-          <span className="stat-label">接入点</span>
-          <span className="stat-value">
-            <Typography.Text copyable style={{ fontSize: 13 }}>
-              {health?.entry || '—'}
-            </Typography.Text>
-          </span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">密钥</span>
-          <span className="stat-value code">{bk?.configured ? bk.masked : '未配置'}</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">鉴权方式</span>
-          <span className="stat-value">
-            {bk?.configured ? (
-              <Tag color={bk.plan === 'token-plan' ? 'gold' : bk.plan === 'workspace' ? 'purple' : 'blue'}>
-                {PLAN_LABEL[bk.plan]}
-              </Tag>
-            ) : (
-              <Tag color="warning">未配置密钥</Tag>
-            )}
-          </span>
-        </div>
-      </div>
-
       {bk?.plainFallback && (
         <Alert
           type="warning"
@@ -129,7 +112,19 @@ export default function StatusSection({
 
       <div className="card-block">
         <div className="svc-field-head">
-          <span className="svc-label">百炼 API 密钥</span>
+          <span className="svc-label">
+            百炼 API 密钥
+            {bk?.configured ? (
+              <Tag
+                color={bk.plan === 'token-plan' ? 'gold' : bk.plan === 'workspace' ? 'purple' : 'blue'}
+                style={{ marginInlineStart: 8 }}
+              >
+                {PLAN_LABEL[bk.plan]}
+              </Tag>
+            ) : (
+              <Tag style={{ marginInlineStart: 8 }}>未配置</Tag>
+            )}
+          </span>
           <a
             className="svc-link"
             href="https://bailian.console.aliyun.com/?apiKey=1#/api-key"

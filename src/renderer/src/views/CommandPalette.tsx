@@ -89,7 +89,9 @@ export default function CommandPalette({ open, onClose, onNav, onUsePrompt }: Pr
     }
     for (const h of history.slice(0, 40)) {
       if (out.length >= 22) break
-      if (!kw || h.name.toLowerCase().includes(kw)) {
+      // 作品的检索口径必须和「摘要显示」一致：摘要显示提示词，搜索也要能命中提示词
+      const hay = ((h.params?.prompt ?? '') + ' ' + h.name).toLowerCase()
+      if (!kw || hay.includes(kw)) {
         out.push({
           key: `hist-${h.name}`,
           icon: <HistoryOutlined />,

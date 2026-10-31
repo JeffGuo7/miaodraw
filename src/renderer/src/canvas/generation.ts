@@ -152,7 +152,9 @@ export async function runGenerateNode(genNodeId: string): Promise<void> {
   }
 
   const refNodes = canvasStore.upstreamOf(genNodeId).filter((n) => n.type === 'image' && n.metadata.content)
-  canvasStore.updateNode(genNodeId, { metadata: { ...node.metadata, running: true, error: null } })
+  // 记录 runId：生成要 30~60 秒，必须能取消（主进程按 runId 中断请求）
+  const runId = newId()
+  canvasStore.updateNode(genNodeId, { metadata: { ...node.metadata, running: true, error: null, runId } })
 
   try {
     const refs: RefImage[] = []
@@ -178,7 +180,8 @@ export async function runGenerateNode(genNodeId: string): Promise<void> {
       model: active.model,
       provider: active.provider,
       refs: refs.length ? refs : undefined,
-      parent: genNodeId
+      parent: genNodeId,
+      runId
     })
 
     // 产物图片卡：落在出图节点右侧
@@ -213,7 +216,7 @@ export async function runGenerateNode(genNodeId: string): Promise<void> {
     message.error(`生成失败：${msg}`)
   } finally {
     const cur = canvasStore.getState().nodes.find((n) => n.id === genNodeId)
-    if (cur) canvasStore.updateNode(genNodeId, { metadata: { ...cur.metadata, running: false } })
+    if (cur) canvasStore.updateNode(genNodeId, { metadata: { ...cur.metadata, running: false, runId: '' } })
   }
 }
 

@@ -715,7 +715,8 @@ function registerIpc(): void {
         })
       )
       stats.sort((a, b) => b.mtime - a.mtime)
-      return stats.slice(0, 300)
+      // 上限 1000 而不是 300：超过上限的作品在应用里"消失"比慢一点更糟；前端按需分批渲染
+      return stats.slice(0, 1000)
     } catch {
       return []
     }
