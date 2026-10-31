@@ -1141,3 +1141,26 @@
 .ivc-params-caret.is-open {
   transform: rotate(180deg);
 }
+/* ── 选中节点浮动操作条（屏幕空间，恒定大小） ── */
+.ivc-nodeactions {
+  position: absolute;
+  z-index: var(--z-canvas-panel);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  animation: ivc-pop 140ms ease-out;
+}
+
+.ivc-nodeactions-name {
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 0 6px 0 4px;
+  border-right: 1px solid var(--line);
+  margin-right: 2px;
+}

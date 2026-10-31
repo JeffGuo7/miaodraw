@@ -994,6 +994,15 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         </div>
       )}
 
+      <SelectionActions
+        onFocus={(id) => {
+          const node = canvasStore.getState().nodes.find((n) => n.id === id)
+          if (!node) return
+          const vp = focusNode(node, canvasSize())
+          if (vp) animateTo(vp)
+        }}
+      />
+
       <MiniMap
         onNavigate={(vp) => {
           interruptNav()
@@ -1044,6 +1053,60 @@ function SnapGuideLayer(): JSX.Element | null {
         )
       )}
     </>
+  )
+}
+
+/**
+ * 选中节点浮动操作条（屏幕空间，只对单选生效）。
+ *
+ * 为什么放屏幕空间：节点内部会随缩放一起变小，缩到 40% 时按钮已经点不中；
+ * 这里用「世界坐标 × k + 视口偏移」换算成屏幕坐标，按钮大小恒定。
+ */
+function SelectionActions({ onFocus }: { onFocus: (id: string) => void }): JSX.Element | null {
+  const selection = useSelection()
+  const viewport = useViewport()
+  const id = selection.length === 1 ? selection[0] : ''
+  const node = useNode(id)
+  if (!id || !node) return null
+  const k = viewport.k > 0 ? viewport.k : 1
+  const nodeLeft = viewport.x + node.x * k
+  const nodeTop = viewport.y + node.y * k
+  const nodeBottom = nodeTop + node.height * k
+  const above = nodeTop - 44
+  const top = above >= 8 ? above : Math.min(nodeBottom + 8, 2000)
+  return (
+    <div
+      className="ivc-nodeactions ivc-no-zoom"
+      data-node-actions="true"
+      style={{ left: Math.max(8, nodeLeft), top }}
+    >
+      <span className="ivc-nodeactions-name">{NODE_SPECS[node.type].title}</span>
+      <Tooltip title="复制副本（Ctrl+D）">
+        <Button
+          size="small"
+          type="text"
+          icon={<CopyOutlined />}
+          data-node-action="duplicate"
+          onClick={() => {
+            canvasStore.select(node.id)
+            canvasStore.duplicateSelection()
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="聚焦到这个节点（Shift+F）">
+        <Button size="small" type="text" icon={<SearchOutlined />} data-node-action="focus" onClick={() => onFocus(node.id)} />
+      </Tooltip>
+      <Tooltip title="删除（Delete）">
+        <Button
+          size="small"
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          data-node-action="delete"
+          onClick={() => canvasStore.removeNode(node.id)}
+        />
+      </Tooltip>
+    </div>
   )
 }
 

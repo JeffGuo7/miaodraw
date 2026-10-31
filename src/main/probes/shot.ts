@@ -1624,6 +1624,39 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     console.log('[shot] canvas-quick:', r)
     check('canvas-quick', r)
   }
+  if (process.env.SHOT_CANVAS_ACTIONS === '1') {
+    // 节点浮动操作条探针：单选时出现，复制副本 +1、删除回到原数量
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
+        const count = () => document.querySelectorAll('[data-node-id]').length
+        const before = count()
+        byText('文本').click()
+        await sleep(500)
+        const afterCreate = count()
+        const bar = document.querySelector('[data-node-actions="true"]')
+        if (!bar) return 'ERR: 单选未出现浮动操作条'
+        const dup = bar.querySelector('[data-node-action="duplicate"]')
+        const del = bar.querySelector('[data-node-action="delete"]')
+        if (!dup || !del) return 'ERR: 操作条缺少按钮'
+        dup.click()
+        await sleep(400)
+        const afterDup = count()
+        const barAfterDup = !!document.querySelector('[data-node-actions="true"]')
+        del.click()
+        await sleep(400)
+        const afterDelete = count()
+        const ok = afterCreate === before + 1 && afterDup === before + 2 && afterDelete === before + 1 && barAfterDup
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ before, afterCreate, afterDup, afterDelete, barAfterDup })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-actions:', r)
+    check('canvas-actions', r)
+  }
   if (process.env.SHOT_CANVAS_DRAG === '1') {
     // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」
     const r = await w.webContents.executeJavaScript(
