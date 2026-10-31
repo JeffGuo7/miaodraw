@@ -234,7 +234,7 @@ export default function App(): JSX.Element {
             </Tooltip>
           </div>
         </Layout.Header>
-        <Layout.Content className="app-content">
+        <Layout.Content className={`app-content${view === 'canvas' || view === 'compose' ? ' app-content-flush' : ''}`}>
           <div style={{ display: view === 'create' ? 'block' : 'none' }}>
             <CreateView
               seed={createSeed}

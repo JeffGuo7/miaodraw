@@ -55,6 +55,14 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     watchdogMs
   )
   await new Promise((r) => setTimeout(r, 3000))
+  // 新 profile 首次启动会弹「新手引导」模态：它会拦截键盘/指针探针（? 键被守卫吃掉、点击落在遮罩上）。
+  // 探针只验功能，不验引导，统一先跳过。
+  await w.webContents
+    .executeJavaScript(
+      `(() => { const b = [...document.querySelectorAll('.ant-modal button')].find(x => (x.textContent || '').includes('跳过')); if (b) { b.click(); return 'skipped' } return 'none' })().catch(() => 'err')`
+    )
+    .catch(() => undefined)
+  await new Promise((r) => setTimeout(r, 400))
   const view = process.env.SHOT_VIEW
   if (view && VIEW_INDEX[view] !== undefined) {
     await w.webContents.executeJavaScript(
@@ -302,7 +310,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     // 画布工作台自测：点工具条新建三类节点，断言 DOM 中真的出现节点卡片
     const r = await w.webContents.executeJavaScript(
       `(async () => {
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const made = []
         for (const t of ['文本', '图片', '视频']) {
           const b = byText(t)
@@ -325,7 +333,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const genBtn = byText('出图')
         if (!genBtn) return 'ERR: 工具条无出图按钮'
         genBtn.click()
@@ -358,7 +366,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const btn = byText('视频')
         if (!btn) return 'ERR: 工具条无视频按钮'
         btn.click()
@@ -412,7 +420,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const btn = byText('视频')
         if (!btn) return 'ERR: 工具条无视频按钮'
         btn.click()
@@ -458,7 +466,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const openDb = () => new Promise((res, rej) => { const rq = indexedDB.open('miaodraw-canvas'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
         const db = await openDb()
         const all = (store) => new Promise((res, rej) => { const tx = db.transaction(store, 'readonly'); const rq = tx.objectStore(store).getAll(); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error) })
@@ -703,7 +711,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('对话').click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -760,7 +768,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
         const setText = (ta, v) => {
           const s = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
@@ -849,9 +857,9 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const chatBtn = byText('对话')
-        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + '）'
+        if (!chatBtn) return 'ERR: 未找到对话按钮（toolbar=' + [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].map(b => b.textContent).join('/') + ' | menu=' + document.querySelectorAll('.ant-menu-item').length + '）'
         // 先建一个画布节点：后面要断言"发送后画布不被阻塞（可拖动）"
         byText('文本').click()
         await sleep(500)
@@ -949,7 +957,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('对话').click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -1009,7 +1017,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('对话').click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -1146,7 +1154,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('对话').click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -1213,7 +1221,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1200)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('对话').click()
         await sleep(400)
         const panel = document.querySelector('[data-testid="chat-panel"]')
@@ -1323,7 +1331,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         if (menu) menu.click()
         await sleep(1200)
         // 建两个画布节点，确保有节点可被重渲染
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('文本').click(); await sleep(300)
         byText('图片').click(); await sleep(300)
         byText('对话').click(); await sleep(400)
@@ -1523,7 +1531,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1500)
-        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const toolbar = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const nodesByTitle = (t) => [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes(t))
         toolbar('图片').click(); await sleep(600)
         toolbar('出图').click(); await sleep(600)
@@ -1542,7 +1550,11 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: portCx, clientY: portCy, pointerId: 3, button: 0, buttons: 1 }))
         await sleep(120)
         const gr = gen.getBoundingClientRect()
-        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, buttons: 1 }))
+        // 连线命中已改为「目标左侧中部锚点的圆形热区」(44px 屏幕半径)：
+        // 拖到节点身上不再成连，所以探针也必须瞄锚点，否则测的是旧语义。
+        const targetX = gr.left + 2
+        const targetY = gr.top + gr.height / 2
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: targetX, clientY: targetY, pointerId: 3, buttons: 1 }))
         await sleep(220)
         const path = document.querySelector('[data-pending-line]')
         if (!path) return 'ERR: 橡皮筋未渲染'
@@ -1552,7 +1564,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const m = d.match(/M\\s+(-?[\\d.]+)\\s+(-?[\\d.]+)/)
         if (!m) return 'ERR: path d 解析失败: ' + d
         const world = document.querySelector('.ivc-world')
-        const tm = (world.style.transform || '').match(/translate\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px\\)\\s*scale\\(([\\d.]+)\\)/)
+        const tm = (world.style.transform || '').match(/translate(?:3d)?\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px(?:,\\s*0px)?\\)\\s*scale\\(([\\d.]+)\\)/)
         const k = tm ? Number(tm[3]) : 1
         const vx = tm ? Number(tm[1]) : 0
         const vy = tm ? Number(tm[2]) : 0
@@ -1562,7 +1574,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const startY = rootRect.top + vy + Number(m[2]) * k
         const dx = Math.abs(startX - portCx)
         const dy = Math.abs(startY - portCy)
-        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: gr.left + gr.width / 2, clientY: gr.top + 20, pointerId: 3, button: 0 }))
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: targetX, clientY: targetY, pointerId: 3, button: 0 }))
         await sleep(300)
         const ok = inCanvasLayer && highlighted && dx <= 1 && dy <= 1
         return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ inCanvasLayer, highlighted, startDx: +dx.toFixed(2), startDy: +dy.toFixed(2), scale: k })
@@ -1571,12 +1583,53 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     console.log('[shot] canvas-connect:', r)
     check('canvas-connect', r)
   }
+  if (process.env.SHOT_CANVAS_QUICK === '1') {
+    // 快速建图探针：单击连线端口 → 就地弹「新建」菜单 → 选「出图」→ 自动建节点并自动连线
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const menu = document.querySelectorAll('.ant-menu-item')[1]
+        if (menu) menu.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
+        byText('图片').click(); await sleep(700)
+        const imgs = [...document.querySelectorAll('.ivc-node')].filter(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes('图片'))
+        const img = imgs[imgs.length - 1]
+        if (!img) return 'ERR: 图片节点未创建'
+        const port = img.querySelector('.ivc-node-port')
+        if (!port) return 'ERR: 图片节点无端口'
+        const pr = port.getBoundingClientRect()
+        const cx = pr.left + pr.width / 2
+        const cy = pr.top + pr.height / 2
+        const nodesBefore = document.querySelectorAll('[data-node-id]').length
+        const connsBefore = document.querySelectorAll('.ivc-connections > g > [data-connection-id]').length
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 11, button: 0, buttons: 1 }))
+        await sleep(80)
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx, clientY: cy, pointerId: 11, button: 0 }))
+        await sleep(300)
+        const menuEl = document.querySelector('[data-quick-create="true"]')
+        if (!menuEl) return 'ERR: 端口单击未弹出新建菜单'
+        const itemCount = menuEl.querySelectorAll('[data-create-type]').length
+        const genBtn = [...menuEl.querySelectorAll('[data-create-type]')].find(b => b.getAttribute('data-create-type') === 'generate')
+        if (!genBtn) return 'ERR: 快速新建菜单缺少出图项'
+        genBtn.click()
+        await sleep(500)
+        const nodesAfter = document.querySelectorAll('[data-node-id]').length
+        const connsAfter = document.querySelectorAll('.ivc-connections > g > [data-connection-id]').length
+        const closed = !document.querySelector('[data-quick-create="true"]')
+        const ok = nodesAfter === nodesBefore + 1 && connsAfter === connsBefore + 1 && closed && itemCount >= 7
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ nodesBefore, nodesAfter, connsBefore, connsAfter, itemCount, closed })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-quick:', r)
+    check('canvas-quick', r)
+  }
   if (process.env.SHOT_CANVAS_DRAG === '1') {
     // 拖拽手感探针：合成 pointerdown→pointermove×10→pointerup，测「拖动过程中是否有实时视觉反馈」
     const r = await w.webContents.executeJavaScript(
       `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         // 探针自足：先切到画布视图。否则画布容器 display:none 时节点 getBoundingClientRect 恒为 0，
         // 任何实现都会被测成「无位移」（基线那次 false 即由此放大，不能作为实现是否跟手的唯一判据）。
         const canvasMenu = document.querySelectorAll('.ant-menu-item')[1]
@@ -1621,7 +1674,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         await sleep(1500)
         const count = () => document.querySelectorAll('[data-node-id]').length
         const before = count()
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('文本').click()
         await sleep(400)
         const afterAdd = count()
@@ -1651,7 +1704,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         if (menu) menu.click()
         await sleep(1500)
         const count = () => document.querySelectorAll('[data-node-id]').length
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         byText('文本').click()
         await sleep(400)
         const before = count()
@@ -1676,7 +1729,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1500)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const beforeIds = new Set([...document.querySelectorAll('[data-node-id]')].map(n => n.getAttribute('data-node-id')))
         byText('文本').click()
         await sleep(150)
@@ -1738,7 +1791,7 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
         const menu = document.querySelectorAll('.ant-menu-item')[1]
         if (menu) menu.click()
         await sleep(1500)
-        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button')].find(b => b.textContent.includes(t))
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
         const connCount = () => document.querySelectorAll('.ivc-connections > g > g').length
         const before = new Set([...document.querySelectorAll('[data-node-id]')].map(n => n.getAttribute('data-node-id')))
         byText('文本').click()
@@ -1753,7 +1806,8 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
           const pr = port.getBoundingClientRect()
           const tr = toEl.getBoundingClientRect()
           port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 21, button: 0, buttons: 1 }))
-          const tx = tr.left + tr.width / 2, ty = tr.top + tr.height / 2
+          // 连线命中已改为目标左侧中部锚点的圆形热区；瞄节点中心不再成连（这是刻意的防误连）
+          const tx = tr.left + 2, ty = tr.top + tr.height / 2
           window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: tx, clientY: ty, pointerId: 21, buttons: 1 }))
           window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: tx, clientY: ty, pointerId: 21, button: 0 }))
           return true

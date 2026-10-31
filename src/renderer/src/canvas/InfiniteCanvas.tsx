@@ -3,13 +3,17 @@
  * https://github.com/basketikun/infinite-canvas
  * 原 src/components/canvas/infinite-canvas.tsx，适配 miaodraw（无 tailwind，样式走 canvas.css）。
  * 保留原作者信息与前端标识，此文件头部即署名。
+ *
+ * 本文件只负责「视口」：滚轮/平移/网格/指针路由。节点、连线、菜单都在外层。
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { JSX } from 'react'
 
 import type { ViewportTransform } from './types'
 import { canvasStore } from './store'
 import { attachCanvasRect, getCanvasRect } from './rect-cache'
+import { getCanvasPrefs, subscribeCanvasPrefs, type CanvasBackgroundMode } from './canvas-prefs'
+import { resolveWheelIntent, wheelDeltaToPixels, wheelZoomFactor, type WheelGesture } from './canvas-wheel'
 
 export type CanvasTool = 'select' | 'pan'
 
@@ -28,6 +32,26 @@ interface InfiniteCanvasProps {
 
 const MIN_SCALE = 0.05
 const MAX_SCALE = 5
+
+/**
+ * 浮层白名单：AntD 的下拉/气泡/弹窗都通过 Portal 挂到 body，事件冒泡仍会经过画布容器。
+ * 不排除的话，在下拉里滚轮会缩放画布、按下会开始平移画布（旧实现的真实 bug）。
+ */
+const OVERLAY_IGNORE_SELECTOR = [
+  '.ivc-no-zoom',
+  '.ant-modal-root',
+  '.ant-popover',
+  '.ant-dropdown',
+  '.ant-select-dropdown',
+  '.ant-picker-dropdown',
+  '.ant-tooltip',
+  '.ant-message'
+].join(',')
+
+function isOverlayTarget(target: EventTarget | null): boolean {
+  const el = target instanceof Element ? target : null
+  return Boolean(el?.closest(OVERLAY_IGNORE_SELECTOR))
+}
 
 /**
  * 安全地捕获指针。
@@ -55,21 +79,19 @@ export function InfiniteCanvas({
   children
 }: InfiniteCanvasProps): JSX.Element {
   const panState = useRef({ isPanning: false, startX: 0, startY: 0, initialX: 0, initialY: 0, hasMoved: false, startedOnBackground: false })
-  const scaleRef = useRef(viewport.k)
+  const vpRef = useRef(viewport)
+  const pendingRef = useRef<ViewportTransform | null>(null)
   const frameRef = useRef<number | null>(null)
-  const nextViewportRef = useRef<ViewportTransform | null>(null)
-  /** 滚轮累加：同一帧内多次 wheel 只提交一次，避免连续滚轮互相覆盖与整页多次重渲染 */
-  const wheelRef = useRef<{ k: number; mx: number; my: number } | null>(null)
-  const wheelRaf = useRef<number | null>(null)
+  const gestureRef = useRef<WheelGesture | null>(null)
   const [spacePressed, setSpacePressed] = useState(false)
-  const [ctrlPressed, setCtrlPressed] = useState(false)
   const [panning, setPanning] = useState(false)
+  const prefs = useSyncExternalStore(subscribeCanvasPrefs, getCanvasPrefs)
 
   useEffect(() => {
-    scaleRef.current = viewport.k
-  }, [viewport.k])
+    vpRef.current = viewport
+  }, [viewport])
 
-  // P0-3：容器 rect 由 ResizeObserver 缓存维护，拖动/连线热路径不再每帧查询 DOM
+  // 容器 rect 由 ResizeObserver 缓存维护，拖动/连线热路径不再每帧查询 DOM
   useEffect(() => {
     attachCanvasRect(containerRef.current)
     return () => attachCanvasRect(null)
@@ -78,10 +100,23 @@ export function InfiniteCanvas({
   useEffect(
     () => () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current)
-      if (wheelRaf.current) cancelAnimationFrame(wheelRaf.current)
     },
     []
   )
+
+  /** 同一帧只提交一次视口变更：连续滚轮/拖动不会互相覆盖，也不会让 React 每帧重渲染整棵树 */
+  const scheduleViewport = (vp: ViewportTransform): void => {
+    pendingRef.current = vp
+    if (frameRef.current) return
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null
+      const next = pendingRef.current
+      pendingRef.current = null
+      if (next) onViewportChange(next)
+    })
+  }
+
+  const currentViewport = (): ViewportTransform => pendingRef.current ?? vpRef.current
 
   useEffect(() => {
     const isFormTarget = (t: EventTarget | null): boolean => {
@@ -89,25 +124,21 @@ export function InfiniteCanvas({
       return !!(el?.closest("input,textarea,select,[contenteditable='true']"))
     }
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Control') setCtrlPressed(true)
       if (e.code !== 'Space') return
       if (isFormTarget(e.target)) return
+      // 空格已被别处消费（例如打开了浮层）就不再抢占
       e.preventDefault()
       setSpacePressed(true)
     }
     const onKeyUp = (e: KeyboardEvent): void => {
-      if (e.code === 'Space') {
-        if (!isFormTarget(e.target)) e.preventDefault()
-        setSpacePressed(false)
-      }
-      if (e.key === 'Control') setCtrlPressed(false)
+      if (e.code !== 'Space') return
+      if (!isFormTarget(e.target)) e.preventDefault()
+      setSpacePressed(false)
     }
     const onBlur = (): void => {
       setSpacePressed(false)
-      setCtrlPressed(false)
       panState.current.isPanning = false
       setPanning(false)
-      document.body.style.cursor = ''
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -119,47 +150,59 @@ export function InfiniteCanvas({
     }
   }, [])
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>): void => {
-    const el = e.target instanceof Element ? e.target : null
-    if (el?.closest('.ivc-no-zoom')) return
+  /** 滚轮：先判意图（缩放 / 平移），再按 1/k 反解锚点 */
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const onWheel = (e: WheelEvent): void => {
+      if (isOverlayTarget(e.target)) return
+      // 画布内一律接管：既避免浏览器整页缩放，也避免触控板横向手势被当成「后退」
+      e.preventDefault()
+      const now = performance.now()
+      const intent = resolveWheelIntent(e, gestureRef.current, now, prefs.wheelBehavior)
+      gestureRef.current = { intent, at: now }
+      const dx = wheelDeltaToPixels(e.deltaX, e.deltaMode)
+      const dy = wheelDeltaToPixels(e.deltaY, e.deltaMode)
+      const vp = currentViewport()
 
-    // 读 store 最新视口（props 可能同帧过期）；deltaMode/ctrl 归一化参考 d3-zoom 的 defaultWheelDelta：
-    // 触控板 pinch 表现为 ctrl+wheel 的小 delta，需要放大 10 倍才有等价手感。
-    const vp = canvasStore.getState().viewport
-    const unit = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002
-    const delta = -e.deltaY * unit * (e.ctrlKey ? 10 : 1)
-    const prevK = wheelRef.current?.k ?? vp.k
-    const nextK = Math.min(Math.max(prevK * Math.pow(2, delta), MIN_SCALE), MAX_SCALE)
-    const rect = getCanvasRect()
-    wheelRef.current = { k: nextK, mx: e.clientX - rect.left, my: e.clientY - rect.top }
-    if (wheelRaf.current) return
-    wheelRaf.current = requestAnimationFrame(() => {
-      wheelRaf.current = null
-      const pending = wheelRef.current
-      wheelRef.current = null
-      if (!pending) return
-      const cur = canvasStore.getState().viewport
-      if (pending.k === cur.k) return
-      const worldX = (pending.mx - cur.x) / cur.k
-      const worldY = (pending.my - cur.y) / cur.k
-      onViewportChange({ x: pending.mx - worldX * pending.k, y: pending.my - worldY * pending.k, k: pending.k })
-    })
-  }
+      if (intent === 'pan') {
+        scheduleViewport({ x: vp.x - dx, y: vp.y - dy, k: vp.k })
+        return
+      }
+      const rect = getCanvasRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const k = Math.min(Math.max(vp.k * wheelZoomFactor(dy, e.ctrlKey || e.metaKey), MIN_SCALE), MAX_SCALE)
+      if (k === vp.k) return
+      const worldX = (mx - vp.x) / vp.k
+      const worldY = (my - vp.y) / vp.k
+      scheduleViewport({ x: mx - worldX * k, y: my - worldY * k, k })
+    }
+    container.addEventListener('wheel', onWheel, { passive: false })
+    return () => container.removeEventListener('wheel', onWheel)
+  }, [containerRef, prefs.wheelBehavior])
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (isOverlayTarget(e.target)) return
     const el = e.target instanceof Element ? e.target : null
-    if (el?.closest('.ivc-no-zoom')) return
     const isBackgroundClick = !el?.closest('[data-node-id],[data-connection-id]')
-    const temporaryPan = e.ctrlKey || spacePressed
-    const activeTool: CanvasTool = temporaryPan ? (tool === 'select' ? 'pan' : 'select') : tool
-    const shouldPan = e.button === 1 || (e.button === 0 && activeTool === 'pan' && isBackgroundClick)
+    // 中键永远是平移；空格临时切平移；工具选抓手时左键平移
+    const shouldPan = e.button === 1 || (e.button === 0 && (spacePressed || (tool === 'pan' && isBackgroundClick)))
 
     if (shouldPan) {
       e.preventDefault()
       capturePointer(e.currentTarget, e.pointerId)
-      panState.current = { isPanning: true, startX: e.clientX, startY: e.clientY, initialX: viewport.x, initialY: viewport.y, hasMoved: false, startedOnBackground: isBackgroundClick }
+      const vp = canvasStore.getState().viewport
+      panState.current = {
+        isPanning: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        initialX: vp.x,
+        initialY: vp.y,
+        hasMoved: false,
+        startedOnBackground: isBackgroundClick
+      }
       setPanning(true)
-      document.body.style.cursor = 'grabbing'
       return
     }
 
@@ -171,8 +214,9 @@ export function InfiniteCanvas({
   }
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    if (isOverlayTarget(e.target)) return
     const el = e.target instanceof Element ? e.target : null
-    if (el?.closest('.ivc-no-zoom,[data-node-id],[data-connection-id]')) return
+    if (el?.closest('[data-node-id],[data-connection-id]')) return
     onCanvasDoubleClick?.(e)
   }
 
@@ -182,19 +226,13 @@ export function InfiniteCanvas({
       const dx = e.clientX - panState.current.startX
       const dy = e.clientY - panState.current.startY
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) panState.current.hasMoved = true
-      nextViewportRef.current = { x: panState.current.initialX + dx, y: panState.current.initialY + dy, k: scaleRef.current }
-      if (frameRef.current) return
-      frameRef.current = requestAnimationFrame(() => {
-        frameRef.current = null
-        if (nextViewportRef.current) onViewportChange(nextViewportRef.current)
-      })
+      scheduleViewport({ x: panState.current.initialX + dx, y: panState.current.initialY + dy, k: vpRef.current.k })
     }
     const onPointerUp = (): void => {
       if (!panState.current.isPanning) return
       if (!panState.current.hasMoved && panState.current.startedOnBackground) onCanvasDeselect?.()
       panState.current.isPanning = false
       setPanning(false)
-      document.body.style.cursor = ''
     }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
@@ -204,56 +242,68 @@ export function InfiniteCanvas({
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
     }
-  }, [onCanvasDeselect, onViewportChange])
+  }, [onCanvasDeselect])
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-    const preventWheel = (e: WheelEvent): void => {
-      const el = e.target instanceof Element ? e.target : null
-      if (el?.closest('.ivc-no-zoom')) return
-      e.preventDefault()
-    }
-    container.addEventListener('wheel', preventWheel, { passive: false })
-    return () => container.removeEventListener('wheel', preventWheel)
-  }, [containerRef])
-
-  const temporaryPan = ctrlPressed || spacePressed
-  const activeTool: CanvasTool = temporaryPan ? (tool === 'select' ? 'pan' : 'select') : tool
-  const cursor = panning ? 'grabbing' : activeTool === 'pan' ? 'grab' : undefined
+  const activeTool: CanvasTool = spacePressed ? (tool === 'select' ? 'pan' : 'select') : tool
+  const rootClass = [
+    'ivc-root',
+    panning ? 'is-panning' : '',
+    !panning && activeTool === 'pan' ? 'is-pan-tool' : '',
+    panning ? 'is-interacting' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div
       ref={containerRef}
-      className="ivc-root"
-      style={{ cursor }}
+      className={rootClass}
+      data-ivc-tool={activeTool}
+      data-ivc-panning={panning ? 'true' : undefined}
       onPointerDown={handlePointerDown}
       onDoubleClick={handleDoubleClick}
-      onWheel={handleWheel}
       onContextMenu={onContextMenu}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
     >
-      <CanvasGrid viewport={viewport} />
-      <div className="ivc-world" style={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.k})` }}>
+      <CanvasGrid viewport={viewport} mode={prefs.backgroundMode} />
+      <div
+        className="ivc-world"
+        style={{ transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.k})` }}
+      >
         {children}
       </div>
     </div>
   )
 }
 
-/** 点阵网格背景（对应原 CanvasGrid dots 模式） */
-function CanvasGrid({ viewport }: { viewport: ViewportTransform }): JSX.Element {
-  const gridSize = 48 * viewport.k
-  const x = viewport.x % gridSize
-  const y = viewport.y % gridSize
-  const dotSize = viewport.k < 0.12 ? 0.8 : 1.15
+/**
+ * 画布网格（点阵 / 线条 / 空白）。
+ *
+ * 间距策略：世界对齐 + 屏幕间距量化在 20–80px 之间。
+ * 纯「随缩放线性变化」在 k=0.1 时会退化成 4.8px 的摩尔纹，纯「屏幕固定」又失去尺度感；
+ * 量化取 32 世界像素的 2^n 倍，两个诉求都能满足。
+ */
+function CanvasGrid({ viewport, mode }: { viewport: ViewportTransform; mode: CanvasBackgroundMode }): JSX.Element | null {
+  if (mode === 'blank') return null
+  const k = viewport.k > 0 ? viewport.k : 1
+  let spacing = 32 * k
+  while (spacing < 20) spacing *= 2
+  while (spacing > 80) spacing /= 2
+  const x = ((viewport.x % spacing) + spacing) % spacing
+  const y = ((viewport.y % spacing) + spacing) % spacing
+  const dot = k < 0.2 ? 0.9 : 1.2
+  const backgroundImage =
+    mode === 'lines'
+      ? 'linear-gradient(var(--ivc-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--ivc-grid-line) 1px, transparent 1px)'
+      : `radial-gradient(circle, var(--ivc-grid-dot) ${dot}px, transparent ${dot + 0.3}px)`
   return (
     <div
       className="ivc-grid"
+      data-grid-mode={mode}
       style={{
-        backgroundImage: `radial-gradient(circle, rgba(100,116,139,.55) ${dotSize}px, transparent ${dotSize + 0.2}px)`,
-        backgroundSize: `${gridSize}px ${gridSize}px`,
+        backgroundImage,
+        backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${x}px ${y}px`
       }}
     />

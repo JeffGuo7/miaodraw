@@ -13,6 +13,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 import type { CanvasConnection, CanvasNodeData, CanvasNodeType, ViewportTransform } from './types'
 import { NODE_SPECS } from './types'
+import { resolveNodePlacement } from './placement'
 
 export interface CanvasState {
   nodes: CanvasNodeData[]
@@ -131,18 +132,15 @@ export const canvasStore = {
     const spec = NODE_SPECS[type]
     const id = `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     const vp = state.viewport
-    // 新建节点错位摆放：连点工具条时不再全部堆在视口中心（Excalidraw 同款 32px 步进）
-    const slot = state.nodes.length % 15
-    const stagger = { x: (slot % 5) * 32, y: Math.floor(slot / 5) * 32 }
-    const centerX = -vp.x + vp.k > 0 ? (window.innerWidth / 2 - vp.x) / vp.k - spec.width / 2 : spec.width
+    // 落位：没给坐标就放视口中心，然后与已有节点做避让（32px 步进对 320px 宽的卡片没有意义）
+    const centerX = (window.innerWidth / 2 - vp.x) / vp.k - spec.width / 2
     const centerY = (window.innerHeight / 2 - vp.y) / vp.k - spec.height / 2
-    const x = at?.x ?? centerX + stagger.x
-    const y = at?.y ?? centerY + stagger.y
+    const spot = resolveNodePlacement(state.nodes, spec, at?.x ?? centerX, at?.y ?? centerY)
     const node: CanvasNodeData = {
       id,
       type,
-      x: Math.round(x),
-      y: Math.round(y),
+      x: spot.x,
+      y: spot.y,
       width: spec.width,
       height: spec.height,
       metadata: JSON.parse(JSON.stringify(spec.metadata)),

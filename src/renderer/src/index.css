@@ -88,6 +88,12 @@ body {
   overflow-y: auto;
 }
 
+/* 画布类视图满幅铺开：无限画布是「工作台」，不该像卡片一样缩在一圈留白里 */
+.app-content-flush {
+  padding: 0;
+  overflow: hidden;
+}
+
 /* ---------- 卡片基底 ---------- */
 .app-content .ant-card {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
@@ -1313,4 +1319,51 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #bcbcc4;
+}
+
+/* ---------- 交互契约（全站统一手感） ----------
+ * 参考成熟产品的做法：把「按下/悬停/聚焦」的反馈收敛成 4 组规则，
+ * 组件不再各写一套 transition，也不出现「有的按钮 0.3s、有的 0.1s」。
+ *   状态色过渡 180ms；位移/缩放 120ms；按下 scale .975（纯图标 .92）；主按钮悬停上浮 1px。
+ */
+:where(.ant-btn, .ant-menu-item, .ant-segmented-item, .ivc-tool, .ivc-node-port, .ivc-zoom-label) {
+  transition:
+    background-color var(--dur-base, 180ms) ease,
+    border-color var(--dur-base, 180ms) ease,
+    color var(--dur-base, 180ms) ease,
+    box-shadow var(--dur-base, 180ms) ease,
+    transform var(--dur-fast, 120ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+:where(.ant-btn, .ivc-tool, .ivc-zoom-label):active {
+  transform: scale(0.975);
+}
+
+:where(.ant-btn-icon-only):active {
+  transform: scale(0.92);
+}
+
+/* 主按钮只做 1px 上浮：更明显的位移在密集界面里会显得晃 */
+:where(.ant-btn-primary):hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+:where(.ant-btn-primary):active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+/* 键盘聚焦才画焦点环（鼠标点击不画），2px 品牌色 22% 透明 */
+:where(a, button, [role='button'], .ant-btn):focus-visible {
+  outline: 2px solid rgba(0, 113, 227, 0.22);
+  outline-offset: 2px;
+}
+
+/* 尊重系统「减少动态效果」：动画一律降到 1ms，不做位移 */
+@media (prefers-reduced-motion: reduce) {
+  :where(*) {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

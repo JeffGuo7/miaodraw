@@ -1,9 +1,12 @@
 /**
- * 连线命中判定（P0-5）—— 纯几何、无 DOM 依赖，可按 1/k 补偿到屏幕恒定像素，单测见 connection-hit.test.mjs。
+ * 连线命中判定（P0-5 → 体验重构）—— 纯几何、无 DOM 依赖，可按 1/k 补偿到屏幕恒定像素。
  *
- * 移植依据：上游 infinite-canvas `project.tsx` L655-689 `getConnectionDropTarget`
- * （世界坐标 → 节点包围盒比较；inside(0) > handle(1) > expanded(2) 三档优先级；
- * padding 与 handleRadius 均除以 scale，保证缩放后屏幕命中面积不变）。
+ * 设计依据（参考 BeefTV 的连线控制器实测结论）：
+ * - 只认「端口锚点为圆心的圆」，**不再**把节点包围盒/外扩矩形当作可连目标。
+ *   旧实现里 inside(0) 档意味着「拖到节点身上」就直接成连，误连率极高（想连右边那张，
+ *   结果落在左边卡片内部就连到了左边）。
+ * - 半径按屏幕像素给（默认 44），命中面积与缩放无关。
+ * - 重叠节点按层级从上往下取第一个命中的端口（与绘制顺序一致），避免连到被遮住的下层。
  */
 
 export interface HitTestNode {
@@ -17,27 +20,27 @@ export interface HitTestNode {
 export interface HitOptions {
   /** 当前视口缩放 k */
   scale: number
-  /** 端口命中半径（屏幕像素，默认 18） */
-  handleRadiusPx?: number
-  /** 包围盒外扩命中边界（屏幕像素，默认 24） */
-  padPx?: number
+  /** 端口吸附半径（屏幕像素，默认 44） */
+  radiusPx?: number
   /** 排除的节点（源节点自身不能连自己） */
   excludeId?: string
 }
 
-export type HitPriority = 0 | 1 | 2
-
 export interface HitResult {
+  /** 命中的目标节点；未命中为 null */
   nodeId: string | null
-  /** 0=包围盒内 1=端口圆内 2=外扩区；未命中为 null */
-  priority: HitPriority | null
   /** 命中的锚点（目标左侧中部），用于端点吸附 */
   anchor: { x: number; y: number } | null
-  /** 是否落在"接近"范围（外扩区内或端口附近），用于光标/高亮 */
+  /** 是否进入「接近」范围（半径的 1.6 倍内），仅用于光标/提示，不参与成连 */
   isNear: boolean
 }
 
-const EMPTY: HitResult = { nodeId: null, priority: null, anchor: null, isNear: false }
+/** 端口吸附半径（屏幕像素）。44px 约等于一个指尖/光标热区，比旧 18px 好按，又不会误吸邻卡。 */
+export const DEFAULT_SNAP_RADIUS_PX = 44
+/** 「接近」判定倍数：只做视觉提示，不建连 */
+export const NEAR_RADIUS_FACTOR = 1.6
+
+const EMPTY: HitResult = { nodeId: null, anchor: null, isNear: false }
 
 /** 目标端锚点：节点左侧中部（连线落到下游时吸附到这里） */
 export function portAnchor(node: HitTestNode): { x: number; y: number } {
@@ -49,60 +52,25 @@ export function sourcePortAnchor(node: HitTestNode): { x: number; y: number } {
   return { x: node.x + node.width, y: node.y + node.height / 2 }
 }
 
-function inside(node: HitTestNode, x: number, y: number): boolean {
-  return x >= node.x && x <= node.x + node.width && y >= node.y && y <= node.y + node.height
-}
-
-function distance(ax: number, ay: number, bx: number, by: number): number {
-  return Math.hypot(ax - bx, ay - by)
-}
-
 /**
- * 命中测试：优先级最高（数字最小）的候选；同优先级内取**层级更高**者（数组中靠后=后创建=在上层），
- * 层级无法区分（同一节点）时才比距离。重叠节点场景必须按层级选，否则会连到被遮住的下层节点。
+ * 命中测试：从层级最高的节点（数组末尾）往下找，第一个端口圆命中的即为目标。
+ * 这样「明明指向上层那张卡」不会因为下层卡片端口更近而连错。
  */
 export function hitTestConnectionTarget(nodes: HitTestNode[], world: { x: number; y: number }, opts: HitOptions): HitResult {
   const k = opts.scale > 0 ? opts.scale : 1
-  const handleRadius = (opts.handleRadiusPx ?? 18) / k
-  const pad = (opts.padPx ?? 24) / k
+  const radius = (opts.radiusPx ?? DEFAULT_SNAP_RADIUS_PX) / k
+  const nearRadius = radius * NEAR_RADIUS_FACTOR
 
-  let best: HitResult = EMPTY
-  let bestPriority: HitPriority | null = null
-  let bestIndex = -1
-  let bestDist = Number.POSITIVE_INFINITY
-
-  for (let i = 0; i < nodes.length; i++) {
+  let near = false
+  for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i]
     if (opts.excludeId && node.id === opts.excludeId) continue
-
     const anchor = portAnchor(node)
-    const dAnchor = distance(world.x, world.y, anchor.x, anchor.y)
-
-    let priority: HitPriority | null = null
-    if (inside(node, world.x, world.y)) priority = 0
-    else if (dAnchor <= handleRadius) priority = 1
-    else if (
-      world.x >= node.x - pad &&
-      world.x <= node.x + node.width + pad &&
-      world.y >= node.y - pad &&
-      world.y <= node.y + node.height + pad
-    ) {
-      priority = 2
-    }
-    if (priority === null) continue
-
-    const better =
-      bestPriority === null ||
-      priority < bestPriority ||
-      (priority === bestPriority && (i > bestIndex || (i === bestIndex && dAnchor < bestDist)))
-    if (better) {
-      best = { nodeId: node.id, priority, anchor, isNear: true }
-      bestPriority = priority
-      bestIndex = i
-      bestDist = dAnchor
-    }
+    const distance = Math.hypot(world.x - anchor.x, world.y - anchor.y)
+    if (distance <= radius) return { nodeId: node.id, anchor, isNear: true }
+    if (distance <= nearRadius) near = true
   }
-  return best
+  return near ? { ...EMPTY, isNear: true } : EMPTY
 }
 
 /**
@@ -113,8 +81,13 @@ export function snapEndpoint(world: { x: number; y: number }, hit: HitResult): {
   return { x: world.x, y: world.y, snapped: false }
 }
 
-/** 世界坐标 → 三次贝塞尔路径（与 ConnectionLayer 的既有曲线一致） */
+/**
+ * 世界坐标 → 三次贝塞尔路径。
+ * 控制点按水平距离的 1.5 倍留出弧度下限，避免短连线被压成一条折线。
+ */
 export function connectionPath(from: { x: number; y: number }, to: { x: number; y: number }): string {
-  const mx = (from.x + to.x) / 2
-  return `M ${from.x} ${from.y} C ${mx} ${from.y}, ${mx} ${to.y}, ${to.x} ${to.y}`
+  const curvature = Math.max(Math.abs(to.x - from.x) * 0.5, 50)
+  const c1 = { x: from.x + curvature, y: from.y }
+  const c2 = { x: to.x - curvature, y: to.y }
+  return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`
 }

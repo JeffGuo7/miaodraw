@@ -1,52 +1,10 @@
-/* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构 */
+/* 画布工作台样式 — 自有实现，配套移植自 basketikun/infinite-canvas 的引擎/节点结构。
+ *
+ * 全部颜色/圆角/阴影引用 styles/tokens.css 的变量，不再写死色值：
+ * 之前这里一套 #4096ff、设置页一套 #2f54eb、主色 #0071e3，同一个界面三种蓝。
+ */
 
-/* 空画布引导：居中但不拦截画布拖拽（容器 pointer-events: none，按钮单独放开） */
-.ivc-empty {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  pointer-events: none;
-  z-index: 5;
-  max-width: 420px;
-}
-.ivc-empty-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 6px;
-}
-.ivc-empty-desc {
-  font-size: 13px;
-  color: #94a3b8;
-  line-height: 1.7;
-  margin-bottom: 14px;
-}
-.ivc-empty-actions {
-  pointer-events: auto;
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-/* 吸附对齐线（拖动时出现；宽度按 1/k 换算，缩放时保持 1 屏幕像素） */
-.ivc-guide {
-  position: absolute;
-  background: var(--guide);
-  pointer-events: none;
-  z-index: 7;
-}
-
-/* 框选矩形：屏幕坐标覆盖层 */
-.ivc-marquee {
-  position: absolute;
-  border: 1px solid #0071e3;
-  background: rgba(0, 113, 227, 0.08);
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 6;
-}
+/* ── 画布根 ─────────────────────────────── */
 
 .ivc-root {
   position: relative;
@@ -54,19 +12,39 @@
   width: 100%;
   overflow: hidden;
   user-select: none;
-  background: #f7f8fa;
+  background: var(--bg-canvas);
+  cursor: default;
+  /* 触控板横向手势不要触发页面滚动/后退 */
+  overscroll-behavior: none;
+}
+
+.ivc-root.is-pan-tool {
+  cursor: grab;
+}
+
+.ivc-root.is-panning,
+.ivc-root.is-panning * {
+  cursor: grabbing !important;
 }
 
 .ivc-grid {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  opacity: 0.4;
+  --ivc-grid-dot: rgba(100, 116, 139, 0.42);
+  --ivc-grid-line: rgba(100, 116, 139, 0.16);
+  /* 网格固定在屏幕空间按 2^n 量化间距，缩放时不会退化成摩尔纹 */
+  transition: opacity 160ms ease;
+}
+
+.ivc-grid[data-grid-mode='lines'] {
+  opacity: 0.9;
 }
 
 .ivc-world {
   position: absolute;
   transform-origin: top left;
+  will-change: transform;
 }
 
 /* ── 节点 ─────────────────────────────── */
@@ -77,29 +55,36 @@
   top: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e6ee;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-  /* P0-2：位移走 transform（合成层），不再每帧改 left/top 触发布局 */
+  background: var(--bg-panel);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  /* 位移走 transform（合成层），不每帧改 left/top 触发布局 */
   will-change: transform;
   contain: layout style;
-  /* 端口挂在节点外侧，不能再整体裁剪（原 overflow:hidden 把端口外侧裁掉，命中区只剩一半） */
+  /* 端口挂在节点外侧，不能整体裁剪 */
   overflow: visible;
-  /* 只过渡阴影，不碰几何，避免拖动"拖影" */
-  transition: box-shadow 200ms ease;
+  /* 只过渡阴影/描边，不碰几何，避免拖动「拖影」 */
+  transition:
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.ivc-node:hover {
+  box-shadow: var(--shadow-md);
 }
 
 /* 圆角裁剪下沉到内容层，视觉与原来一致 */
 .ivc-node-body {
-  border-radius: 0 0 9px 9px;
+  border-radius: 0 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px);
   overflow: hidden;
 }
 
-/* P0-5：连线落点高亮 */
-.ivc-node-drop {
+/* 连线落点高亮 / 框选预览高亮：同一套描边，避免两处不一致 */
+.ivc-node-drop,
+.ivc-node[data-preview-selected='true'] {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(64, 150, 255, 0.35), 0 2px 8px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 0 0 2px var(--brand-soft), var(--shadow-md);
 }
 
 /* 正在连线的源节点 */
@@ -109,7 +94,7 @@
 
 .ivc-node-selected {
   border-color: var(--brand);
-  box-shadow: 0 0 0 2px rgba(64, 150, 255, 0.25), 0 2px 8px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 0 0 2px var(--brand-soft), var(--shadow-md);
 }
 
 .ivc-node-group {
@@ -122,12 +107,13 @@
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  background: #f2f4f8;
-  border-bottom: 1px solid #eceff4;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line);
+  border-radius: calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
   cursor: grab;
   flex: 0 0 auto;
   font-size: 12px;
-  color: #475569;
+  color: var(--ink-2);
 }
 
 .ivc-node-header:active {
@@ -138,7 +124,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--ink-4);
 }
 
 .ivc-node-dot[data-type='image'] { background: #10b981; }
@@ -146,24 +132,31 @@
 .ivc-node-dot[data-type='audio'] { background: #a855f7; }
 .ivc-node-dot[data-type='config'] { background: #60a5fa; }
 .ivc-node-dot[data-type='group'] { background: #94a3b8; }
+.ivc-node-dot[data-type='generate'] { background: var(--brand); }
 
 .ivc-node-title {
   flex: 1;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ivc-node-del {
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--ink-4);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;
+  border-radius: var(--r-sm);
+  transition: color 140ms ease, background 140ms ease;
 }
 
 .ivc-node-del:hover {
-  color: #ef4444;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .ivc-node-body {
@@ -181,6 +174,7 @@
   padding: 8px;
   font-size: 13px;
   background: transparent;
+  color: var(--ink);
 }
 
 .ivc-img {
@@ -195,7 +189,7 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--ink-4);
   padding: 8px;
   text-align: center;
 }
@@ -211,8 +205,8 @@
   width: 14px;
   height: 14px;
   cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, rgba(64, 150, 255, 0.5) 50%);
-  border-bottom-right-radius: 10px;
+  background: linear-gradient(135deg, transparent 50%, rgba(0, 113, 227, 0.45) 50%);
+  border-bottom-right-radius: var(--r-md);
 }
 
 /* 连线端口：右侧中部小圆点（overflow 已放开，外侧不再被裁） */
@@ -228,18 +222,28 @@
   border: 2px solid var(--brand);
   cursor: crosshair;
   z-index: 3;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
 
 /* 透明扩展热区（视觉尺寸不变，命中更稳） */
 .ivc-node-port::after {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -8px;
   border-radius: 50%;
+}
+
+.ivc-node:hover .ivc-node-port,
+.ivc-node-selected .ivc-node-port {
+  box-shadow: 0 0 0 4px var(--brand-soft);
 }
 
 .ivc-node-port:hover {
   background: var(--brand);
+  transform: translateY(-50%) scale(1.18);
 }
 
 /* 出图节点 */
@@ -270,7 +274,7 @@
 
 .ivc-gen-error {
   font-size: 12px;
-  color: #ef4444;
+  color: var(--danger);
   word-break: break-all;
 }
 
@@ -288,107 +292,413 @@
   object-fit: contain;
 }
 
-/* 右键菜单 */
-.ivc-ctxmenu {
+/* ── 浮动控件通用外观 ───────────────────── */
+
+.ivc-topbar,
+.ivc-toolbar,
+.ivc-zoomctrl,
+.ivc-selbar {
   position: absolute;
-  z-index: 30;
-  min-width: 140px;
-  background: #fff;
-  border: 1px solid #e2e6ee;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  z-index: var(--z-canvas-dock);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+}
+
+.ivc-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--line);
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+/* 左上：工具条 */
+.ivc-topbar {
+  top: 12px;
+  left: 12px;
+}
+
+/* 下中：新建节点（Dock） */
+.ivc-toolbar {
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 4px;
+  padding: 6px;
+  border-radius: var(--r-xl);
+}
+
+.ivc-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 54px;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--ink-2);
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.ivc-tool:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+  transform: translateY(-1px);
+}
+
+.ivc-tool:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.ivc-tool-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ivc-tool-label {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* 右下：缩放 */
+.ivc-zoomctrl {
+  right: 12px;
+  bottom: 16px;
+  gap: 0;
+}
+
+.ivc-zoom-label {
+  min-width: 46px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  font-variant-numeric: tabular-nums;
+  transition: background 140ms ease;
+}
+
+.ivc-zoom-label:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+/* 多选浮动条：出现在底部工具条上方，只在多选时存在 */
+.ivc-selbar {
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.ivc-selbar-count {
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 0 6px;
+}
+
+/* 视图设置气泡 */
+.ivc-viewsettings {
+  width: 268px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.ivc-viewsettings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ivc-viewsettings-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+/* ── 空画布引导 ─────────────────────────── */
+
+.ivc-empty {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: var(--z-canvas-overlay);
+  max-width: 420px;
+}
+
+.ivc-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.ivc-empty-desc {
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+.ivc-empty-actions {
+  pointer-events: auto;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* 吸附对齐线（拖动时出现；宽度按 1/k 换算，缩放时保持 1 屏幕像素） */
+.ivc-guide {
+  position: absolute;
+  background: var(--guide);
+  pointer-events: none;
+  z-index: calc(var(--z-canvas-overlay) + 2);
+}
+
+/* 框选矩形：屏幕坐标覆盖层 */
+.ivc-marquee {
+  position: absolute;
+  border: 1px solid var(--brand);
+  background: var(--brand-soft);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: calc(var(--z-canvas-overlay) + 1);
+  will-change: left, top, width, height;
+}
+
+/* ── 右键菜单 / 快速新建 ─────────────────── */
+
+.ivc-ctxmenu,
+.ivc-quickcreate {
+  position: absolute;
+  z-index: var(--z-canvas-menu);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lift);
   padding: 4px;
   display: flex;
   flex-direction: column;
+  animation: ivc-pop 140ms ease-out;
+}
+
+.ivc-ctxmenu {
+  min-width: 196px;
+  gap: 1px;
+}
+
+@keyframes ivc-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ivc-menu-group {
+  font-size: 11px;
+  color: var(--ink-4);
+  padding: 4px 8px 2px;
+}
+
+.ivc-menu-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--line);
 }
 
 .ivc-ctxmenu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: none;
   background: transparent;
   text-align: left;
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-size: 13px;
-  color: #334155;
+  color: var(--ink);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
+  transition: background 120ms ease;
 }
 
 .ivc-ctxmenu button:hover {
-  background: #f1f5f9;
+  background: var(--brand-soft);
 }
 
-/* 小地图 */
-.ivc-minimap {  position: absolute;
-  right: 12px;
-  top: 12px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e2e6ee;
-  border-radius: 8px;
-  padding: 4px;
-  width: 176px;
-  height: 120px;
+.ivc-ctxmenu button .anticon {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.ivc-ctxmenu kbd {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  background: var(--bg-app);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.ivc-menu-danger {
+  color: var(--danger) !important;
+}
+
+.ivc-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* 快速新建：端口点击/空白双击两处复用同一张卡 */
+.ivc-quickcreate {
+  width: 252px;
+  padding: 8px;
+  gap: 8px;
+}
+
+.ivc-quickcreate-head {
+  font-size: 11px;
+  color: var(--ink-4);
+  padding: 0 2px;
+}
+
+.ivc-quickcreate-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.ivc-quickcreate-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  border: 1px solid transparent;
+  background: var(--bg-app);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--ink-2);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.ivc-quickcreate-grid button:hover {
+  background: #fff;
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.ivc-quickcreate-foot {
+  font-size: 11px;
+  color: var(--ink-4);
+  text-align: right;
+}
+
+/* ── 小地图 ─────────────────────────────── */
+
+.ivc-minimap {
+  position: absolute;
+  left: 12px;
+  bottom: 16px;
+  z-index: var(--z-canvas-dock);
+  width: 196px;
+  height: 136px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  cursor: grab;
+  overflow: hidden;
+  transition: box-shadow 160ms ease;
 }
 
-/* ── 工具条 ─────────────────────────────── */
-
-.ivc-toolbar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e2e6ee;
-  border-radius: 8px;
-  padding: 6px 8px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+.ivc-minimap:hover {
+  box-shadow: var(--shadow-lift);
 }
 
-.ivc-zoomctrl {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 10;
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e2e6ee;
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: #475569;
+.ivc-minimap:active {
+  cursor: grabbing;
 }
 
-/* 迁移浮层 */
+.ivc-minimap-empty {
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.ivc-minimap-view {
+  fill: var(--brand-soft);
+  stroke: var(--brand);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── 连线层 ─────────────────────────────── */
+
+.ivc-connections path {
+  transition:
+    stroke-width 140ms ease,
+    opacity 140ms ease;
+}
+
+/* ── 迁移浮层 ───────────────────────────── */
+
 .ivc-migration-mask {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(247, 248, 250, 0.6);
+  background: rgba(245, 245, 247, 0.6);
   backdrop-filter: blur(2px);
 }
 
 .ivc-migration-card {
   width: 380px;
   background: #fff;
-  border: 1px solid #e2e6ee;
-  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
   padding: 16px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-lift);
   font-size: 13px;
-  color: #334155;
+  color: var(--ink);
 }
 
 /* ── C1：计划对话面板（画布级 overlay，不落节点） ── */
@@ -396,15 +706,16 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  bottom: 56px;
+  bottom: 72px;
   width: 340px;
-  z-index: 15;
+  z-index: var(--z-canvas-panel);
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #e2e6ee;
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift);
   overflow: hidden;
 }
 
@@ -413,10 +724,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid #eceff4;
-  background: #f7f9fc;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-app);
   font-size: 13px;
-  color: #334155;
+  color: var(--ink);
 }
 
 .ivc-chat-title {
@@ -435,10 +746,10 @@
 }
 
 .ivc-chat-msg {
-  border-radius: 8px;
+  border-radius: var(--r-md);
   padding: 6px 8px;
   font-size: 13px;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .ivc-chat-role {
@@ -455,7 +766,7 @@
   gap: 8px;
   align-items: flex-end;
   padding: 8px;
-  border-top: 1px solid #eceff4;
+  border-top: 1px solid var(--line);
 }
 
 /* ── C2：计划卡（plan 节点内部渲染） ── */
@@ -468,7 +779,7 @@
   flex-direction: column;
   gap: 8px;
   font-size: 13px;
-  color: #334155;
+  color: var(--ink);
 }
 
 .ivc-plancard-head {
@@ -476,7 +787,7 @@
   align-items: center;
   gap: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #eceff4;
+  border-bottom: 1px solid var(--line);
 }
 
 .ivc-plancard-title {
@@ -486,7 +797,7 @@
 
 .ivc-plancard-progress {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--ink-4);
 }
 
 .ivc-plancard-stages {
@@ -496,14 +807,14 @@
 }
 
 .ivc-plancard-stage {
-  border: 1px solid #eceff4;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   padding: 6px 8px;
-  background: #fcfdff;
+  background: var(--bg-panel);
 }
 
 .ivc-plancard-stage[data-frozen='true'] {
-  background: #f8fafc;
+  background: var(--bg-app);
   border-style: dashed;
 }
 
@@ -517,8 +828,8 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #e2e6ee;
-  color: #475569;
+  background: var(--line-2);
+  color: var(--ink-2);
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -535,23 +846,23 @@
 
 .ivc-plancard-pending {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--ink-4);
 }
 
 /* ── C3：闸门审阅卡（聊天流内锚定） ── */
 .ivc-reviewcard {
-  border: 1px solid #e2e6ee;
+  border: 1px solid var(--line-2);
   border-left: 3px solid var(--brand);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 8px;
   margin-top: 6px;
-  background: #ffffff;
+  background: #fff;
   font-size: 12px;
-  color: #334155;
+  color: var(--ink);
 }
 
 .ivc-reviewcard[data-conflict='true'] {
-  border-left-color: #ef4444;
+  border-left-color: var(--danger);
   background: #fff8f8;
 }
 
@@ -568,12 +879,12 @@
 }
 
 .ivc-reviewcard-meta {
-  color: #94a3b8;
+  color: var(--ink-4);
 }
 
 .ivc-reviewcard-checks {
   margin-top: 6px;
-  color: #64748b;
+  color: var(--ink-2);
 }
 
 .ivc-reviewcard-check {
@@ -588,12 +899,12 @@
 }
 
 .ivc-reviewcard-locks {
-  color: #64748b;
+  color: var(--ink-2);
 }
 
 .ivc-reviewcard-item {
-  border: 1px solid #f1f5f9;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   padding: 6px;
 }
 
@@ -605,12 +916,12 @@
 }
 
 .ivc-reviewcard-refs {
-  color: #94a3b8;
+  color: var(--ink-4);
 }
 
 .ivc-reviewcard-prompt-readonly {
   white-space: pre-wrap;
-  color: #475569;
+  color: var(--ink-2);
 }
 
 .ivc-reviewcard-product {
@@ -619,7 +930,7 @@
 }
 
 .ivc-reviewcard-conflict {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .ivc-reviewcard-actions {
@@ -630,7 +941,7 @@
 .ivc-frozen-confirm {
   border: 1px solid #ffd591;
   background: #fffbe6;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 8px;
   margin: 8px;
   font-size: 12px;
@@ -654,18 +965,18 @@
 .ivc-plancard-skeleton {
   margin: 6px 0 2px;
   padding: 8px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  color: #8c8c8c;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
   font-size: 12px;
-  background: #fafafa;
+  background: var(--bg-app);
 }
 
 .ivc-plancard-stale {
   margin: 6px 0 2px;
   padding: 8px;
   border: 1px solid #ffccc7;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: #fff2f0;
   color: #a8071a;
   font-size: 12px;
@@ -685,7 +996,7 @@
   font-size: 11px;
   color: #d46b08;
   background: #fff7e6;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   padding: 2px 6px;
 }
 
@@ -695,7 +1006,7 @@
   padding: 6px 8px;
   border: 1px solid #bae0ff;
   background: #f0f7ff;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   display: flex;
   flex-direction: column;
@@ -710,7 +1021,7 @@
 }
 
 .ivc-videostage-hint {
-  color: #555;
+  color: var(--ink-2);
   font-size: 11px;
 }
 
@@ -723,4 +1034,110 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* ── 参考素材架（出图/视频节点内联） ── */
+.ivc-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ivc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 2px 0 3px;
+  background: var(--bg-app);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  color: var(--ink-2);
+  transition:
+    border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
+}
+
+.ivc-chip:hover {
+  border-color: var(--brand);
+  background: #fff;
+}
+
+.ivc-chip-index {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ivc-chip-thumb {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.ivc-chip-type {
+  padding: 0 2px;
+}
+
+.ivc-chip-x {
+  border: none;
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 3px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.ivc-chip:hover .ivc-chip-x {
+  opacity: 1;
+}
+
+.ivc-chip-x:hover {
+  color: var(--danger);
+}
+
+/* 视频参数折叠摘要 */
+.ivc-params-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--bg-app);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.ivc-params-toggle:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.ivc-params-caret {
+  font-size: 10px;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.ivc-params-caret.is-open {
+  transform: rotate(180deg);
 }

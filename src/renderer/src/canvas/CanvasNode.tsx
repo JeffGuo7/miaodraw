@@ -11,15 +11,16 @@ import { PlayCircleOutlined } from '@ant-design/icons'
 
 import type { CanvasNodeData } from './types'
 import { NODE_SPECS } from './types'
-import { canvasStore } from './store'
+import { canvasStore, useConnections } from './store'
 import { computeSnap } from './snapping'
 import { clearGuides, setGuides } from './guides'
 import { runGenerateNode } from './generation'
 import { runVideoNode, DEFAULT_VIDEO_SPEC, VIDEO_DURATIONS, VIDEO_RATIOS, VIDEO_RESOLUTIONS, ratioLabel, estimateVideoCost, normalizeVideoSpec, canAutoRetry } from './videoGeneration'
 import { hitTestConnectionTarget, sourcePortAnchor, snapEndpoint } from './connection-hit'
 import { canConnect } from './connection-rules'
-import { clientToWorld, invalidateCanvasRect } from './rect-cache'
+import { clientToWorld, getCanvasRect, invalidateCanvasRect } from './rect-cache'
 import { beginPending, endPending, updatePending } from './pending-connection'
+import { requestQuickCreate } from './quick-create'
 import PlanCard from './PlanCard'
 
 interface CanvasNodeProps {
@@ -143,10 +144,16 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
   }
 
   /**
-   * 连线（P0-4 + P0-5）：
+   * 连线（P0-4 + P0-5 + 快速建图）：
    * - 起点用源节点端口真实世界坐标；终点吸附近处目标端口
    * - 热路径只改 SVG 属性（pending-connection 直接写 DOM），不触发整卡重渲染
-   * - 命中判定走纯几何 hitTestConnectionTarget（屏幕像素按 1/k 补偿）
+   * - 命中判定走纯几何 hitTestConnectionTarget：只认 44px 屏幕半径内的端口圆，
+   *   拖到节点身上不再误连（旧实现把节点包围盒也当目标）
+   * - 松手分流（构图效率的关键）：
+   *     位移 ≤5px（只是点了一下端口）→ 就近弹「新建」菜单，选中类型后自动建节点 + 自动连线
+   *     命中合法目标 → 建连
+   *     命中但类型不允许 → 明确告知原因（不再静默取消）
+   *     空白 → 在落点弹「新建」菜单，同样自动连线
    */
   const onPortPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
@@ -158,6 +165,8 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
     beginPending(node.id, from)
     setPending(true)
     let frame: number | null = null
+    let moved = 0
+    const start = { x: e.clientX, y: e.clientY }
     let client = { x: e.clientX, y: e.clientY }
 
     const flush = (): void => {
@@ -170,6 +179,7 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
     }
     const move = (ev: PointerEvent): void => {
       client = { x: ev.clientX, y: ev.clientY }
+      moved = Math.hypot(ev.clientX - start.x, ev.clientY - start.y)
       if (frame === null) frame = requestAnimationFrame(flush)
     }
     const finish = (commit: boolean, ev?: PointerEvent): void => {
@@ -181,9 +191,12 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
         client = { x: ev.clientX, y: ev.clientY }
         invalidateCanvasRect() // 落点判定前校准一次
         flush()
+        const rect = getCanvasRect()
         const vp = canvasStore.getState().viewport
         const world = clientToWorld(client.x, client.y, vp)
+        const screen = { x: client.x - rect.left, y: client.y - rect.top }
         const hit = hitTestConnectionTarget(canvasStore.getState().nodes, world, { scale: vp.k, excludeId: node.id })
+
         if (hit.nodeId) {
           // 类型校验：拒绝「连上了但生成时被静默忽略」的非法组合
           const st = canvasStore.getState()
@@ -192,8 +205,12 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
           const check = fromNode && toNode ? canConnect(fromNode, toNode) : { ok: false, reason: '节点不存在' }
           if (check.ok) canvasStore.addConnection(node.id, hit.nodeId)
           else message.warning(check.reason ?? '这两类节点之间没有数据依赖')
+        } else if (moved <= 5) {
+          // 只是点了一下端口：直接在端口位置起一张新卡片，选完自动连回来
+          requestQuickCreate({ world: from, screen, sourceNodeId: node.id, origin: 'port' })
         } else {
-          message.info('没落到节点上，已取消连线')
+          // 拖到空白处松手：同样起菜单，落点即新节点位置
+          requestQuickCreate({ world, screen, sourceNodeId: node.id, origin: 'port' })
         }
       }
       endPending()
@@ -214,7 +231,15 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
       data-node-id={node.id}
       className={`ivc-node${selected ? ' ivc-node-selected' : ''}${node.type === 'group' ? ' ivc-node-group' : ''}${pending ? ' ivc-node-connecting' : ''}`}
       style={{ transform: `translate3d(${node.x}px, ${node.y}px, 0)`, width: node.width, height: node.height, zIndex: node.zIndex }}
-      onPointerDown={() => canvasStore.select(node.id)}
+      onPointerDown={(e) => {
+        // Shift / Ctrl / Meta 点击 = 增删选中（多选不改主选中），普通点击 = 单选并置顶
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+          e.stopPropagation()
+          canvasStore.toggleSelection(node.id)
+          return
+        }
+        canvasStore.select(node.id)
+      }}
     >
       <div className="ivc-node-header ivc-no-zoom" onPointerDown={onHeaderPointerDown}>
         <span className="ivc-node-dot" data-type={node.type} />
@@ -232,10 +257,10 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
       </div>
       <div className="ivc-node-body ivc-no-zoom">{renderBody(node)}</div>
       {selected && <div className="ivc-node-resize" onPointerDown={onResizePointerDown} />}
-      {/* 连线端口（右侧中部）：拖到目标节点建立连线 */}
+      {/* 连线端口（右侧中部）：拖到目标节点连线；单击则新建一张卡片并自动连回来 */}
       <div
         className="ivc-node-port"
-        title="拖到目标节点连线"
+        title="拖到目标节点连线 · 单击新建并自动连线"
         onPointerDown={onPortPointerDown}
         data-port-from={node.id}
       />
@@ -296,12 +321,56 @@ function ImageBody({ node }: { node: CanvasNodeData }): JSX.Element {  const url
 
 const SIZE_OPTIONS = ['1024x1024', '768x1024', '1024x768', '720x1280', '1280x720']
 
+/**
+ * 参考素材架：把「连进来的上游节点」显示成带序号和缩略图的 chip。
+ *
+ * 之前这些依赖只以一行文字「参考图 ×2（i2i）」存在，用户既看不出是哪两张，
+ * 也没法单独撤掉其中一个。现在每个 chip 可点掉（断开那条连线），
+ * 序号即模型收到的参考顺序（与连线建立顺序一致）。
+ */
+function ReferenceShelf({ node }: { node: CanvasNodeData }): JSX.Element | null {
+  const connections = useConnections()
+  const nodes = canvasStore.getState().nodes
+  const incoming = connections.filter((c) => c.to === node.id)
+  if (!incoming.length) return null
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  return (
+    <div className="ivc-shelf" data-reference-shelf={incoming.length}>
+      {incoming.map((c, i) => {
+        const src = byId.get(c.from)
+        if (!src) return null
+        const url = typeof src.metadata.content === 'string' ? src.metadata.content : ''
+        const isImage = src.type === 'image' || src.type === 'generate'
+        return (
+          <span key={c.id} className="ivc-chip" title={NODE_SPECS[src.type].title + ' · 点击断开引用'}>
+            <span className="ivc-chip-index">{i + 1}</span>
+            {isImage && url ? (
+              <img className="ivc-chip-thumb" src={url} alt="" draggable={false} />
+            ) : (
+              <span className="ivc-chip-type">{NODE_SPECS[src.type].title}</span>
+            )}
+            <button
+              className="ivc-chip-x"
+              title="断开这条引用"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => canvasStore.removeConnection(c.id)}
+            >
+              ×
+            </button>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 /** 出图节点主体：提示词 + 尺寸 + 生成（连线进来的图片卡即参考图） */
 function GenerateBody({ node }: { node: CanvasNodeData }): JSX.Element {
   const running = Boolean(node.metadata.running)
   const upstream = canvasStore.upstreamOf(node.id).filter((n) => n.type === 'image' && n.metadata.content)
   return (
     <div className="ivc-gen">
+      <ReferenceShelf node={node} />
       <Input.TextArea
         className="ivc-gen-prompt"
         placeholder="描述想要的画面…"
@@ -337,6 +406,7 @@ function GenerateBody({ node }: { node: CanvasNodeData }): JSX.Element {
 /** 视频生产节点主体（M3）：有产物内容时是视频卡片，否则是生产者配置面板 */
 function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
   const content = String(node.metadata.content ?? '')
+  const [showParams, setShowParams] = useState(false)
   if (content) {
     return (
       <div className="ivc-video-wrap">
@@ -359,6 +429,7 @@ function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
 
   return (
     <div className="ivc-gen">
+      <ReferenceShelf node={node} />
       {upstreamText.length === 0 && (
         <Input.TextArea
           className="ivc-gen-prompt"
@@ -369,30 +440,45 @@ function VideoBody({ node }: { node: CanvasNodeData }): JSX.Element {
         />
       )}
       {upstreamText.length > 0 && <div className="ivc-gen-refs">文案卡 ×{upstreamText.length}（已连线）</div>}
-      <div className="ivc-video-opts">
-        <Select
-          size="small"
-          value={duration}
-          disabled={running}
-          data-video-duration={duration}
-          options={VIDEO_DURATIONS.map((d) => ({ value: d, label: `${d} 秒` }))}
-          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, duration: v } })}
-        />
-        <Select
-          size="small"
-          value={ratio}
-          disabled={running}
-          options={VIDEO_RATIOS.map((r) => ({ value: r, label: ratioLabel(r) }))}
-          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, ratio: v } })}
-        />
-        <Select
-          size="small"
-          value={resolution}
-          disabled={running}
-          options={VIDEO_RESOLUTIONS.map((q) => ({ value: q, label: q }))}
-          onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, resolution: v } })}
-        />
-      </div>
+      {/* 参数默认折叠成一行摘要：小卡片里三个下拉会挤掉提示词和主按钮 */}
+      <button
+        className="ivc-params-toggle"
+        data-video-params-toggle="true"
+        aria-expanded={showParams}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => setShowParams((v) => !v)}
+      >
+        <span>
+          {duration} 秒 · {ratioLabel(ratio as Parameters<typeof ratioLabel>[0])} · {resolution}
+        </span>
+        <span className={showParams ? 'ivc-params-caret is-open' : 'ivc-params-caret'}>▾</span>
+      </button>
+      {showParams && (
+        <div className="ivc-video-opts">
+          <Select
+            size="small"
+            value={duration}
+            disabled={running}
+            data-video-duration={duration}
+            options={VIDEO_DURATIONS.map((d) => ({ value: d, label: d + ' 秒' }))}
+            onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, duration: v } })}
+          />
+          <Select
+            size="small"
+            value={ratio}
+            disabled={running}
+            options={VIDEO_RATIOS.map((r) => ({ value: r, label: ratioLabel(r) }))}
+            onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, ratio: v } })}
+          />
+          <Select
+            size="small"
+            value={resolution}
+            disabled={running}
+            options={VIDEO_RESOLUTIONS.map((q) => ({ value: q, label: q }))}
+            onChange={(v) => canvasStore.updateNode(node.id, { metadata: { ...node.metadata, resolution: v } })}
+          />
+        </div>
+      )}
       <div className="ivc-video-cost" data-video-cost={estimate.cny.toFixed(2)}>
         预估价 ¥{estimate.cny.toFixed(2)}（{duration} 秒 · {resolution}，以账单为准）
       </div>
