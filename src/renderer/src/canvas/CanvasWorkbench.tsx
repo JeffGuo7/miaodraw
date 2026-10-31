@@ -25,6 +25,7 @@ import {
   FileTextOutlined,
   GroupOutlined,
   MessageOutlined,
+  PictureOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   QuestionCircleOutlined,
@@ -59,6 +60,7 @@ import { fitView, focusNode, MAX_K, MIN_K } from './viewport-fit'
 import { useGuides } from './guides'
 import { attachVideoJobPersistence } from './video-persistence'
 import ChatPanel from './ChatPanel'
+import MaterialDrawer from './MaterialDrawer'
 import { countAssets } from './db'
 import { runMigration, type MigrationProgress } from './migrate'
 import ShortcutsModal from './ShortcutsModal'
@@ -248,6 +250,7 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
   const [chatOpen, setChatOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [viewSettingsOpen, setViewSettingsOpen] = useState(false)
+  const [materialsOpen, setMaterialsOpen] = useState(false)
   const animRef = useRef<number | null>(null)
   const marqueeRef = useRef<HTMLDivElement | null>(null)
 
@@ -884,6 +887,11 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
             </Button>
           </Tooltip>
         )}
+        <Tooltip title="本机作品：把之前的产出放进画布">
+          <Button size="small" type={materialsOpen ? 'primary' : 'text'} icon={<PictureOutlined />} onClick={() => setMaterialsOpen(true)} data-material-open="true">
+            作品
+          </Button>
+        </Tooltip>
         <Tooltip title="快捷键（?）">
           <Button size="small" type="text" icon={<QuestionCircleOutlined />} onClick={() => setShortcutsOpen(true)} data-shortcuts="true" />
         </Tooltip>
@@ -1086,6 +1094,21 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         onNavigate={(vp) => {
           interruptNav()
           setViewport(vp)
+        }}
+      />
+
+      <MaterialDrawer
+        open={materialsOpen}
+        onClose={() => setMaterialsOpen(false)}
+        onInsert={(item) => {
+          const size = canvasSize()
+          const vp = canvasStore.getState().viewport
+          const world = { x: (size.width / 2 - vp.x) / vp.k - 160, y: (size.height / 2 - vp.y) / vp.k - 160 }
+          const id = canvasStore.addNode('image', world)
+          canvasStore.updateNode(id, {
+            metadata: { content: item.url, origin: 'history', fileName: item.name, prompt: item.params?.prompt ?? '' }
+          })
+          revealNode(id)
         }}
       />
 

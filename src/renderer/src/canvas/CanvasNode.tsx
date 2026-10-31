@@ -335,7 +335,28 @@ function ImageBody({ node }: { node: CanvasNodeData }): JSX.Element {
     }
   }
 
-  if (url) return <img className="ivc-img" src={url} alt="" draggable={false} />
+  if (url) {
+    return (
+      <img
+        className="ivc-img"
+        src={url}
+        alt=""
+        draggable={false}
+        onLoad={(e) => {
+          // 第一次载入时按图片真实比例调一次节点高度：不调的话 320×320 的方卡里
+          // 竖图/横图会留出大片空白，画布看起来很脏。autoSized 只做一次，之后尊重用户手动尺寸。
+          if (node.metadata.autoSized === true) return
+          const { naturalWidth, naturalHeight } = e.currentTarget
+          if (!naturalWidth || !naturalHeight) return
+          const height = Math.round(Math.max(120, Math.min(1200, (node.width * naturalHeight) / naturalWidth)))
+          canvasStore.updateNode(node.id, {
+            height,
+            metadata: { ...node.metadata, autoSized: true }
+          })
+        }}
+      />
+    )
+  }
   return (
     <label
       className="ivc-placeholder ivc-upload"

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-17T03:23:40Z",
-  "updated_at": "2026-10-31T14:28:06Z",
+  "updated_at": "2026-10-31T14:40:22Z",
   "files": {
     ".gitattributes": {
       "role": "index",
@@ -47,9 +47,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "5849898a62769599712f26b62447cc09595fd0e0719e7793bfa38a7b102eb676",
-      "size": 66409,
-      "normalized_sha256": "5849898a62769599712f26b62447cc09595fd0e0719e7793bfa38a7b102eb676"
+      "sha256": "22a5b69ced3900f883eb6944662949295e5550792cbfaafabc3e6db5ecfd10c8",
+      "size": 66968,
+      "normalized_sha256": "22a5b69ced3900f883eb6944662949295e5550792cbfaafabc3e6db5ecfd10c8"
     },
     "aoci.meta.txt": {
       "role": "index",
@@ -129,9 +129,9 @@
     },
     "docs/canvas-interaction-model.md": {
       "role": "index",
-      "sha256": "47b2ea39de37be1d71a36a37daf92504c778aedb591e2f82eefdc136d87bb05e",
-      "size": 8436,
-      "normalized_sha256": "47b2ea39de37be1d71a36a37daf92504c778aedb591e2f82eefdc136d87bb05e"
+      "sha256": "e2197b07a1583fd237c40669b1b51bdf69a33e988834c98f27bc4a7378d6fc19",
+      "size": 9578,
+      "normalized_sha256": "e2197b07a1583fd237c40669b1b51bdf69a33e988834c98f27bc4a7378d6fc19"
     },
     "docs/canvas-interaction-tuning.md": {
       "role": "index",
@@ -7890,9 +7890,9 @@
     },
     "out/main/probes/shot.js.map": {
       "role": "observe",
-      "sha256": "9cca7196a8c8ea08af010a5e031d2b78cfe3fb6171db6a8278f1895bdd5a957f",
-      "size": 141905,
-      "normalized_sha256": "9cca7196a8c8ea08af010a5e031d2b78cfe3fb6171db6a8278f1895bdd5a957f"
+      "sha256": "f7572832f26d31cabfed5df8c43691d1992aac00f1bbfda71e5249c4c0a599f7",
+      "size": 143804,
+      "normalized_sha256": "f7572832f26d31cabfed5df8c43691d1992aac00f1bbfda71e5249c4c0a599f7"
     },
     "out/preload/index.js.map": {
       "role": "observe",
@@ -7900,10 +7900,10 @@
       "size": 19995,
       "normalized_sha256": "621193474c85b16fd87c1ac14458b11ceedd84e938926f5354bf2ef3519dd0fb"
     },
-    "out/renderer/assets/index-iDH7_VHW.js.map": {
+    "out/renderer/assets/index-Br1cuGdQ.js.map": {
       "role": "observe",
-      "sha256": "1ea411f15ec03ff0a60d8402ff640aff5d5a0cd071ee0d2dd363423025391240",
-      "size": 7826179
+      "sha256": "0dc6b7e5f822146de78eec35cbd4b7e0f062bff70466ba14f5a9501cab8dd1a4",
+      "size": 7835495
     },
     "package-lock.json": {
       "role": "index",
@@ -8099,9 +8099,9 @@
     },
     "src/main/probes/shot.ts": {
       "role": "index",
-      "sha256": "1b1765d86563a2fca26c912a0f880c152476daf8e88705e61bdc91c2ce13103b",
-      "size": 120735,
-      "normalized_sha256": "1b1765d86563a2fca26c912a0f880c152476daf8e88705e61bdc91c2ce13103b"
+      "sha256": "d7eef4be82e6b2ecb5ea9a3dea5b67a066f3e9b35de27829b16c981d58987590",
+      "size": 122352,
+      "normalized_sha256": "d7eef4be82e6b2ecb5ea9a3dea5b67a066f3e9b35de27829b16c981d58987590"
     },
     "src/main/prompt-guards.test.mjs": {
       "role": "index",
@@ -8236,15 +8236,15 @@
     },
     "src/renderer/src/canvas/CanvasNode.tsx": {
       "role": "index",
-      "sha256": "25ab19240da9c400220e794c49e2af11b40cb86e8997806de1590bee3542a43d",
-      "size": 23666,
-      "normalized_sha256": "25ab19240da9c400220e794c49e2af11b40cb86e8997806de1590bee3542a43d"
+      "sha256": "e6b72fa7dd47b200c0b101ac7106f8dbb95c13702350c62544f2d7e65f9c9913",
+      "size": 24432,
+      "normalized_sha256": "e6b72fa7dd47b200c0b101ac7106f8dbb95c13702350c62544f2d7e65f9c9913"
     },
     "src/renderer/src/canvas/CanvasWorkbench.tsx": {
       "role": "index",
-      "sha256": "b3a2f29b42619e0844edd310dabf5ae8f8b2e963e5959faf159896a23c19b528",
-      "size": 53264,
-      "normalized_sha256": "b3a2f29b42619e0844edd310dabf5ae8f8b2e963e5959faf159896a23c19b528"
+      "sha256": "67cfcaaccca8d7a77238c2eeb5f76f2de54f7be7ebba48c9d9ccf77c435fd130",
+      "size": 54287,
+      "normalized_sha256": "67cfcaaccca8d7a77238c2eeb5f76f2de54f7be7ebba48c9d9ccf77c435fd130"
     },
     "src/renderer/src/canvas/ChatPanel.tsx": {
       "role": "index",
@@ -8257,6 +8257,12 @@
       "sha256": "879ccfb21305e7f9e5a34abba9f3ba73ea3f6b34a80195220c2cc4cf89a965d0",
       "size": 11572,
       "normalized_sha256": "879ccfb21305e7f9e5a34abba9f3ba73ea3f6b34a80195220c2cc4cf89a965d0"
+    },
+    "src/renderer/src/canvas/MaterialDrawer.tsx": {
+      "role": "index",
+      "sha256": "e64daad7733513ed5aeba8caebd5fa05e1e895bb0ed00e515dc9f2c14e7aff02",
+      "size": 3829,
+      "normalized_sha256": "e64daad7733513ed5aeba8caebd5fa05e1e895bb0ed00e515dc9f2c14e7aff02"
     },
     "src/renderer/src/canvas/PlanCard.tsx": {
       "role": "index",
@@ -8308,9 +8314,9 @@
     },
     "src/renderer/src/canvas/canvas.css": {
       "role": "index",
-      "sha256": "5ad503e4bee92936b2da9fd7fdcc55c3e27fe5b83b35080c18f231e2a0e2d832",
-      "size": 22160,
-      "normalized_sha256": "5ad503e4bee92936b2da9fd7fdcc55c3e27fe5b83b35080c18f231e2a0e2d832"
+      "sha256": "177b8cc6c0c658a186032a71608681dea976d7aecb9897a7b728826d331f568d",
+      "size": 23152,
+      "normalized_sha256": "177b8cc6c0c658a186032a71608681dea976d7aecb9897a7b728826d331f568d"
     },
     "src/renderer/src/canvas/chat-store.ts": {
       "role": "index",

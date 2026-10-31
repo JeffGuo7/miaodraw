@@ -1673,6 +1673,35 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     console.log('[shot] canvas-upload:', r)
     check('canvas-upload', r)
   }
+  if (process.env.SHOT_CANVAS_MATERIAL === '1') {
+    // 本机作品抽屉探针：打开 → 有卡片 → 点一张 → 画布多一个带 media:// 内容的图片节点
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        document.querySelectorAll('.ant-menu-item')[1]?.click()
+        await sleep(1500)
+        const count = () => document.querySelectorAll('[data-node-id]').length
+        const before = count()
+        const openBtn = document.querySelector('[data-material-open="true"]')
+        if (!openBtn) return 'ERR: 缺少「作品」入口'
+        openBtn.click()
+        await sleep(1200)
+        const cards = [...document.querySelectorAll('[data-material-item]')]
+        if (!cards.length) return 'SKIP: 本机没有作品可插入'
+        cards[0].click()
+        await sleep(700)
+        const after = count()
+        const imgs = [...document.querySelectorAll('.ivc-node img.ivc-img')].map((el) => el.getAttribute('src') || '')
+        const hasMedia = imgs.some((src) => src.startsWith('media://local/out/'))
+        // AntD Drawer 关闭后 DOM 仍保留（只是不显示），因此判「是否还有 ant-drawer-open」
+        const closed = !document.querySelector('.ant-drawer-open')
+        const ok = after === before + 1 && hasMedia && closed
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ before, after, cards: cards.length, hasMedia, closed })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-material:', r)
+    check('canvas-material', r)
+  }
   if (process.env.SHOT_CANVAS_PERSIST === '1') {
     // 画布持久化探针：建节点 → 手动落盘 → reload 渲染进程 → 校验节点/连线回来
     const setup = await w.webContents.executeJavaScript(
