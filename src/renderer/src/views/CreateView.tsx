@@ -82,11 +82,11 @@ const FUSION_TEMPLATES: Array<{ label: string; text: string }> = [
 ]
 
 const SIZES = [
-  { value: '1024x1024', label: '方图 1:1 · 1024' },
-  { value: '896x1152', label: '竖图 3:4 · 896×1152' },
-  { value: '1152x896', label: '横图 4:3 · 1152×896' },
-  { value: '768x1344', label: '竖屏 9:16 · 768×1344' },
-  { value: '1344x768', label: '宽屏 16:9 · 1344×768' }
+  { value: '1024x1024', label: '方图 1:1' },
+  { value: '896x1152', label: '竖图 3:4' },
+  { value: '1152x896', label: '横图 4:3' },
+  { value: '768x1344', label: '竖屏 9:16' },
+  { value: '1344x768', label: '宽屏 16:9' }
 ]
 
 interface Props {
@@ -698,7 +698,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
           />
 
           <Row gutter={10}>
-            <Col span={16}>
+            <Col span={15}>
               <Typography.Text className="field-label">服务商 / 模型</Typography.Text>
               <Select
                 value={`${active.provider}::${active.model}`}
@@ -739,7 +739,7 @@ export default function CreateView({ seed, onDistill, onHealthStale, onGenerated
                 }}
               />
             </Col>
-            <Col span={8}>
+            <Col span={9}>
               <Typography.Text className="field-label">尺寸</Typography.Text>
               <Select
                 value={size}

@@ -285,7 +285,7 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     setBkInput('')
     if (r.plainFallback) message.warning('已保存，但本机系统安全存储不可用，密钥以编码形式保存（仅本机能读，建议尽快改用登录态）')
     else message.success('百炼密钥已加密保存，立即可用')
-    void window.api.health().then(setHealth).catch(() => undefined)
+    refreshHealthNow()
   }
 
   /** 任意服务商的密钥/接入点变化后都要重新探测：否则顶栏与创作页仍按旧结论判断 */
@@ -327,13 +327,14 @@ export default function SettingsView({ visible }: { visible: boolean }): JSX.Ele
     if (id === 'bailian') {
       setBk(await window.api.bailianKeyClear())
       message.success('已清除应用内百炼密钥')
-      void window.api.health().then(setHealth).catch(() => undefined)
+      refreshHealthNow()
       return
     }
     const r = await window.api.providerKeyClear(id)
     if (r.ok) {
       setPkInfo(r.info)
       message.success('已清除该服务商密钥')
+      refreshHealthNow()
     } else {
       message.error(r.err)
     }

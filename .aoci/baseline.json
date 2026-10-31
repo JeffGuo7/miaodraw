@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-17T03:23:40Z",
-  "updated_at": "2026-10-31T17:12:54Z",
+  "updated_at": "2026-10-31T17:27:11Z",
   "files": {
     ".gitattributes": {
       "role": "index",
@@ -47,9 +47,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "e240a89e78ad8ec6d7b1d6cf37ba26e40d5416c461d373f927c7d5dcca950963",
+      "sha256": "bc9cb52edb6a9cab1fcf3744edd96dd1af8b5bb4a053103b91efc3d6b9b0754f",
       "size": 67301,
-      "normalized_sha256": "e240a89e78ad8ec6d7b1d6cf37ba26e40d5416c461d373f927c7d5dcca950963"
+      "normalized_sha256": "bc9cb52edb6a9cab1fcf3744edd96dd1af8b5bb4a053103b91efc3d6b9b0754f"
     },
     "aoci.meta.txt": {
       "role": "index",
@@ -7900,10 +7900,10 @@
       "size": 20086,
       "normalized_sha256": "90c0058f404562559fe3439e2a87bf5773d2f3a18dff9ba565f8aef84b2fdaef"
     },
-    "out/renderer/assets/index-DKjQkCzY.js.map": {
+    "out/renderer/assets/index-DYN2hQoc.js.map": {
       "role": "observe",
-      "sha256": "c3fed476bb5d31c16ce235de11a383f0b32072ad0d5ad776713dbd842efbd4f9",
-      "size": 7934404
+      "sha256": "9989a1bd76880bd2e73779bd7b02b7feb92777cc3a790a7c577257f6589ef8ae",
+      "size": 7934198
     },
     "package-lock.json": {
       "role": "index",
@@ -8566,9 +8566,9 @@
     },
     "src/renderer/src/views/CreateView.tsx": {
       "role": "index",
-      "sha256": "7413585875ff4d95c818e376607e58f5b8c2280848b856dc4d662fa96cdb3281",
-      "size": 44248,
-      "normalized_sha256": "245a46463740087402ad6a23e6ee2ce747b6290e5313a8cb45ae44afaa194d47"
+      "sha256": "a19fd588f75f72af671ce145cc81b5ac943293e67b35e20fdf3895a88df66767",
+      "size": 44188,
+      "normalized_sha256": "7868674b5e062a54eb4b3e72cdfdd842cf973508f33c02a2b1cc7d8156f52426"
     },
     "src/renderer/src/views/DistillView.tsx": {
       "role": "index",
@@ -8602,9 +8602,9 @@
     },
     "src/renderer/src/views/SettingsView.tsx": {
       "role": "index",
-      "sha256": "bb309adc734f5f4cd1841d9f654b80ea02d603731b5207c06f6a086dcf36e9b0",
-      "size": 19637,
-      "normalized_sha256": "bb309adc734f5f4cd1841d9f654b80ea02d603731b5207c06f6a086dcf36e9b0"
+      "sha256": "2744e3fe8cbc932555e25ac9298a4a1a068fc49c1c8444d0db8aeec8ac127436",
+      "size": 19572,
+      "normalized_sha256": "2744e3fe8cbc932555e25ac9298a4a1a068fc49c1c8444d0db8aeec8ac127436"
     },
     "src/renderer/src/views/StatusBar.tsx": {
       "role": "index",

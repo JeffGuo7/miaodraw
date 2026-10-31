@@ -38,7 +38,7 @@ media.ts[IN6S]: F:配音与合成的构造层：TTS 请求体与响应解析、f
 cost.test.mjs[TW6S]: F:成本护栏单测：预估价、价目缺失拒付、一次性凭证、预算与单次硬上限、记账幂等 | R:code:src/main/video/cost.ts | A:- | S:断言 fail-closed 语义（无凭证/超上限/价目缺失一律拒），把它改成放行等于拆掉成本闸门
 
 ===D:/project/miaodraw/src/renderer/src/views/===
-LibraryView.tsx[AU8M]: F:灵感库页：分类/收藏双视图、实时搜索、分页、卡片详情抽屉、收藏、错误态与重试、重新扫描（真失效缓存） | R:code:src/main/library.ts,code:src/renderer/src/App.tsx | A:LibraryView | S:搜索要实时过滤（1243 条纯内存过滤很便宜）；加载失败必须页面内可重试；收藏心形常驻
+LibraryView.tsx[AU8L]: F:灵感库页：分类/收藏双视图、实时搜索、分页、卡片详情抽屉、收藏、错误态与重试、重新扫描（真失效缓存） | R:code:src/main/library.ts,code:src/renderer/src/App.tsx | A:LibraryView | S:搜索要实时过滤（1243 条纯内存过滤很便宜）；加载失败必须页面内可重试；收藏心形常驻
 StyleLibrary.tsx[AU6S]: F:风格库选择器：按分类浏览风格并套用到当前提示词 | R:code:library/styles.json,code:src/renderer/src/views/CreateView.tsx | A:StyleLibrary | S:风格片段是追加到用户原句尾部的确定性增强，不得改写用户原句；数据由构建脚本生成，手改会被覆盖
 StatusBar.tsx[AU5T]: F:底部状态栏：模型服务状态点（四态）、当前模型、全局搜索与作品目录入口、版本号 | R:code:src/renderer/src/App.tsx,code:src/renderer/src/views/health-state.ts | A:StatusBar,touchActiveModel | S:状态点必须与顶栏/设置页共用 healthState，否则只配第三方时会出现红色"连接失败"而用户其实能出图
 HistoryView.tsx[AW6M]: F:历史记录页：作品网格（提示词标题/模型友好名）、搜索与模型筛选、复现与保存主操作、更多菜单、批量选择删除、分批加载、删除确认 | R:code:src/renderer/src/models.ts,code:src/renderer/src/App.tsx | A:HistoryView | S:批量模式下点卡片=勾选，不要触发预览；复现必须带文字；筛选与副行都用 modelLabel
