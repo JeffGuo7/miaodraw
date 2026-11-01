@@ -269,7 +269,13 @@ export function InfiniteCanvas({
       <CanvasGrid viewport={viewport} mode={prefs.backgroundMode} />
       <div
         className="ivc-world"
-        style={{ transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.k})` }}
+        style={
+          {
+            transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.k})`,
+            // 供端口等"屏幕恒定尺寸"控件做 1/k 反算（缩到 30% 时端口仍然点得到）
+            '--ivc-k': viewport.k
+          } as React.CSSProperties
+        }
       >
         {children}
       </div>

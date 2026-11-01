@@ -862,7 +862,8 @@ export default function CanvasWorkbench({ onOpenCompose }: { onOpenCompose?: () 
         <div className="ivc-empty ivc-no-zoom" data-empty-canvas="true">
           <div className="ivc-empty-title">空白画布</div>
           <div className="ivc-empty-desc">
-            从底部工具条新建节点，或直接把图片拖进来；也可以双击空白处、打开「对话」，让 AI 帮你搭流程。
+            从底部工具条新建节点，或直接把图片拖进来。连线：从卡片右侧的圆点拖到另一张卡上松手即可；
+            双击空白处也能新建，或打开「对话」让 AI 帮你搭流程。
           </div>
           <div className="ivc-empty-actions">
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => addAndReveal('text')}>

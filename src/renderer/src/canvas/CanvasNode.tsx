@@ -257,10 +257,12 @@ function CanvasNodeView({ node, selected }: CanvasNodeProps): JSX.Element {
       </div>
       <div className="ivc-node-body ivc-no-zoom">{renderBody(node)}</div>
       {selected && <div className="ivc-node-resize" onPointerDown={onResizePointerDown} />}
-      {/* 连线端口（右侧中部）：拖到目标节点连线；单击则新建一张卡片并自动连回来 */}
+      {/* 左侧入口标记：只是视觉提示，告诉用户「线会连到这里」，不可交互 */}
+      <span className="ivc-node-inport" aria-hidden="true" />
+      {/* 连线端口（右侧中部）：拖到目标节点任意位置即可连线；单击则新建一张卡片并自动连回来 */}
       <div
         className="ivc-node-port"
-        title="拖到目标节点连线 · 单击新建并自动连线"
+        title="从这里拖到另一张卡（拖到卡片任意位置都算）· 单击可新建并自动连线"
         onPointerDown={onPortPointerDown}
         data-port-from={node.id}
       />

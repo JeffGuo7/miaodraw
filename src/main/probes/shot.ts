@@ -1677,6 +1677,46 @@ export async function runScreenshotProbes(ctx: ProbeCtx): Promise<void> {
     console.log('[shot] canvas-connect:', r)
     check('canvas-connect', r)
   }
+  if (process.env.SHOT_CANVAS_CONNECT_BODY === '1') {
+    // 用户直觉探针：从源节点右侧端口拖到目标卡片**身上**松手，必须成连
+    // （此前只认端口圆，用户拖到卡片身上松手什么都不会发生 → "画布没法连线"）
+    const r = await w.webContents.executeJavaScript(
+      `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        document.querySelectorAll('.ant-menu-item')[1]?.click()
+        await sleep(1500)
+        const byText = (t) => [...document.querySelectorAll('.ivc-toolbar button, .ivc-topbar button')].find(b => b.textContent.includes(t))
+        const count = () => document.querySelectorAll('.ivc-connections > g > [data-connection-id]').length
+        const before = count()
+        byText('文本').click(); await sleep(400)
+        byText('出图').click(); await sleep(500)
+        const nodes = [...document.querySelectorAll('[data-node-id]')]
+        const textNode = nodes.find(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes('文本'))
+        const genNode = [...nodes].reverse().find(n => (n.querySelector('.ivc-node-title')?.textContent || '').includes('出图'))
+        if (!textNode || !genNode) return 'ERR: 节点未创建'
+        const port = textNode.querySelector('.ivc-node-port')
+        const pr = port.getBoundingClientRect()
+        const cx = pr.left + pr.width / 2
+        const cy = pr.top + pr.height / 2
+        const gr = genNode.getBoundingClientRect()
+        // 关键：松手点 = 目标卡片正中间（不是端口）
+        const tx = gr.left + gr.width / 2
+        const ty = gr.top + gr.height / 2
+        port.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 41, button: 0, buttons: 1 }))
+        await sleep(80)
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: tx, clientY: ty, pointerId: 41, buttons: 1 }))
+        await sleep(120)
+        const highlighted = genNode.className.includes('ivc-node-drop')
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: tx, clientY: ty, pointerId: 41, button: 0 }))
+        await sleep(350)
+        const after = count()
+        const ok = after === before + 1 && highlighted
+        return (ok ? 'OK:' : 'ERR:') + JSON.stringify({ before, after, highlighted, dropAt: 'node-center' })
+      })().catch(e => 'ERR:' + e.message)`
+    )
+    console.log('[shot] canvas-connect-body:', r)
+    check('canvas-connect-body', r)
+  }
   if (process.env.SHOT_CANVAS_QUICK === '1') {
     // 快速建图探针：单击连线端口 → 就地弹「新建」菜单 → 选「出图」→ 自动建节点并自动连线
     const r = await w.webContents.executeJavaScript(

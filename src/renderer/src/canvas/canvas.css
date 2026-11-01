@@ -211,39 +211,81 @@
 
 /* 连线端口：右侧中部小圆点（overflow 已放开，外侧不再被裁） */
 .ivc-node-port {
+  /* 屏幕恒定：世界层缩小时端口按 1/k 放大，保证缩到 30% 也能抓住 */
+  --ivc-port-size: calc(18px / max(var(--ivc-k, 1), 0.35));
   position: absolute;
-  right: -7px;
+  right: calc(var(--ivc-port-size) / -2);
   top: 50%;
   transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
+  width: var(--ivc-port-size);
+  height: var(--ivc-port-size);
   border-radius: 50%;
   background: #fff;
   border: 2px solid var(--brand);
   cursor: crosshair;
   z-index: 3;
+  /* 默认就带一圈淡光晕，让"这里可以拖出连线"看得见，不用靠 hover 猜 */
+  box-shadow: 0 0 0 4px var(--brand-soft);
   transition:
     transform 140ms ease,
     background 140ms ease,
     box-shadow 140ms ease;
 }
 
+/* 左侧入口标记：连线会落在这里（不可点，纯提示） */
+.ivc-node-inport {
+  --ivc-inport-size: calc(8px / max(var(--ivc-k, 1), 0.35));
+  position: absolute;
+  left: calc(var(--ivc-inport-size) / -2);
+  top: 50%;
+  width: var(--ivc-inport-size);
+  height: var(--ivc-inport-size);
+  margin-top: calc(var(--ivc-inport-size) / -2);
+  border-radius: 50%;
+  background: var(--brand);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ivc-node:hover .ivc-node-inport,
+.ivc-node-selected .ivc-node-inport {
+  opacity: 0.75;
+}
+
+/* 正在拖连线时：所有端口放大脉冲，明确告诉用户"松手到这里" */
+.ivc-root:has(.ivc-node-connecting) .ivc-node-port {
+  animation: ivc-port-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes ivc-port-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--brand-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 113, 227, 0.16);
+  }
+}
+
 /* 透明扩展热区（视觉尺寸不变，命中更稳） */
 .ivc-node-port::after {
   content: '';
   position: absolute;
+  /* 视觉 18px，命中 34px：手抖也能抓住 */
   inset: -8px;
   border-radius: 50%;
 }
 
 .ivc-node:hover .ivc-node-port,
 .ivc-node-selected .ivc-node-port {
-  box-shadow: 0 0 0 4px var(--brand-soft);
+  box-shadow: 0 0 0 6px rgba(0, 113, 227, 0.18);
 }
 
 .ivc-node-port:hover {
   background: var(--brand);
-  transform: translateY(-50%) scale(1.18);
+  transform: translateY(-50%) scale(1.22);
+  box-shadow: 0 0 0 8px rgba(0, 113, 227, 0.22);
 }
 
 /* 出图节点 */
